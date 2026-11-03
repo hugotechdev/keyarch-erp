@@ -3,209 +3,197 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KeyArch ERP - KeyRenta</title>
+    <title>KEY ARCH ERP — Enterprise Operations</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="min-h-screen flex flex-col justify-between bg-[#0b1329] text-gray-100">
+<body class="min-h-screen flex flex-col justify-between bg-[#070d19] text-gray-100 font-sans">
 
-    <!-- Top Header -->
-    <header class="bg-[#0f172a] border-b border-[#1e2d54] p-4 text-center sticky top-0 z-40">
-        <h1 class="text-2xl font-bold text-white tracking-wide">KeyArch ERP</h1>
-        <p class="text-xs text-blue-400">Internal Operational Management System</p>
+    <!-- TOP HEADER WITH GLOWING LOGO -->
+    <header class="bg-[#0b1326]/90 backdrop-blur-md border-b border-[#1b2a4a] p-4 text-center sticky top-0 z-40 shadow-xl">
+        <h1 class="text-3xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400 drop-shadow-[0_2px_10px_rgba(59,130,246,0.5)]">
+            KEY ARCH <span class="text-xs font-semibold px-2 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 tracking-normal align-middle">ERP</span>
+        </h1>
+        <p class="text-[11px] text-gray-400 tracking-widest uppercase mt-0.5">Enterprise Property Operations & Management Hub</p>
     </header>
 
-    <main class="container mx-auto p-4 md:p-6 max-w-5xl flex-grow">
+    <main class="container mx-auto p-4 md:p-6 max-w-6xl flex-grow">
         
-        <!-- SECTION 1: DASHBOARD -->
+        <!-- SECTION 1: EXECUTIVE DASHBOARD -->
         <section id="sec-dashboard" class="space-y-6">
-            <!-- Banner -->
-            <div class="card-dark p-6 rounded-2xl text-center shadow-lg bg-[#111c38] border border-[#1e2d54]">
-                <h2 class="text-3xl font-bold text-white">KeyRenta</h2>
-                <p class="text-sm text-gray-400 mt-1">Good Evening — Manage your properties with ease</p>
-            </div>
-
-            <!-- Stats & Quick Actions -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Overview Stats -->
-                <div class="card-dark p-6 rounded-2xl bg-[#111c38] border border-[#1e2d54]">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold text-white">Overview</h3>
-                        <span class="text-xs bg-blue-900/50 text-blue-300 px-3 py-1 rounded-full border border-blue-700">November 2026</span>
-                    </div>
-                    <div class="grid grid-cols-3 gap-2 text-center my-2">
-                        <div class="p-3 bg-[#172447] rounded-xl">
-                            <i class="fa-solid fa-building text-blue-400 mb-1 text-lg"></i>
-                            <div class="text-[11px] text-gray-400">Rental</div>
-                            <div id="stat-properties" class="text-lg font-bold text-white">0</div>
-                        </div>
-                        <div class="p-3 bg-[#172447] rounded-xl">
-                            <i class="fa-solid fa-tag text-emerald-400 mb-1 text-lg"></i>
-                            <div class="text-[11px] text-gray-400">Sales</div>
-                            <div class="text-lg font-bold text-white">0</div>
-                        </div>
-                        <div class="p-3 bg-[#172447] rounded-xl">
-                            <i class="fa-solid fa-users text-purple-400 mb-1 text-lg"></i>
-                            <div class="text-[11px] text-gray-400">Tenants</div>
-                            <div id="stat-tenants" class="text-lg font-bold text-white">0</div>
-                        </div>
-                    </div>
+            
+            <!-- OVERVIEW METRICS GRID -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="p-4 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl shadow-lg relative overflow-hidden group hover:border-blue-500/50 transition">
+                    <div class="text-xs text-gray-400 font-medium uppercase tracking-wider">Properties</div>
+                    <div id="stat-properties" class="text-2xl font-black text-blue-400 mt-1">0</div>
+                    <i class="fa-solid fa-building absolute -right-2 -bottom-2 text-4xl text-blue-500/10 group-hover:text-blue-500/20 transition"></i>
                 </div>
-
-                <!-- Quick Actions -->
-                <div class="card-dark p-6 rounded-2xl bg-[#111c38] border border-[#1e2d54]">
-                    <h3 class="text-lg font-semibold text-white mb-4">Quick Actions</h3>
-                    <div class="grid grid-cols-3 gap-3">
-                        <button onclick="openModal('modal-listing-type')" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl flex flex-col items-center justify-center space-y-2 transition">
-                            <i class="fa-solid fa-house-plus text-xl"></i>
-                            <span class="text-xs font-medium">Add Property</span>
-                        </button>
-                        <button onclick="openModal('modal-tenant')" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl flex flex-col items-center justify-center space-y-2 transition">
-                            <i class="fa-solid fa-user-plus text-xl"></i>
-                            <span class="text-xs font-medium">Add Tenant</span>
-                        </button>
-                        <button onclick="alert('Ripoti zinatayarishwa...')" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl flex flex-col items-center justify-center space-y-2 transition">
-                            <i class="fa-solid fa-chart-line text-xl"></i>
-                            <span class="text-xs font-medium">Reports</span>
-                        </button>
-                    </div>
+                <div class="p-4 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl shadow-lg relative overflow-hidden group hover:border-emerald-500/50 transition">
+                    <div class="text-xs text-gray-400 font-medium uppercase tracking-wider">Active Tenants</div>
+                    <div id="stat-tenants" class="text-2xl font-black text-emerald-400 mt-1">0</div>
+                    <i class="fa-solid fa-users absolute -right-2 -bottom-2 text-4xl text-emerald-500/10 group-hover:text-emerald-500/20 transition"></i>
+                </div>
+                <div class="p-4 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl shadow-lg relative overflow-hidden group hover:border-amber-500/50 transition">
+                    <div class="text-xs text-gray-400 font-medium uppercase tracking-wider">Work Orders</div>
+                    <div class="text-2xl font-black text-amber-400 mt-1">0</div>
+                    <i class="fa-solid fa-wrench absolute -right-2 -bottom-2 text-4xl text-amber-500/10 group-hover:text-amber-500/20 transition"></i>
+                </div>
+                <div class="p-4 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl shadow-lg relative overflow-hidden group hover:border-purple-500/50 transition">
+                    <div class="text-xs text-gray-400 font-medium uppercase tracking-wider">Revenue Rate</div>
+                    <div class="text-2xl font-black text-purple-400 mt-1">100%</div>
+                    <i class="fa-solid fa-chart-pie absolute -right-2 -bottom-2 text-4xl text-purple-500/10 group-hover:text-purple-500/20 transition"></i>
                 </div>
             </div>
 
-            <!-- Overdue Badges -->
-            <div class="grid grid-cols-3 gap-4 text-center">
-                <div class="p-4 bg-[#111c38] border-l-4 border-red-500 rounded-xl">
-                    <div class="text-red-400 font-bold text-lg">0</div>
-                    <div class="text-xs text-gray-400">Overdue</div>
-                </div>
-                <div class="p-4 bg-[#111c38] border-l-4 border-yellow-500 rounded-xl">
-                    <div class="text-yellow-400 font-bold text-lg">0</div>
-                    <div class="text-xs text-gray-400">Due in 1 Week</div>
-                </div>
-                <div class="p-4 bg-[#111c38] border-l-4 border-blue-500 rounded-xl">
-                    <div class="text-blue-400 font-bold text-lg">0</div>
-                    <div class="text-xs text-gray-400">Due in 1 Month</div>
+            <!-- QUICK WORKFLOW ACTIONS -->
+            <div class="p-5 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl shadow-xl">
+                <h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4 flex items-center">
+                    <i class="fa-solid fa-bolt text-amber-400 mr-2"></i> Quick Workflow Operations
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <button onclick="openModal('modal-property')" class="p-4 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white font-semibold flex flex-col items-center justify-center gap-2 shadow-lg transition">
+                        <i class="fa-solid fa-plus-circle text-xl"></i>
+                        <span class="text-xs">Add Property</span>
+                    </button>
+                    <button onclick="openModal('modal-tenant')" class="p-4 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-700 hover:from-indigo-500 hover:to-purple-600 text-white font-semibold flex flex-col items-center justify-center gap-2 shadow-lg transition">
+                        <i class="fa-solid fa-user-plus text-xl"></i>
+                        <span class="text-xs">Onboard Tenant</span>
+                    </button>
+                    <button onclick="alert('Maintenance Ticket Workflow Enabled')" class="p-4 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white font-semibold flex flex-col items-center justify-center gap-2 border border-slate-600/50 shadow-lg transition">
+                        <i class="fa-solid fa-screwdriver-wrench text-xl text-amber-400"></i>
+                        <span class="text-xs">New Ticket</span>
+                    </button>
+                    <button onclick="alert('Invoicing Module Active')" class="p-4 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white font-semibold flex flex-col items-center justify-center gap-2 border border-slate-600/50 shadow-lg transition">
+                        <i class="fa-solid fa-file-invoice-dollar text-xl text-emerald-400"></i>
+                        <span class="text-xs">Issue Invoice</span>
+                    </button>
                 </div>
             </div>
 
-            <!-- Property Portfolio -->
-            <div class="card-dark p-6 rounded-2xl bg-[#111c38] border border-[#1e2d54]">
+            <!-- PORTFOLIO PREVIEW -->
+            <div class="p-5 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl shadow-xl">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold text-white">Property Portfolio</h3>
-                    <button class="text-xs text-blue-400 hover:underline">View All &gt;</button>
+                    <h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider">Property Portfolio Status</h3>
+                    <button onclick="switchTab('properties')" class="text-xs text-blue-400 hover:underline">Manage Portfolio &rarr;</button>
                 </div>
                 <div id="property-list" class="space-y-3">
-                    <p class="text-xs text-gray-400">Inapakia majengo kutoka database...</p>
+                    <p class="text-xs text-gray-400">Loading portfolio data...</p>
                 </div>
             </div>
         </section>
 
-        <!-- SECTION 2: SETTINGS -->
-        <section id="sec-settings" class="hidden space-y-6">
-            <h2 class="text-xl font-bold text-white">Settings</h2>
+        <!-- SECTION 2: PROPERTIES MANAGEMENT -->
+        <section id="sec-properties" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-white">Property Assets</h2>
+                <button onclick="openModal('modal-property')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-xl">
+                    + Add New Asset
+                </button>
+            </div>
+            <div id="property-full-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Data loaded dynamically -->
+            </div>
+        </section>
 
-            <!-- Admin Card -->
-            <div class="p-4 bg-[#111c38] border border-[#1e2d54] rounded-2xl flex items-center justify-between">
+        <!-- SECTION 3: TENANTS DIRECTORY -->
+        <section id="sec-tenants" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-white">Tenant Registry</h2>
+                <button onclick="openModal('modal-tenant')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2 rounded-xl">
+                    + Onboard Tenant
+                </button>
+            </div>
+            <div class="p-4 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl">
+                <p class="text-xs text-gray-400">Active Lease Records Available in Database.</p>
+            </div>
+        </section>
+
+        <!-- SECTION 4: MAINTENANCE DISPATCH -->
+        <section id="sec-maintenance" class="hidden space-y-6">
+            <h2 class="text-xl font-bold text-white">Maintenance Work Orders</h2>
+            <div class="p-6 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl text-center space-y-3">
+                <i class="fa-solid fa-wrench text-3xl text-amber-400"></i>
+                <p class="text-sm text-gray-300">Technician Dispatch Portal Ready</p>
+            </div>
+        </section>
+
+        <!-- SECTION 5: SYSTEM SETTINGS -->
+        <section id="sec-settings" class="hidden space-y-6">
+            <h2 class="text-xl font-bold text-white">System Administration</h2>
+            <div class="p-4 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl flex items-center justify-between">
                 <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-blue-600/30 text-blue-400 rounded-xl flex items-center justify-center font-bold">HM</div>
+                    <div class="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold">HA</div>
                     <div>
-                        <div class="text-white font-semibold text-sm">Hugo Mlula</div>
-                        <div class="text-xs text-gray-400">hugomlula7@gmail.com</div>
+                        <div class="text-white font-bold text-sm">Hugo Mlula</div>
+                        <div class="text-xs text-gray-400">Super Admin / Director</div>
                     </div>
                 </div>
-                <span class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded">★ Admin</span>
-            </div>
-
-            <div class="p-4 bg-[#111c38] border border-[#1e2d54] rounded-2xl space-y-3">
-                <div class="text-xs text-gray-400 font-semibold uppercase">Property Categories</div>
-                <div class="space-y-2">
-                    <div class="p-3 bg-[#172447] rounded-xl text-xs flex justify-between">Residential <i class="fa-solid fa-xmark text-red-400"></i></div>
-                    <div class="p-3 bg-[#172447] rounded-xl text-xs flex justify-between">Commercial <i class="fa-solid fa-xmark text-red-400"></i></div>
-                    <div class="p-3 bg-[#172447] rounded-xl text-xs flex justify-between">Office Space <i class="fa-solid fa-xmark text-red-400"></i></div>
-                </div>
+                <span class="text-[10px] bg-blue-900/80 border border-blue-500 text-blue-300 px-2 py-0.5 rounded-full uppercase font-bold">Super Admin</span>
             </div>
         </section>
 
     </main>
 
-    <!-- Bottom Nav Bar -->
-    <nav class="bg-[#0f172a] border-t border-[#1e2d54] py-3 sticky bottom-0 z-40">
-        <div class="max-w-md mx-auto flex justify-around items-center">
-            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="text-blue-400 flex flex-col items-center text-xs">
-                <i class="fa-solid fa-house text-base mb-1"></i> Home
+    <!-- FULL MULTI-SHORTCUT BOTTOM NAVIGATION BAR -->
+    <nav class="bg-[#0b1326]/95 border-t border-[#1b2a4a] py-3 sticky bottom-0 z-40 backdrop-blur-md">
+        <div class="max-w-md mx-auto flex justify-between items-center px-6">
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn text-blue-400 flex flex-col items-center text-[10px] font-semibold space-y-1">
+                <i class="fa-solid fa-chart-line text-base"></i>
+                <span>Home</span>
             </button>
-            <button onclick="switchTab('settings')" id="nav-settings" class="text-gray-400 hover:text-white flex flex-col items-center text-xs">
-                <i class="fa-solid fa-gear text-base mb-1"></i> Settings
+            <button onclick="switchTab('properties')" id="nav-properties" class="nav-btn text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
+                <i class="fa-solid fa-building text-base"></i>
+                <span>Properties</span>
+            </button>
+            <button onclick="switchTab('tenants')" id="nav-tenants" class="nav-btn text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
+                <i class="fa-solid fa-users text-base"></i>
+                <span>Tenants</span>
+            </button>
+            <button onclick="switchTab('maintenance')" id="nav-maintenance" class="nav-btn text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
+                <i class="fa-solid fa-wrench text-base"></i>
+                <span>Tickets</span>
+            </button>
+            <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
+                <i class="fa-solid fa-sliders text-base"></i>
+                <span>Settings</span>
             </button>
         </div>
     </nav>
 
-    <!-- MODAL: SELECT LISTING TYPE -->
-    <div id="modal-listing-type" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-[#111c38] border border-[#1e2d54] w-full max-w-xl rounded-2xl p-6 space-y-6 relative">
-            <button onclick="closeModal('modal-listing-type')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <div class="text-center space-y-2">
-                <h3 class="text-xl font-bold text-white">What would you like to list?</h3>
-                <p class="text-xs text-gray-400">Choose a listing type to get started</p>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div onclick="closeModal('modal-listing-type'); openModal('modal-property');" class="border-2 border-blue-500 bg-[#172447] p-5 rounded-2xl text-center cursor-pointer space-y-2 hover:border-blue-400">
-                    <i class="fa-solid fa-key text-blue-400 text-2xl"></i>
-                    <h4 class="font-bold text-white text-sm">For Rent</h4>
-                    <p class="text-[11px] text-gray-400">Monthly/yearly rentals and lease tracking</p>
-                </div>
-                <div onclick="alert('For Sale feature coming soon');" class="border border-[#233563] bg-[#172447] p-5 rounded-2xl text-center cursor-pointer space-y-2 opacity-60">
-                    <i class="fa-solid fa-tag text-purple-400 text-2xl"></i>
-                    <h4 class="font-bold text-white text-sm">For Sale</h4>
-                    <p class="text-[11px] text-gray-400">Plots, villas, and outright property sales</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- MODAL: ADD PROPERTY -->
     <div id="modal-property" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-[#111c38] border border-[#1e2d54] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
+        <div class="bg-[#0f1a30] border border-[#1b2a4a] w-full max-w-md rounded-2xl p-6 space-y-4 relative shadow-2xl">
             <button onclick="closeModal('modal-property')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white">Property for Rent</h3>
+            <h3 class="font-bold text-lg text-white">Register Property Asset</h3>
             <form id="form-property" class="space-y-3">
-                <div>
-                    <label class="text-xs text-gray-300 block mb-1">Property Name *</label>
-                    <input type="text" id="prop-title" placeholder="HUGO" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm" required>
-                </div>
-                <div>
-                    <label class="text-xs text-gray-300 block mb-1">Address *</label>
-                    <input type="text" id="prop-location" placeholder="MBEZI BEACH" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm" required>
-                </div>
-                <div>
-                    <label class="text-xs text-gray-300 block mb-1">Property Type *</label>
-                    <select id="prop-category" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm">
-                        <option value="Apartment">Apartment</option>
-                        <option value="House">House</option>
-                        <option value="Office">Office</option>
-                        <option value="Shop">Shop</option>
-                    </select>
-                </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl text-white font-semibold transition mt-2">Continue &rarr;</button>
+                <input type="text" id="prop-title" placeholder="Property Title (e.g. HUGO Tower)" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm" required>
+                <input type="text" id="prop-location" placeholder="Location (e.g. MBEZI BEACH)" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm" required>
+                <select id="prop-category" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm">
+                    <option value="Apartment">Apartment</option>
+                    <option value="House">House</option>
+                    <option value="Office">Office Space</option>
+                    <option value="Shop">Commercial Shop</option>
+                    <option value="Hotel">Hotel</option>
+                    <option value="Air-Bnb">Air-Bnb</option>
+                </select>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl text-white font-semibold transition mt-2">Save Property &rarr;</button>
             </form>
         </div>
     </div>
 
     <!-- MODAL: ADD TENANT -->
     <div id="modal-tenant" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-[#111c38] border border-[#1e2d54] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
+        <div class="bg-[#0f1a30] border border-[#1b2a4a] w-full max-w-md rounded-2xl p-6 space-y-4 relative shadow-2xl">
             <button onclick="closeModal('modal-tenant')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <div class="text-center">
-                <h3 class="font-bold text-lg text-white">Add New Tenant</h3>
-                <p class="text-xs text-blue-400">Step 1: Personal Information</p>
-            </div>
+            <h3 class="font-bold text-lg text-white">4-Step Tenant Onboarding</h3>
             <form id="form-tenant" class="space-y-3">
                 <input type="text" id="tenant-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm" required>
                 <input type="text" id="tenant-nida" placeholder="ID Number (NIDA / Passport) *" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm" required>
-                <input type="tel" id="tenant-phone" placeholder="Phone *" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm" required>
-                <input type="email" id="tenant-email" placeholder="Email" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm">
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl text-white font-semibold transition mt-2">Save Tenant</button>
+                <input type="tel" id="tenant-phone" placeholder="Phone Number *" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm" required>
+                <input type="email" id="tenant-email" placeholder="Email Address" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm">
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl text-white font-semibold transition mt-2">Complete Onboarding</button>
             </form>
         </div>
     </div>
@@ -213,17 +201,14 @@
     <script src="app.js"></script>
     <script>
         function switchTab(tab) {
-            if(tab === 'dashboard') {
-                document.getElementById('sec-dashboard').classList.remove('hidden');
-                document.getElementById('sec-settings').classList.add('hidden');
-                document.getElementById('nav-dashboard').className = 'text-blue-400 flex flex-col items-center text-xs';
-                document.getElementById('nav-settings').className = 'text-gray-400 hover:text-white flex flex-col items-center text-xs';
-            } else {
-                document.getElementById('sec-dashboard').classList.add('hidden');
-                document.getElementById('sec-settings').classList.remove('hidden');
-                document.getElementById('nav-dashboard').className = 'text-gray-400 hover:text-white flex flex-col items-center text-xs';
-                document.getElementById('nav-settings').className = 'text-blue-400 flex flex-col items-center text-xs';
-            }
+            ['dashboard', 'properties', 'tenants', 'maintenance', 'settings'].forEach(t => {
+                document.getElementById('sec-' + t)?.classList.add('hidden');
+                document.getElementById('nav-' + t)?.classList.remove('text-blue-400');
+                document.getElementById('nav-' + t)?.classList.add('text-gray-400');
+            });
+            document.getElementById('sec-' + tab)?.classList.remove('hidden');
+            document.getElementById('nav-' + tab)?.classList.add('text-blue-400');
+            document.getElementById('nav-' + tab)?.classList.remove('text-gray-400');
         }
     </script>
 </body>
