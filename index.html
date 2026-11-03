@@ -3,197 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KEY ARCH ERP — Enterprise Operations</title>
+    <title>KEY ARCH ERP — Financial & Property Operations</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="min-h-screen flex flex-col justify-between bg-[#070d19] text-gray-100 font-sans">
+<body class="min-h-screen flex flex-col justify-between bg-[#060c18] text-gray-100 font-sans">
 
-    <!-- TOP HEADER WITH GLOWING LOGO -->
-    <header class="bg-[#0b1326]/90 backdrop-blur-md border-b border-[#1b2a4a] p-4 text-center sticky top-0 z-40 shadow-xl">
-        <h1 class="text-3xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400 drop-shadow-[0_2px_10px_rgba(59,130,246,0.5)]">
-            KEY ARCH <span class="text-xs font-semibold px-2 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 tracking-normal align-middle">ERP</span>
+    <!-- TOP GLOWING HEADER -->
+    <header class="bg-[#0a1224]/90 backdrop-blur-md border-b border-[#182848] p-4 text-center sticky top-0 z-40 shadow-2xl">
+        <h1 class="text-3xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
+            KEY ARCH <span class="text-xs font-semibold px-2 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 align-middle">ERP</span>
         </h1>
-        <p class="text-[11px] text-gray-400 tracking-widest uppercase mt-0.5">Enterprise Property Operations & Management Hub</p>
+        <p class="text-[11px] text-gray-400 tracking-widest uppercase mt-0.5">Enterprise Accounting & Property Management</p>
     </header>
 
     <main class="container mx-auto p-4 md:p-6 max-w-6xl flex-grow">
         
-        <!-- SECTION 1: EXECUTIVE DASHBOARD -->
+        <!-- SECTION 1: DASHBOARD & FINANCIAL OVERVIEW -->
         <section id="sec-dashboard" class="space-y-6">
             
-            <!-- OVERVIEW METRICS GRID -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="p-4 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl shadow-lg relative overflow-hidden group hover:border-blue-500/50 transition">
-                    <div class="text-xs text-gray-400 font-medium uppercase tracking-wider">Properties</div>
-                    <div id="stat-properties" class="text-2xl font-black text-blue-400 mt-1">0</div>
-                    <i class="fa-solid fa-building absolute -right-2 -bottom-2 text-4xl text-blue-500/10 group-hover:text-blue-500/20 transition"></i>
+            <!-- CONTRACT & DEBT REMINDERS BANNER -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-[#0d172d] border-l-4 border-red-500 rounded-2xl shadow-lg flex justify-between items-center">
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold uppercase">Mikataba Iliyopitiliza</div>
+                        <div id="rem-expired" class="text-2xl font-black text-red-400">0</div>
+                    </div>
+                    <i class="fa-solid fa-file-circle-exclamation text-red-500/30 text-3xl"></i>
                 </div>
-                <div class="p-4 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl shadow-lg relative overflow-hidden group hover:border-emerald-500/50 transition">
-                    <div class="text-xs text-gray-400 font-medium uppercase tracking-wider">Active Tenants</div>
-                    <div id="stat-tenants" class="text-2xl font-black text-emerald-400 mt-1">0</div>
-                    <i class="fa-solid fa-users absolute -right-2 -bottom-2 text-4xl text-emerald-500/10 group-hover:text-emerald-500/20 transition"></i>
+                <div class="p-4 bg-[#0d172d] border-l-4 border-amber-500 rounded-2xl shadow-lg flex justify-between items-center">
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold uppercase">Inaisha Wiki Hii</div>
+                        <div id="rem-week" class="text-2xl font-black text-amber-400">0</div>
+                    </div>
+                    <i class="fa-solid fa-clock-rotate-left text-amber-500/30 text-3xl"></i>
                 </div>
-                <div class="p-4 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl shadow-lg relative overflow-hidden group hover:border-amber-500/50 transition">
-                    <div class="text-xs text-gray-400 font-medium uppercase tracking-wider">Work Orders</div>
-                    <div class="text-2xl font-black text-amber-400 mt-1">0</div>
-                    <i class="fa-solid fa-wrench absolute -right-2 -bottom-2 text-4xl text-amber-500/10 group-hover:text-amber-500/20 transition"></i>
-                </div>
-                <div class="p-4 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl shadow-lg relative overflow-hidden group hover:border-purple-500/50 transition">
-                    <div class="text-xs text-gray-400 font-medium uppercase tracking-wider">Revenue Rate</div>
-                    <div class="text-2xl font-black text-purple-400 mt-1">100%</div>
-                    <i class="fa-solid fa-chart-pie absolute -right-2 -bottom-2 text-4xl text-purple-500/10 group-hover:text-purple-500/20 transition"></i>
+                <div class="p-4 bg-[#0d172d] border-l-4 border-blue-500 rounded-2xl shadow-lg flex justify-between items-center">
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold uppercase">Inaisha Mwezi Huu</div>
+                        <div id="rem-month" class="text-2xl font-black text-blue-400">0</div>
+                    </div>
+                    <i class="fa-solid fa-calendar-check text-blue-500/30 text-3xl"></i>
                 </div>
             </div>
 
-            <!-- QUICK WORKFLOW ACTIONS -->
-            <div class="p-5 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl shadow-xl">
-                <h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4 flex items-center">
-                    <i class="fa-solid fa-bolt text-amber-400 mr-2"></i> Quick Workflow Operations
+            <!-- FINANCIAL ACCOUNTS STATS -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-[11px] text-gray-400 font-medium uppercase">Total Income</div>
+                    <div id="stat-income" class="text-xl font-bold text-emerald-400 mt-1">TSH 0</div>
+                </div>
+                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-[11px] text-gray-400 font-medium uppercase">Total Expenses</div>
+                    <div id="stat-expense" class="text-xl font-bold text-red-400 mt-1">TSH 0</div>
+                </div>
+                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-[11px] text-gray-400 font-medium uppercase">Net Profit</div>
+                    <div id="stat-profit" class="text-xl font-bold text-blue-400 mt-1">TSH 0</div>
+                </div>
+                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-[11px] text-gray-400 font-medium uppercase">Maintenance Costs</div>
+                    <div id="stat-maint" class="text-xl font-bold text-amber-400 mt-1">TSH 0</div>
+                </div>
+            </div>
+
+            <!-- QUICK WORKFLOW OPERATIONS -->
+            <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl space-y-4">
+                <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center">
+                    <i class="fa-solid fa-cash-register text-emerald-400 mr-2"></i> Financial & Voucher Quick Actions
                 </h3>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <button onclick="openModal('modal-property')" class="p-4 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white font-semibold flex flex-col items-center justify-center gap-2 shadow-lg transition">
-                        <i class="fa-solid fa-plus-circle text-xl"></i>
-                        <span class="text-xs">Add Property</span>
+                    <button onclick="openModal('modal-income')" class="p-4 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-semibold flex flex-col items-center justify-center gap-2 shadow-lg hover:brightness-110 transition">
+                        <i class="fa-solid fa-hand-holding-dollar text-xl"></i>
+                        <span class="text-xs">Record Income</span>
                     </button>
-                    <button onclick="openModal('modal-tenant')" class="p-4 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-700 hover:from-indigo-500 hover:to-purple-600 text-white font-semibold flex flex-col items-center justify-center gap-2 shadow-lg transition">
-                        <i class="fa-solid fa-user-plus text-xl"></i>
-                        <span class="text-xs">Onboard Tenant</span>
+                    <button onclick="openModal('modal-luku')" class="p-4 rounded-xl bg-gradient-to-br from-amber-600 to-orange-700 text-white font-semibold flex flex-col items-center justify-center gap-2 shadow-lg hover:brightness-110 transition">
+                        <i class="fa-solid fa-bolt text-xl"></i>
+                        <span class="text-xs">Sell Luku Voucher</span>
                     </button>
-                    <button onclick="alert('Maintenance Ticket Workflow Enabled')" class="p-4 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white font-semibold flex flex-col items-center justify-center gap-2 border border-slate-600/50 shadow-lg transition">
-                        <i class="fa-solid fa-screwdriver-wrench text-xl text-amber-400"></i>
-                        <span class="text-xs">New Ticket</span>
+                    <button onclick="openModal('modal-expense')" class="p-4 rounded-xl bg-gradient-to-br from-red-600 to-rose-700 text-white font-semibold flex flex-col items-center justify-center gap-2 shadow-lg hover:brightness-110 transition">
+                        <i class="fa-solid fa-money-bill-transfer text-xl"></i>
+                        <span class="text-xs">Record Expense</span>
                     </button>
-                    <button onclick="alert('Invoicing Module Active')" class="p-4 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 text-white font-semibold flex flex-col items-center justify-center gap-2 border border-slate-600/50 shadow-lg transition">
-                        <i class="fa-solid fa-file-invoice-dollar text-xl text-emerald-400"></i>
-                        <span class="text-xs">Issue Invoice</span>
+                    <button onclick="openModal('modal-property')" class="p-4 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-semibold flex flex-col items-center justify-center gap-2 shadow-lg hover:brightness-110 transition">
+                        <i class="fa-solid fa-building-circle-check text-xl"></i>
+                        <span class="text-xs">Add Asset</span>
                     </button>
                 </div>
             </div>
 
-            <!-- PORTFOLIO PREVIEW -->
-            <div class="p-5 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl shadow-xl">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-sm font-bold text-gray-300 uppercase tracking-wider">Property Portfolio Status</h3>
-                    <button onclick="switchTab('properties')" class="text-xs text-blue-400 hover:underline">Manage Portfolio &rarr;</button>
-                </div>
-                <div id="property-list" class="space-y-3">
-                    <p class="text-xs text-gray-400">Loading portfolio data...</p>
-                </div>
-            </div>
         </section>
 
-        <!-- SECTION 2: PROPERTIES MANAGEMENT -->
-        <section id="sec-properties" class="hidden space-y-6">
-            <div class="flex justify-between items-center">
-                <h2 class="text-xl font-bold text-white">Property Assets</h2>
-                <button onclick="openModal('modal-property')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-xl">
-                    + Add New Asset
-                </button>
-            </div>
-            <div id="property-full-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Data loaded dynamically -->
-            </div>
-        </section>
-
-        <!-- SECTION 3: TENANTS DIRECTORY -->
-        <section id="sec-tenants" class="hidden space-y-6">
-            <div class="flex justify-between items-center">
-                <h2 class="text-xl font-bold text-white">Tenant Registry</h2>
-                <button onclick="openModal('modal-tenant')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-4 py-2 rounded-xl">
-                    + Onboard Tenant
-                </button>
-            </div>
-            <div class="p-4 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl">
-                <p class="text-xs text-gray-400">Active Lease Records Available in Database.</p>
-            </div>
-        </section>
-
-        <!-- SECTION 4: MAINTENANCE DISPATCH -->
-        <section id="sec-maintenance" class="hidden space-y-6">
-            <h2 class="text-xl font-bold text-white">Maintenance Work Orders</h2>
-            <div class="p-6 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl text-center space-y-3">
-                <i class="fa-solid fa-wrench text-3xl text-amber-400"></i>
-                <p class="text-sm text-gray-300">Technician Dispatch Portal Ready</p>
-            </div>
-        </section>
-
-        <!-- SECTION 5: SYSTEM SETTINGS -->
-        <section id="sec-settings" class="hidden space-y-6">
-            <h2 class="text-xl font-bold text-white">System Administration</h2>
-            <div class="p-4 bg-[#0f1a30] border border-[#1b2a4a] rounded-2xl flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold">HA</div>
-                    <div>
-                        <div class="text-white font-bold text-sm">Hugo Mlula</div>
-                        <div class="text-xs text-gray-400">Super Admin / Director</div>
+        <!-- SECTION 2: FINANCIAL ACCOUNTS LEDGER -->
+        <section id="sec-accounting" class="hidden space-y-6">
+            <h2 class="text-xl font-bold text-white">Financial Accounts & Ledger</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl space-y-3">
+                    <h3 class="font-bold text-emerald-400 text-sm border-b border-gray-700 pb-2">Vyanzo vya Mapato (Income Sources)</h3>
+                    <div class="text-xs text-gray-300 space-y-2">
+                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Rent Collection</span> <span class="font-bold text-white">Active</span></div>
+                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Luku / Meter Vouchers</span> <span class="font-bold text-white">Active</span></div>
+                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Service Charges</span> <span class="font-bold text-white">Active</span></div>
+                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Property Sales</span> <span class="font-bold text-white">Active</span></div>
                     </div>
                 </div>
-                <span class="text-[10px] bg-blue-900/80 border border-blue-500 text-blue-300 px-2 py-0.5 rounded-full uppercase font-bold">Super Admin</span>
+                <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl space-y-3">
+                    <h3 class="font-bold text-red-400 text-sm border-b border-gray-700 pb-2">Aina za Matumizi (Expense Accounts)</h3>
+                    <div class="text-xs text-gray-300 space-y-2">
+                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Maintenance & Repairs</span> <span class="font-bold text-white">Active</span></div>
+                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Bulk Utility Purchase (TANESCO)</span> <span class="font-bold text-white">Active</span></div>
+                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Staff Salaries & Taxes</span> <span class="font-bold text-white">Active</span></div>
+                    </div>
+                </div>
             </div>
         </section>
 
     </main>
 
-    <!-- FULL MULTI-SHORTCUT BOTTOM NAVIGATION BAR -->
-    <nav class="bg-[#0b1326]/95 border-t border-[#1b2a4a] py-3 sticky bottom-0 z-40 backdrop-blur-md">
+    <!-- BOTTOM NAVIGATION -->
+    <nav class="bg-[#0a1224]/95 border-t border-[#182848] py-3 sticky bottom-0 z-40 backdrop-blur-md">
         <div class="max-w-md mx-auto flex justify-between items-center px-6">
-            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn text-blue-400 flex flex-col items-center text-[10px] font-semibold space-y-1">
-                <i class="fa-solid fa-chart-line text-base"></i>
-                <span>Home</span>
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="text-blue-400 flex flex-col items-center text-[10px] font-semibold space-y-1">
+                <i class="fa-solid fa-chart-line text-base"></i><span>Home</span>
             </button>
-            <button onclick="switchTab('properties')" id="nav-properties" class="nav-btn text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
-                <i class="fa-solid fa-building text-base"></i>
-                <span>Properties</span>
+            <button onclick="switchTab('accounting')" id="nav-accounting" class="text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
+                <i class="fa-solid fa-wallet text-base"></i><span>Accounts</span>
             </button>
-            <button onclick="switchTab('tenants')" id="nav-tenants" class="nav-btn text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
-                <i class="fa-solid fa-users text-base"></i>
-                <span>Tenants</span>
+            <button onclick="alert('Properties Portal')" class="text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
+                <i class="fa-solid fa-building text-base"></i><span>Properties</span>
             </button>
-            <button onclick="switchTab('maintenance')" id="nav-maintenance" class="nav-btn text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
-                <i class="fa-solid fa-wrench text-base"></i>
-                <span>Tickets</span>
-            </button>
-            <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
-                <i class="fa-solid fa-sliders text-base"></i>
-                <span>Settings</span>
+            <button onclick="alert('Tenants Directory')" class="text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
+                <i class="fa-solid fa-users text-base"></i><span>Tenants</span>
             </button>
         </div>
     </nav>
 
-    <!-- MODAL: ADD PROPERTY -->
-    <div id="modal-property" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-[#0f1a30] border border-[#1b2a4a] w-full max-w-md rounded-2xl p-6 space-y-4 relative shadow-2xl">
-            <button onclick="closeModal('modal-property')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white">Register Property Asset</h3>
-            <form id="form-property" class="space-y-3">
-                <input type="text" id="prop-title" placeholder="Property Title (e.g. HUGO Tower)" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm" required>
-                <input type="text" id="prop-location" placeholder="Location (e.g. MBEZI BEACH)" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm" required>
-                <select id="prop-category" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm">
-                    <option value="Apartment">Apartment</option>
-                    <option value="House">House</option>
-                    <option value="Office">Office Space</option>
-                    <option value="Shop">Commercial Shop</option>
-                    <option value="Hotel">Hotel</option>
-                    <option value="Air-Bnb">Air-Bnb</option>
+    <!-- MODAL: RECORD INCOME / LUKU VOUCHER -->
+    <div id="modal-income" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
+            <button onclick="closeModal('modal-income')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white">Record Income Transaction</h3>
+            <form id="form-income" class="space-y-3">
+                <select id="inc-source" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm">
+                    <option value="Rent">Rent Collection</option>
+                    <option value="Luku Voucher">Luku Voucher Sale</option>
+                    <option value="Service Charge">Service Charge</option>
+                    <option value="Property Sale">Property Sale</option>
                 </select>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl text-white font-semibold transition mt-2">Save Property &rarr;</button>
+                <input type="number" id="inc-amount" placeholder="Amount (TSH) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm" required>
+                <select id="inc-method" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm">
+                    <option value="Mobile Money">Mobile Money (M-Pesa / TigoPesa)</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="Cash">Cash</option>
+                </select>
+                <input type="text" id="inc-ref" placeholder="Payment Ref Code (e.g. MPESA123)" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm">
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl text-white font-semibold">Save Income Transaction</button>
             </form>
         </div>
     </div>
 
-    <!-- MODAL: ADD TENANT -->
-    <div id="modal-tenant" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-[#0f1a30] border border-[#1b2a4a] w-full max-w-md rounded-2xl p-6 space-y-4 relative shadow-2xl">
-            <button onclick="closeModal('modal-tenant')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white">4-Step Tenant Onboarding</h3>
-            <form id="form-tenant" class="space-y-3">
-                <input type="text" id="tenant-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm" required>
-                <input type="text" id="tenant-nida" placeholder="ID Number (NIDA / Passport) *" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm" required>
-                <input type="tel" id="tenant-phone" placeholder="Phone Number *" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm" required>
-                <input type="email" id="tenant-email" placeholder="Email Address" class="w-full p-3 rounded-xl bg-[#172447] border border-[#233563] text-white text-sm">
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl text-white font-semibold transition mt-2">Complete Onboarding</button>
+    <!-- MODAL: RECORD EXPENSE -->
+    <div id="modal-expense" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
+            <button onclick="closeModal('modal-expense')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white">Record Expense</h3>
+            <form id="form-expense" class="space-y-3">
+                <select id="exp-category" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm">
+                    <option value="Maintenance">Maintenance & Repairs</option>
+                    <option value="Bulk Luku Purchase">TANESCO Bulk Luku Purchase</option>
+                    <option value="Salaries">Staff Salaries</option>
+                    <option value="Taxes">Taxes & Licenses</option>
+                </select>
+                <input type="number" id="exp-amount" placeholder="Amount (TSH) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm" required>
+                <input type="text" id="exp-paidto" placeholder="Paid To (e.g. Fundi / TANESCO)" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm" required>
+                <button type="submit" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-xl text-white font-semibold">Save Expense Entry</button>
             </form>
         </div>
     </div>
@@ -201,15 +185,13 @@
     <script src="app.js"></script>
     <script>
         function switchTab(tab) {
-            ['dashboard', 'properties', 'tenants', 'maintenance', 'settings'].forEach(t => {
+            ['dashboard', 'accounting'].forEach(t => {
                 document.getElementById('sec-' + t)?.classList.add('hidden');
-                document.getElementById('nav-' + t)?.classList.remove('text-blue-400');
-                document.getElementById('nav-' + t)?.classList.add('text-gray-400');
             });
             document.getElementById('sec-' + tab)?.classList.remove('hidden');
-            document.getElementById('nav-' + tab)?.classList.add('text-blue-400');
-            document.getElementById('nav-' + tab)?.classList.remove('text-gray-400');
         }
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
     </script>
 </body>
 </html>

@@ -19,86 +19,88 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 1. DASHBOARD STATISTICS API
-app.get('/api/stats', async (req, res) => {
+// 1. DASHBOARD & CONTRACT REMINDERS API
+app.get('/api/dashboard/summary', async (req, res) => {
     try {
-        const propertiesCount = await pool.query('SELECT COUNT(*) FROM properties');
-        const tenantsCount = await pool.query('SELECT COUNT(*) FROM tenants');
-        const workOrdersCount = await pool.query("SELECT COUNT(*) FROM work_orders WHERE status = 'Pending'");
-        const overdueInvoices = await pool.query("SELECT COUNT(*) FROM invoices WHERE status = 'Overdue'");
+        const totalProperties = await pool.query('SELECT COUNT(*) FROM properties');
+        const totalTenants = await pool.query('SELECT COUNT(*) FROM tenants');
+        
+        // Income & Expense Totals
+        const totalIncome = await pool.query('SELECT COALESCE(SUM(amount), 0) AS total FROM income_ledger');
+        const totalExpense = await pool.query('SELECT COALESCE(SUM(amount), 0) AS total FROM expense_ledger');
+        const maintenanceCosts = await pool.query('SELECT COALESCE(SUM(total_cost), 0) AS total FROM work_orders');
+
+        // Contract Expiration Reminders
+        const expiredLeases = await pool.query("SELECT COUNT(*) FROM leases WHERE end_date < CURRENT_DATE AND status = 'Active'");
+        const expiringThisWeek = await pool.query("SELECT COUNT(*) FROM leases WHERE end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'");
+        const expiringThisMonth = await pool.query("SELECT COUNT(*) FROM leases WHERE end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'");
 
         res.json({
-            properties: parseInt(propertiesCount.rows[0].count),
-            tenants: parseInt(tenantsCount.rows[0].count),
-            work_orders: parseInt(workOrdersCount.rows[0].count),
-            overdue_invoices: parseInt(overdueInvoices.rows[0].count)
+            properties: parseInt(totalProperties.rows[0].count),
+            tenants: parseInt(totalTenants.rows[0].count),
+            financials: {
+                total_income: parseFloat(totalIncome.rows[0].total),
+                total_expense: parseFloat(totalExpense.rows[0].total),
+                net_profit: parseFloat(totalIncome.rows[0].total) - parseFloat(totalExpense.rows[0].total),
+                maintenance_cost: parseFloat(maintenanceCosts.rows[0].total)
+            },
+            reminders: {
+                expired: parseInt(expiredLeases.rows[0].count),
+                expiring_week: parseInt(expiringThisWeek.rows[0].count),
+                expiring_month: parseInt(expiringThisMonth.rows[0].count)
+            }
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 2. PROPERTY MANAGEMENT API
-app.get('/api/properties', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT * FROM properties ORDER BY created_at DESC');
-        res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post('/api/properties', async (req, res) => {
-    const { title, location, category, transaction_type, total_units } = req.body;
+// 2. RECORD INCOME (Rent, Luku Vouchers, Service Charges, Sales)
+app.post('/api/accounting/income', async (req, res) => {
+    const { property_id, tenant_id, account_id, source_type, amount, payment_method, reference_no, description } = req.body;
     try {
         const result = await pool.query(
-            'INSERT INTO properties (title, location, category, transaction_type, total_units) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [title, location, category, transaction_type || 'For Rent', total_units || 1]
+            'INSERT INTO income_ledger (property_id, tenant_id, account_id, source_type, amount, payment_method, reference_no, description) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            [property_id, tenant_id, account_id, source_type, amount, payment_method, reference_no, description]
         );
         // Log Audit
-        await pool.query('INSERT INTO audit_logs (action_executed) VALUES ($1)', [`Added Property: ${title}`]);
+        await pool.query('INSERT INTO audit_logs (action_executed) VALUES ($1)', [`Recorded Income: ${source_type} - TSH ${amount}`]);
         res.status(201).json(result.rows[0]);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 3. TENANT MANAGEMENT API
-app.post('/api/tenants', async (req, res) => {
-    const { full_name, identity_type, identity_number, phone_number, email } = req.body;
+// 3. RECORD EXPENSE (Maintenance, Utilities, Operational Costs)
+app.post('/api/accounting/expense', async (req, res) => {
+    const { property_id, account_id, category, amount, paid_to, payment_method, description } = req.body;
     try {
         const result = await pool.query(
-            'INSERT INTO tenants (full_name, identity_type, identity_number, phone_number, email) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [full_name, identity_type || 'NIDA', identity_number, phone_number, email]
+            'INSERT INTO expense_ledger (property_id, account_id, category, amount, paid_to, payment_method, description) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [property_id, account_id, category, amount, paid_to, payment_method, description]
         );
         // Log Audit
-        await pool.query('INSERT INTO audit_logs (action_executed) VALUES ($1)', [`Onboarded Tenant: ${full_name}`]);
+        await pool.query('INSERT INTO audit_logs (action_executed) VALUES ($1)', [`Recorded Expense: ${category} - TSH ${amount}`]);
         res.status(201).json(result.rows[0]);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 4. MAINTENANCE TICKETS API
-app.get('/api/work-orders', async (req, res) => {
+// 4. FETCH FINANCIAL REPORT (Accounts Overview)
+app.get('/api/accounting/report', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM work_orders ORDER BY created_at DESC');
-        res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// 5. AUDIT LOGS API
-app.get('/api/audit-logs', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 20');
-        res.json(result.rows);
+        const incomeBySource = await pool.query('SELECT source_type, SUM(amount) as total FROM income_ledger GROUP BY source_type');
+        const expensesByCategory = await pool.query('SELECT category, SUM(amount) as total FROM expense_ledger GROUP BY category');
+        res.json({
+            income_breakdown: incomeBySource.rows,
+            expense_breakdown: expensesByCategory.rows
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
 app.listen(PORT, () => {
-    console.log(`KEY ARCH ERP Server running on port ${PORT}`);
+    console.log(`KEY ARCH ERP Accounting Server running on port ${PORT}`);
 });
