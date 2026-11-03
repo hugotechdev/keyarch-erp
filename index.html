@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KEY ARCH ERP — Financial & Property Operations</title>
+    <title>KEY ARCH ERP — All-in-One Operations</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
@@ -15,15 +15,15 @@
         <h1 class="text-3xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
             KEY ARCH <span class="text-xs font-semibold px-2 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 align-middle">ERP</span>
         </h1>
-        <p class="text-[11px] text-gray-400 tracking-widest uppercase mt-0.5">Enterprise Accounting & Property Management</p>
+        <p class="text-[11px] text-gray-400 tracking-widest uppercase mt-0.5">Property Operations & ERP Ecosystem</p>
     </header>
 
     <main class="container mx-auto p-4 md:p-6 max-w-6xl flex-grow">
         
-        <!-- SECTION 1: DASHBOARD & FINANCIAL OVERVIEW -->
+        <!-- ALL-IN-ONE DASHBOARD -->
         <section id="sec-dashboard" class="space-y-6">
             
-            <!-- CONTRACT & DEBT REMINDERS BANNER -->
+            <!-- 1. TOP SECTION: CONTRACT REMINDERS -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="p-4 bg-[#0d172d] border-l-4 border-red-500 rounded-2xl shadow-lg flex justify-between items-center">
                     <div>
@@ -48,148 +48,113 @@
                 </div>
             </div>
 
-            <!-- FINANCIAL ACCOUNTS STATS -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                    <div class="text-[11px] text-gray-400 font-medium uppercase">Total Income</div>
-                    <div id="stat-income" class="text-xl font-bold text-emerald-400 mt-1">TSH 0</div>
+            <!-- 2. SECOND SECTION: METRICS GRID -->
+            <div class="grid grid-cols-2 md:grid-cols-6 gap-3 text-center">
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-[10px] text-gray-400 uppercase">Properties</div>
+                    <div id="stat-properties" class="text-lg font-bold text-blue-400">0</div>
                 </div>
-                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                    <div class="text-[11px] text-gray-400 font-medium uppercase">Total Expenses</div>
-                    <div id="stat-expense" class="text-xl font-bold text-red-400 mt-1">TSH 0</div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-[10px] text-gray-400 uppercase">Tenants</div>
+                    <div id="stat-tenants" class="text-lg font-bold text-emerald-400">0</div>
                 </div>
-                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                    <div class="text-[11px] text-gray-400 font-medium uppercase">Net Profit</div>
-                    <div id="stat-profit" class="text-xl font-bold text-blue-400 mt-1">TSH 0</div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-[10px] text-gray-400 uppercase">Open Tickets</div>
+                    <div id="stat-tickets" class="text-lg font-bold text-amber-400">0</div>
                 </div>
-                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                    <div class="text-[11px] text-gray-400 font-medium uppercase">Maintenance Costs</div>
-                    <div id="stat-maint" class="text-xl font-bold text-amber-400 mt-1">TSH 0</div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-[10px] text-gray-400 uppercase">Total Income</div>
+                    <div id="stat-income" class="text-sm font-bold text-emerald-400">TZS 0</div>
+                </div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-[10px] text-gray-400 uppercase">Total Expense</div>
+                    <div id="stat-expense" class="text-sm font-bold text-red-400">TZS 0</div>
+                </div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-[10px] text-gray-400 uppercase">Net Profit</div>
+                    <div id="stat-profit" class="text-sm font-bold text-cyan-400">TZS 0</div>
                 </div>
             </div>
 
-            <!-- QUICK WORKFLOW OPERATIONS -->
+            <!-- 3. THIRD SECTION: CENTRAL ACTION HUB -->
             <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl space-y-4">
                 <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center">
-                    <i class="fa-solid fa-cash-register text-emerald-400 mr-2"></i> Financial & Voucher Quick Actions
+                    <i class="fa-solid fa-bolt text-amber-400 mr-2"></i> Central Workflow Actions
                 </h3>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <button onclick="openModal('modal-income')" class="p-4 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-semibold flex flex-col items-center justify-center gap-2 shadow-lg hover:brightness-110 transition">
-                        <i class="fa-solid fa-hand-holding-dollar text-xl"></i>
-                        <span class="text-xs">Record Income</span>
+                    <button onclick="openModal('modal-property')" class="p-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-plus-circle"></i> Add Property
                     </button>
-                    <button onclick="openModal('modal-luku')" class="p-4 rounded-xl bg-gradient-to-br from-amber-600 to-orange-700 text-white font-semibold flex flex-col items-center justify-center gap-2 shadow-lg hover:brightness-110 transition">
-                        <i class="fa-solid fa-bolt text-xl"></i>
-                        <span class="text-xs">Sell Luku Voucher</span>
+                    <button onclick="openModal('modal-tenant')" class="p-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-user-plus"></i> Onboard Tenant
                     </button>
-                    <button onclick="openModal('modal-expense')" class="p-4 rounded-xl bg-gradient-to-br from-red-600 to-rose-700 text-white font-semibold flex flex-col items-center justify-center gap-2 shadow-lg hover:brightness-110 transition">
-                        <i class="fa-solid fa-money-bill-transfer text-xl"></i>
-                        <span class="text-xs">Record Expense</span>
+                    <button onclick="openModal('modal-payment')" class="p-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-hand-holding-dollar"></i> Record Income
                     </button>
-                    <button onclick="openModal('modal-property')" class="p-4 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-semibold flex flex-col items-center justify-center gap-2 shadow-lg hover:brightness-110 transition">
-                        <i class="fa-solid fa-building-circle-check text-xl"></i>
-                        <span class="text-xs">Add Asset</span>
+                    <button onclick="openModal('modal-luku')" class="p-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-bolt"></i> Sell Luku Voucher
+                    </button>
+                    <button onclick="openModal('modal-expense')" class="p-3 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-money-bill-transfer"></i> Record Expense
+                    </button>
+                    <button onclick="openModal('modal-ticket')" class="p-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-wrench text-amber-400"></i> New Ticket
+                    </button>
+                    <button onclick="alert('PDF Invoice Module Active')" class="p-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-file-invoice text-emerald-400"></i> Issue Invoice
                     </button>
                 </div>
             </div>
 
-        </section>
-
-        <!-- SECTION 2: FINANCIAL ACCOUNTS LEDGER -->
-        <section id="sec-accounting" class="hidden space-y-6">
-            <h2 class="text-xl font-bold text-white">Financial Accounts & Ledger</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl space-y-3">
-                    <h3 class="font-bold text-emerald-400 text-sm border-b border-gray-700 pb-2">Vyanzo vya Mapato (Income Sources)</h3>
-                    <div class="text-xs text-gray-300 space-y-2">
-                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Rent Collection</span> <span class="font-bold text-white">Active</span></div>
-                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Luku / Meter Vouchers</span> <span class="font-bold text-white">Active</span></div>
-                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Service Charges</span> <span class="font-bold text-white">Active</span></div>
-                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Property Sales</span> <span class="font-bold text-white">Active</span></div>
-                    </div>
-                </div>
-                <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl space-y-3">
-                    <h3 class="font-bold text-red-400 text-sm border-b border-gray-700 pb-2">Aina za Matumizi (Expense Accounts)</h3>
-                    <div class="text-xs text-gray-300 space-y-2">
-                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Maintenance & Repairs</span> <span class="font-bold text-white">Active</span></div>
-                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Bulk Utility Purchase (TANESCO)</span> <span class="font-bold text-white">Active</span></div>
-                        <div class="flex justify-between p-2 bg-[#14223d] rounded-lg"><span>Staff Salaries & Taxes</span> <span class="font-bold text-white">Active</span></div>
-                    </div>
-                </div>
-            </div>
         </section>
 
     </main>
 
-    <!-- BOTTOM NAVIGATION -->
+    <!-- 5. BOTTOM NAVIGATION BAR -->
     <nav class="bg-[#0a1224]/95 border-t border-[#182848] py-3 sticky bottom-0 z-40 backdrop-blur-md">
-        <div class="max-w-md mx-auto flex justify-between items-center px-6">
-            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="text-blue-400 flex flex-col items-center text-[10px] font-semibold space-y-1">
-                <i class="fa-solid fa-chart-line text-base"></i><span>Home</span>
-            </button>
-            <button onclick="switchTab('accounting')" id="nav-accounting" class="text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
-                <i class="fa-solid fa-wallet text-base"></i><span>Accounts</span>
-            </button>
-            <button onclick="alert('Properties Portal')" class="text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
-                <i class="fa-solid fa-building text-base"></i><span>Properties</span>
-            </button>
-            <button onclick="alert('Tenants Directory')" class="text-gray-400 hover:text-white flex flex-col items-center text-[10px] font-semibold space-y-1">
-                <i class="fa-solid fa-users text-base"></i><span>Tenants</span>
-            </button>
+        <div class="max-w-md mx-auto flex justify-between items-center px-6 text-[10px] font-semibold text-gray-400">
+            <button class="text-blue-400 flex flex-col items-center"><i class="fa-solid fa-chart-line text-base mb-1"></i>Home</button>
+            <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-building text-base mb-1"></i>Properties</button>
+            <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-users text-base mb-1"></i>Tenants</button>
+            <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-wallet text-base mb-1"></i>Accounts</button>
+            <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-wrench text-base mb-1"></i>Tickets</button>
+            <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-sliders text-base mb-1"></i>Settings</button>
         </div>
     </nav>
 
-    <!-- MODAL: RECORD INCOME / LUKU VOUCHER -->
-    <div id="modal-income" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
-            <button onclick="closeModal('modal-income')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white">Record Income Transaction</h3>
-            <form id="form-income" class="space-y-3">
-                <select id="inc-source" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm">
-                    <option value="Rent">Rent Collection</option>
-                    <option value="Luku Voucher">Luku Voucher Sale</option>
-                    <option value="Service Charge">Service Charge</option>
-                    <option value="Property Sale">Property Sale</option>
+    <!-- MODAL 1: ADD PROPERTY -->
+    <div id="modal-property" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-3 relative">
+            <button onclick="closeModal('modal-property')" class="absolute top-4 right-4 text-gray-400">&times;</button>
+            <h3 class="font-bold text-white text-sm">Register Property</h3>
+            <form id="form-property" class="space-y-2">
+                <input type="text" id="prop-name" placeholder="Property Name *" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" id="prop-address" placeholder="Address *" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <select id="prop-category" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="RESIDENTIAL">RESIDENTIAL</option>
+                    <option value="COMMERCIAL">COMMERCIAL</option>
+                    <option value="OFFICE_SPACE">OFFICE_SPACE</option>
                 </select>
-                <input type="number" id="inc-amount" placeholder="Amount (TSH) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm" required>
-                <select id="inc-method" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm">
-                    <option value="Mobile Money">Mobile Money (M-Pesa / TigoPesa)</option>
-                    <option value="Bank Transfer">Bank Transfer</option>
-                    <option value="Cash">Cash</option>
-                </select>
-                <input type="text" id="inc-ref" placeholder="Payment Ref Code (e.g. MPESA123)" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm">
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl text-white font-semibold">Save Income Transaction</button>
+                <button type="submit" class="w-full bg-blue-600 py-2.5 rounded-xl text-white text-xs font-bold">Save Property</button>
             </form>
         </div>
     </div>
 
-    <!-- MODAL: RECORD EXPENSE -->
-    <div id="modal-expense" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
-            <button onclick="closeModal('modal-expense')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white">Record Expense</h3>
-            <form id="form-expense" class="space-y-3">
-                <select id="exp-category" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm">
-                    <option value="Maintenance">Maintenance & Repairs</option>
-                    <option value="Bulk Luku Purchase">TANESCO Bulk Luku Purchase</option>
-                    <option value="Salaries">Staff Salaries</option>
-                    <option value="Taxes">Taxes & Licenses</option>
-                </select>
-                <input type="number" id="exp-amount" placeholder="Amount (TSH) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm" required>
-                <input type="text" id="exp-paidto" placeholder="Paid To (e.g. Fundi / TANESCO)" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-sm" required>
-                <button type="submit" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-xl text-white font-semibold">Save Expense Entry</button>
+    <!-- MODAL 2: SELL LUKU VOUCHER -->
+    <div id="modal-luku" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-3 relative">
+            <button onclick="closeModal('modal-luku')" class="absolute top-4 right-4 text-gray-400">&times;</button>
+            <h3 class="font-bold text-white text-sm">Sell Luku Voucher</h3>
+            <form id="form-luku" class="space-y-2">
+                <input type="number" id="luku-amount" placeholder="Amount (TZS) *" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" id="luku-token" placeholder="Luku Token Number *" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-amber-600 py-2.5 rounded-xl text-white text-xs font-bold">Issue Luku Voucher</button>
             </form>
         </div>
     </div>
 
     <script src="app.js"></script>
     <script>
-        function switchTab(tab) {
-            ['dashboard', 'accounting'].forEach(t => {
-                document.getElementById('sec-' + t)?.classList.add('hidden');
-            });
-            document.getElementById('sec-' + tab)?.classList.remove('hidden');
-        }
         function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
     </script>
