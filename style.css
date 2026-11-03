@@ -1,0 +1,21 @@
+body {
+    background-color: #0b1329;
+    color: #f3f4f6;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card-dark {
+    background-color: #111c38;
+    border: 1px solid #1e2d54;
+}
+
+.input-dark {
+    background-color: #172447;
+    border: 1px solid #233563;
+    color: #ffffff;
+}
+
+.input-dark:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
