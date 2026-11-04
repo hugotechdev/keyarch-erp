@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KEY ARCH ERP — System Access & Operations</title>
+    <title>KEY ARCH ERP — Enterprise Operations System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
@@ -36,13 +36,15 @@
                 </button>
             </form>
             <div class="text-center text-[11px] text-gray-500">
-                Default Credentials: <span class="text-gray-300 font-mono">admin@keyarch.co.tz</span> / <span class="text-gray-300 font-mono">Admin@2026</span>
+                Default Access: <span class="text-gray-300 font-mono">admin@keyarch.co.tz</span> / <span class="text-gray-300 font-mono">Admin@2026</span>
             </div>
         </div>
     </div>
 
-    <!-- VIEW 2: MAIN DASHBOARD -->
+    <!-- VIEW 2: MAIN SYSTEM DASHBOARD -->
     <div id="view-app" class="hidden flex-col min-h-screen justify-between">
+        
+        <!-- HEADER -->
         <header class="bg-[#0a1224]/90 backdrop-blur-md border-b border-[#182848] px-6 py-4 sticky top-0 z-40 shadow-2xl flex justify-between items-center">
             <div class="flex items-center space-x-3">
                 <span id="user-role-badge" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-900/80 border border-blue-500 text-blue-300 uppercase">SUPER_ADMIN</span>
@@ -58,62 +60,88 @@
             </button>
         </header>
 
+        <!-- MAIN WORKSPACE CONTENT -->
         <main class="container mx-auto p-4 md:p-6 max-w-6xl flex-grow">
-            <!-- DASHBOARD SECTION -->
-            <section id="sec-dashboard" class="space-y-6">
-                <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-white">System Operations Center</h2>
-                        <p class="text-xs text-gray-400">Manage properties, tenants, and team roles securely.</p>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="openModal('modal-property')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg">
-                            <i class="fa-solid fa-building-circle-check"></i> + Add Property Asset
-                        </button>
-                        <button id="btn-admin-register" onclick="openModal('modal-register')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg">
-                            <i class="fa-solid fa-user-plus"></i> + Register Staff
-                        </button>
-                    </div>
+            
+            <!-- TOP ACTION BAR -->
+            <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                    <h2 id="active-section-title" class="text-lg font-bold text-white">System Operations Center</h2>
+                    <p class="text-xs text-gray-400">Complete property, tenant, and financial control hub.</p>
                 </div>
-
-                <!-- METRICS -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                    <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                        <div class="text-xs text-gray-400 uppercase">Properties</div>
-                        <div id="stat-properties" class="text-2xl font-bold text-blue-400">0</div>
-                    </div>
-                    <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                        <div class="text-xs text-gray-400 uppercase">Active Tenants</div>
-                        <div id="stat-tenants" class="text-2xl font-bold text-emerald-400">0</div>
-                    </div>
-                    <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                        <div class="text-xs text-gray-400 uppercase">Open Tickets</div>
-                        <div class="text-2xl font-bold text-amber-400">0</div>
-                    </div>
-                    <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                        <div class="text-xs text-gray-400 uppercase">System Status</div>
-                        <div class="text-2xl font-bold text-cyan-400">ONLINE</div>
-                    </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="openModal('modal-property')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-building"></i> + Property</button>
+                    <button onclick="openModal('modal-unit')" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-door-open"></i> + Unit</button>
+                    <button onclick="openModal('modal-tenant')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-user-plus"></i> + Tenant</button>
+                    <button onclick="openModal('modal-payment')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-bolt"></i> + Payment/Luku</button>
+                    <button id="btn-admin-register" onclick="openModal('modal-register')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-user-shield"></i> + Staff</button>
                 </div>
+            </div>
 
-                <!-- PROPERTY PORTFOLIO LIST -->
+            <!-- METRICS -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-6">
+                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-xs text-gray-400 uppercase">Properties</div>
+                    <div id="stat-properties" class="text-2xl font-bold text-blue-400">0</div>
+                </div>
+                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-xs text-gray-400 uppercase">Active Tenants</div>
+                    <div id="stat-tenants" class="text-2xl font-bold text-emerald-400">0</div>
+                </div>
+                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-xs text-gray-400 uppercase">Total Income</div>
+                    <div id="stat-income" class="text-2xl font-bold text-cyan-400">TZS 0</div>
+                </div>
+                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                    <div class="text-xs text-gray-400 uppercase">Open Tickets</div>
+                    <div id="stat-tickets" class="text-2xl font-bold text-amber-400">0</div>
+                </div>
+            </div>
+
+            <!-- DYNAMIC SECTIONS -->
+            <div class="space-y-6">
+                
+                <!-- SECTION 1: PROPERTIES -->
                 <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl space-y-4">
                     <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center">
-                        <i class="fa-solid fa-building text-blue-400 mr-2"></i> Registered Property Assets
+                        <i class="fa-solid fa-building text-blue-400 mr-2"></i> Registered Property Portfolio
                     </h3>
                     <div id="property-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="p-4 bg-[#14223d] rounded-xl text-xs text-gray-400">Loading properties...</div>
+                        <div class="p-3 text-xs text-gray-400">Loading properties...</div>
                     </div>
                 </div>
-            </section>
+
+                <!-- SECTION 2: TENANTS & PAYMENTS -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl space-y-4">
+                        <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center">
+                            <i class="fa-solid fa-users text-emerald-400 mr-2"></i> Active Tenants
+                        </h3>
+                        <div id="tenant-list-container" class="space-y-2">
+                            <div class="p-3 text-xs text-gray-400">Loading tenants...</div>
+                        </div>
+                    </div>
+
+                    <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl space-y-4">
+                        <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center">
+                            <i class="fa-solid fa-receipt text-amber-400 mr-2"></i> Recent Payments & Luku Sales
+                        </h3>
+                        <div id="payment-list-container" class="space-y-2">
+                            <div class="p-3 text-xs text-gray-400">Loading payments...</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </main>
 
+        <!-- FOOTER NAV -->
         <nav class="bg-[#0a1224]/95 border-t border-[#182848] py-3 sticky bottom-0 z-40">
             <div class="max-w-md mx-auto flex justify-between items-center px-6 text-[10px] font-semibold text-gray-400">
                 <button class="text-blue-400 flex flex-col items-center"><i class="fa-solid fa-chart-line text-base mb-1"></i>Home</button>
-                <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-building text-base mb-1"></i>Properties</button>
-                <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-users text-base mb-1"></i>Tenants</button>
-                <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-sliders text-base mb-1"></i>Settings</button>
+                <button onclick="openModal('modal-property')" class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-building text-base mb-1"></i>Properties</button>
+                <button onclick="openModal('modal-tenant')" class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-users text-base mb-1"></i>Tenants</button>
+                <button onclick="openModal('modal-payment')" class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-wallet text-base mb-1"></i>Accounts</button>
             </div>
         </nav>
     </div>
@@ -130,122 +158,172 @@
                     <option value="RESIDENTIAL">RESIDENTIAL</option>
                     <option value="COMMERCIAL">COMMERCIAL</option>
                     <option value="OFFICE_SPACE">OFFICE SPACE</option>
-                    <option value="VACATION">VACATION / AIRBNB</option>
                 </select>
-                <input type="number" id="prop-units" placeholder="Total Units Count *" value="1" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl text-white font-bold text-xs">Save Property Asset</button>
+                <input type="number" id="prop-units" placeholder="Total Units *" value="1" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-blue-600 py-3 rounded-xl text-white font-bold text-xs">Save Property Asset</button>
             </form>
         </div>
     </div>
 
-    <!-- MODAL 2: ADMIN REGISTER NEW USER -->
+    <!-- MODAL 2: ADD UNIT -->
+    <div id="modal-unit" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
+            <button onclick="closeModal('modal-unit')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white">Register Unit / Room</h3>
+            <form id="form-unit" class="space-y-3">
+                <select id="unit-prop-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required></select>
+                <input type="text" id="unit-no" placeholder="Unit Number (e.g. Frame 101, Apt 2B) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="number" id="unit-rent" placeholder="Rent Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-cyan-600 py-3 rounded-xl text-white font-bold text-xs">Save Unit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: ADD TENANT -->
+    <div id="modal-tenant" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
+            <button onclick="closeModal('modal-tenant')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white">Onboard New Tenant</h3>
+            <form id="form-tenant" class="space-y-3">
+                <input type="text" id="ten-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" id="ten-nida" placeholder="NIDA / ID Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="tel" id="ten-phone" placeholder="Phone Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="email" id="ten-email" placeholder="Email Address" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                <button type="submit" class="w-full bg-emerald-600 py-3 rounded-xl text-white font-bold text-xs">Register Tenant</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 4: RECORD PAYMENT & LUKU -->
+    <div id="modal-payment" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
+            <button onclick="closeModal('modal-payment')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white">Record Payment / Luku Voucher</h3>
+            <form id="form-payment" class="space-y-3">
+                <select id="pay-tenant-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs"></select>
+                <select id="pay-type" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="RENT">Rent Payment</option>
+                    <option value="LUKU_VOUCHER">LUKU Voucher Sale</option>
+                    <option value="SERVICE_CHARGE">Service Charge</option>
+                </select>
+                <input type="number" id="pay-amount" placeholder="Amount Paid (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" id="pay-luku" placeholder="Luku Token Number (If Luku Sale)" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                <input type="text" id="pay-ref" placeholder="Reference / Receipt No" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                <button type="submit" class="w-full bg-amber-600 py-3 rounded-xl text-white font-bold text-xs">Record Payment</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 5: REGISTER STAFF -->
     <div id="modal-register" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
             <button onclick="closeModal('modal-register')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white">Register System User (Staff)</h3>
+            <h3 class="font-bold text-lg text-white">Register Staff Member</h3>
             <form id="form-register" class="space-y-3">
                 <input type="text" id="reg-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
                 <input type="email" id="reg-email" placeholder="Email Address *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
                 <input type="password" id="reg-password" placeholder="Password *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="tel" id="reg-phone" placeholder="Phone Number" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
                 <select id="reg-role" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
                     <option value="PROPERTY_MANAGER">Property Manager</option>
                     <option value="ACCOUNTANT">Accountant</option>
-                    <option value="TECHNICIAN">Technician / Maintenance</option>
+                    <option value="TECHNICIAN">Technician</option>
                     <option value="SUPER_ADMIN">Super Admin</option>
                 </select>
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl text-white font-bold text-xs">Register Staff Member</button>
+                <button type="submit" class="w-full bg-indigo-600 py-3 rounded-xl text-white font-bold text-xs">Register Staff</button>
             </form>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            if (localStorage.getItem('keyarch_token')) {
-                showAppView();
-            }
+            if (localStorage.getItem('keyarch_token')) showAppView();
 
             document.getElementById('form-login').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const email = document.getElementById('login-email').value;
-                const password = document.getElementById('login-password').value;
-                
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({
+                        email: document.getElementById('login-email').value,
+                        password: document.getElementById('login-password').value
+                    })
                 });
                 const data = await res.json();
-
                 if (res.ok) {
                     localStorage.setItem('keyarch_token', data.token);
                     localStorage.setItem('keyarch_user', JSON.stringify(data.user));
                     showAppView();
-                } else {
-                    alert(data.error || 'Login Failed!');
-                }
+                } else alert(data.error || 'Login Failed!');
             });
 
-            // ADD PROPERTY ASSET SUBMIT
+            // SUBMIT FORMS
             document.getElementById('form-property').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const token = localStorage.getItem('keyarch_token');
-                const propData = {
+                await sendPost('/api/properties', {
                     property_name: document.getElementById('prop-name').value,
                     address: document.getElementById('prop-address').value,
                     category: document.getElementById('prop-category').value,
                     total_units: parseInt(document.getElementById('prop-units').value)
-                };
-
-                const res = await fetch('/api/properties', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(propData)
-                });
-
-                if (res.ok) {
-                    alert('Jengo jipya limesajiliwa kikamilifu!');
-                    closeModal('modal-property');
-                    loadProperties();
-                    loadDashboardSummary();
-                } else {
-                    alert('Usajili wa jengo umeshindikana!');
-                }
+                }, 'modal-property');
             });
 
-            // ADMIN REGISTER USER SUBMIT
+            document.getElementById('form-unit').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await sendPost('/api/units', {
+                    property_id: parseInt(document.getElementById('unit-prop-id').value),
+                    unit_number: document.getElementById('unit-no').value,
+                    rent_amount: parseFloat(document.getElementById('unit-rent').value)
+                }, 'modal-unit');
+            });
+
+            document.getElementById('form-tenant').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await sendPost('/api/tenants', {
+                    full_name: document.getElementById('ten-name').value,
+                    nida_passport_no: document.getElementById('ten-nida').value,
+                    phone_number: document.getElementById('ten-phone').value,
+                    email: document.getElementById('ten-email').value
+                }, 'modal-tenant');
+            });
+
+            document.getElementById('form-payment').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await sendPost('/api/payments', {
+                    tenant_id: parseInt(document.getElementById('pay-tenant-id').value),
+                    payment_type: document.getElementById('pay-type').value,
+                    amount_paid: parseFloat(document.getElementById('pay-amount').value),
+                    luku_token: document.getElementById('pay-luku').value,
+                    reference_no: document.getElementById('pay-ref').value
+                }, 'modal-payment');
+            });
+
             document.getElementById('form-register').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const token = localStorage.getItem('keyarch_token');
-                const userData = {
+                await sendPost('/api/auth/register', {
                     full_name: document.getElementById('reg-name').value,
                     email: document.getElementById('reg-email').value,
                     password: document.getElementById('reg-password').value,
-                    phone_number: document.getElementById('reg-phone').value,
                     role: document.getElementById('reg-role').value
-                };
-
-                const res = await fetch('/api/auth/register', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(userData)
-                });
-
-                if (res.ok) {
-                    alert('Mtumiaji mpya amesajiliwa kikamilifu!');
-                    closeModal('modal-register');
-                } else {
-                    const err = await res.json();
-                    alert(err.error || 'Usajili umeshindikana!');
-                }
+                }, 'modal-register');
             });
         });
+
+        async function sendPost(url, bodyData, modalId) {
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(bodyData)
+            });
+            if (res.ok) {
+                alert('Taarifa zimehifadhiwa kikamilifu!');
+                closeModal(modalId);
+                refreshAllData();
+            } else {
+                const err = await res.json();
+                alert(err.error || 'Imefeli kuhifadhi!');
+            }
+        }
 
         function showAppView() {
             document.getElementById('view-login').classList.add('hidden');
@@ -256,36 +334,40 @@
             document.getElementById('user-role-badge').innerText = user.role || 'SUPER_ADMIN';
             document.getElementById('user-name-display').innerText = user.full_name || 'Hugo Mlula';
 
-            if (user.role !== 'SUPER_ADMIN') {
-                document.getElementById('btn-admin-register').classList.add('hidden');
-            }
+            refreshAllData();
+        }
 
+        function refreshAllData() {
             loadDashboardSummary();
             loadProperties();
+            loadTenants();
+            loadPayments();
         }
 
         async function loadDashboardSummary() {
             const token = localStorage.getItem('keyarch_token');
-            const res = await fetch('/api/dashboard/summary', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await fetch('/api/dashboard/summary', { headers: { 'Authorization': `Bearer ${token}` } });
             if (res.ok) {
                 const data = await res.json();
                 document.getElementById('stat-properties').innerText = data.properties;
                 document.getElementById('stat-tenants').innerText = data.tenants;
+                document.getElementById('stat-income').innerText = 'TZS ' + data.financials.total_income.toLocaleString();
+                document.getElementById('stat-tickets').innerText = data.open_tickets;
             }
         }
 
         async function loadProperties() {
             const token = localStorage.getItem('keyarch_token');
-            const res = await fetch('/api/properties', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await fetch('/api/properties', { headers: { 'Authorization': `Bearer ${token}` } });
             const container = document.getElementById('property-list-container');
+            const propSelect = document.getElementById('unit-prop-id');
+
             if (res.ok) {
                 const properties = await res.json();
+                propSelect.innerHTML = properties.map(p => `<option value="${p.property_id}">${p.property_name}</option>`).join('');
+
                 if (properties.length === 0) {
-                    container.innerHTML = '<div class="text-xs text-gray-400 p-3">Hakuna jengo lililosajiliwa bado. Bonyeza "+ Add Property Asset" kusajili.</div>';
+                    container.innerHTML = '<div class="text-xs text-gray-400 p-3">Hakuna jengo lililosajiliwa.</div>';
                     return;
                 }
                 container.innerHTML = properties.map(p => `
@@ -298,6 +380,55 @@
                             <span class="text-[10px] bg-blue-900/80 text-blue-300 px-2 py-0.5 rounded border border-blue-500">${p.category}</span>
                             <div class="text-xs text-gray-300 mt-1">${p.total_units_count || p.total_units} Units</div>
                         </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function loadTenants() {
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch('/api/tenants', { headers: { 'Authorization': `Bearer ${token}` } });
+            const container = document.getElementById('tenant-list-container');
+            const tenantSelect = document.getElementById('pay-tenant-id');
+
+            if (res.ok) {
+                const tenants = await res.json();
+                tenantSelect.innerHTML = tenants.map(t => `<option value="${t.tenant_id}">${t.full_name}</option>`).join('');
+
+                if (tenants.length === 0) {
+                    container.innerHTML = '<div class="text-xs text-gray-400 p-2">Hakuna mpangaji aliyesajiliwa.</div>';
+                    return;
+                }
+                container.innerHTML = tenants.map(t => `
+                    <div class="p-3 bg-[#14223d] rounded-xl text-xs flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-white">${t.full_name}</div>
+                            <div class="text-[10px] text-gray-400">${t.phone_number} | NIDA: ${t.nida_passport_no}</div>
+                        </div>
+                        <span class="text-[9px] bg-emerald-900/80 text-emerald-300 px-2 py-0.5 rounded">Active</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function loadPayments() {
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch('/api/payments', { headers: { 'Authorization': `Bearer ${token}` } });
+            const container = document.getElementById('payment-list-container');
+
+            if (res.ok) {
+                const payments = await res.json();
+                if (payments.length === 0) {
+                    container.innerHTML = '<div class="text-xs text-gray-400 p-2">Hakuna malipo yaliyorekodiwa.</div>';
+                    return;
+                }
+                container.innerHTML = payments.map(p => `
+                    <div class="p-3 bg-[#14223d] rounded-xl text-xs flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-emerald-400">+ TZS ${parseFloat(p.amount_paid).toLocaleString()}</div>
+                            <div class="text-[10px] text-gray-400">${p.payment_type} ${p.luku_token ? '| Token: ' + p.luku_token : ''}</div>
+                        </div>
+                        <div class="text-right text-[10px] text-gray-400">${p.tenant_name || 'N/A'}</div>
                     </div>
                 `).join('');
             }

@@ -18,10 +18,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
+// Auto-Run Migrations & Seed Default Super Admin
 async function initDatabase() {
     try {
         if (!process.env.DATABASE_URL) return;
-
         await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'SUPER_ADMIN'");
         await pool.query("ALTER TABLE users ALTER COLUMN role_id DROP NOT NULL");
         
@@ -34,7 +34,7 @@ async function initDatabase() {
             );
         }
     } catch (err) {
-        console.error('Init DB Warning:', err.message);
+        console.error('Database Initialization Warning:', err.message);
     }
 }
 
@@ -42,7 +42,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// AUTHENTICATION & LOGIN
+// 1. AUTHENTICATION & LOGIN
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -64,10 +64,10 @@ app.post('/api/auth/login', async (req, res) => {
             });
         }
 
-        if (!user) return res.status(401).json({ error: 'Invalid credentials!' });
+        if (!user) return res.status(401).json({ error: 'Email au Password siyo sahihi!' });
 
         const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-        if (!isPasswordValid) return res.status(401).json({ error: 'Invalid credentials!' });
+        if (!isPasswordValid) return res.status(401).json({ error: 'Email au Password siyo sahihi!' });
 
         const token = jwt.sign(
             { user_id: user.user_id, email: user.email, role: user.role || 'PROPERTY_MANAGER', full_name: user.full_name },
@@ -96,10 +96,10 @@ function authenticateToken(req, res, next) {
     });
 }
 
-// ADMIN REGISTER USER
+// 2. ADMIN USER REGISTRATION (RBAC)
 app.post('/api/auth/register', authenticateToken, async (req, res) => {
     if (req.user.role !== 'SUPER_ADMIN') {
-        return res.status(403).json({ error: 'Only Super Admin can register users.' });
+        return res.status(403).json({ error: 'Ni Super Admin pekee anayeweza kusajili watumiaji wapya.' });
     }
     const { full_name, email, password, phone_number, role } = req.body;
     try {
@@ -114,11 +114,7 @@ app.post('/api/auth/register', authenticateToken, async (req, res) => {
     }
 });
 
-// ==========================================
-// MODULE 2: PROPERTY & UNIT MANAGEMENT APIs
-// ==========================================
-
-// Fetch All Properties with Unit Count
+// 3. PROPERTIES & UNITS APIs
 app.get('/api/properties', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(`
@@ -129,12 +125,9 @@ app.get('/api/properties', authenticateToken, async (req, res) => {
             ORDER BY p.created_at DESC
         `);
         res.json(result.rows);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Create New Property Asset
 app.post('/api/properties', authenticateToken, async (req, res) => {
     const { property_name, address, category, total_units } = req.body;
     try {
@@ -143,12 +136,21 @@ app.post('/api/properties', authenticateToken, async (req, res) => {
             [property_name, address, category || 'RESIDENTIAL', total_units || 1]
         );
         res.status(201).json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Create New Unit inside a Property
+app.get('/api/units', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT u.*, p.property_name 
+            FROM units u 
+            JOIN properties p ON u.property_id = p.property_id 
+            ORDER BY u.unit_id DESC
+        `);
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/units', authenticateToken, async (req, res) => {
     const { property_id, unit_number, rent_amount, currency, is_furnished } = req.body;
     try {
@@ -157,25 +159,99 @@ app.post('/api/units', authenticateToken, async (req, res) => {
             [property_id, unit_number, rent_amount, currency || 'TZS', 'VACANT', is_furnished || false]
         );
         res.status(201).json(result.rows[0]);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// DASHBOARD SUMMARY API
+// 4. TENANTS & LEASES APIs
+app.get('/api/tenants', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM tenants ORDER BY created_at DESC');
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/tenants', authenticateToken, async (req, res) => {
+    const { full_name, nida_passport_no, phone_number, email } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO tenants (full_name, nida_passport_no, phone_number, email) VALUES ($1, $2, $3, $4) RETURNING *',
+            [full_name, nida_passport_no, phone_number, email]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 5. PAYMENTS & LUKU VOUCHERS APIs
+app.get('/api/payments', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT pay.*, t.full_name as tenant_name 
+            FROM payments pay 
+            LEFT JOIN tenants t ON pay.tenant_id = t.tenant_id 
+            ORDER BY pay.payment_date DESC
+        `);
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/payments', authenticateToken, async (req, res) => {
+    const { tenant_id, amount_paid, payment_type, luku_token, payment_method, reference_no } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO payments (tenant_id, amount_paid, payment_type, luku_token, payment_method, reference_no, recorded_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [tenant_id || null, amount_paid, payment_type || 'RENT', luku_token || null, payment_method || 'MOBILE_MONEY', reference_no || '', req.user.user_id]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 6. MAINTENANCE WORK ORDERS / TICKETS APIs
+app.get('/api/tickets', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT w.*, u.unit_number 
+            FROM work_orders w 
+            LEFT JOIN units u ON w.unit_id = u.unit_id 
+            ORDER BY w.created_at DESC
+        `);
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/tickets', authenticateToken, async (req, res) => {
+    const { unit_id, title, description, priority, estimated_cost } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO work_orders (unit_id, title, description, priority, status, estimated_cost) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [unit_id || null, title, description, priority || 'MEDIUM', 'OPEN', estimated_cost || 0.00]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// 7. DASHBOARD SUMMARY & ANALYTICS API
 app.get('/api/dashboard/summary', authenticateToken, async (req, res) => {
     try {
         let totalProperties = { rows: [{ count: 0 }] };
         let totalTenants = { rows: [{ count: 0 }] };
+        let openTickets = { rows: [{ count: 0 }] };
+        let totalIncome = { rows: [{ total: 0 }] };
+        let totalExpenses = { rows: [{ total: 0 }] };
 
         try { totalProperties = await pool.query('SELECT COUNT(*) FROM properties'); } catch(e){}
         try { totalTenants = await pool.query('SELECT COUNT(*) FROM tenants'); } catch(e){}
+        try { openTickets = await pool.query("SELECT COUNT(*) FROM work_orders WHERE status = 'OPEN'"); } catch(e){}
+        try { totalIncome = await pool.query('SELECT COALESCE(SUM(amount_paid), 0) AS total FROM payments'); } catch(e){}
+        try { totalExpenses = await pool.query('SELECT COALESCE(SUM(amount), 0) AS total FROM expenses'); } catch(e){}
+
+        const inc = parseFloat(totalIncome.rows[0]?.total || 0);
+        const exp = parseFloat(totalExpenses.rows[0]?.total || 0);
 
         res.json({
             properties: parseInt(totalProperties.rows[0]?.count || 0),
             tenants: parseInt(totalTenants.rows[0]?.count || 0),
-            open_tickets: 0,
-            financials: { total_income: 0, total_expense: 0, net_profit: 0 },
+            open_tickets: parseInt(openTickets.rows[0]?.count || 0),
+            financials: { total_income: inc, total_expense: exp, net_profit: inc - exp },
             reminders: { expired: 0, expiring_week: 0, expiring_month: 0 }
         });
     } catch (err) {
