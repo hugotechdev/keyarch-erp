@@ -10,8 +10,12 @@ const helmet = require('helmet');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// HTTP Security Headers
-app.use(helmet());
+// HTTP Security Headers (Disable CSP temporarily so Tailwind & FontAwesome CDNs load smoothly)
+app.use(
+    helmet({
+        contentSecurityPolicy: false,
+    })
+);
 
 if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET environment variable missing. System cannot start securely.");
