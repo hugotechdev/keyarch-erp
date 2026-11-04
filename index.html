@@ -6,7 +6,7 @@
     <title>KEY ARCH ERP — Enterprise Operations System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body class="min-h-screen flex flex-col justify-between bg-[#060c18] text-gray-100 font-sans">
 
@@ -36,7 +36,7 @@
     </div>
 
     <!-- VIEW 2: MAIN DASHBOARD -->
-    <div id="view-app" class="hidden flex-col min-h-screen justify-between">
+    <div id="view-app" style="display: none;" class="flex-col min-h-screen justify-between">
         
         <!-- HEADER -->
         <header class="bg-[#0a1224]/90 backdrop-blur-md border-b border-[#182848] px-6 py-4 sticky top-0 z-40 shadow-2xl flex justify-between items-center">
@@ -69,8 +69,7 @@
                         <button onclick="openModal('modal-luku')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-bolt"></i> + Vend Luku</button>
                         <button onclick="openModal('modal-expense')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-money-bill-transfer"></i> + Expense</button>
                         <button onclick="openModal('modal-ticket')" class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-screwdriver-wrench"></i> + Ticket</button>
-                        <!-- STAFF REGISTRATION BUTTON (VISIBLE ONLY TO SUPER ADMIN) -->
-                        <button id="btn-admin-register" onclick="openModal('modal-register')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl hidden"><i class="fa-solid fa-user-shield"></i> + Staff</button>
+                        <button id="btn-admin-register" onclick="openModal('modal-register')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl" style="display:none;"><i class="fa-solid fa-user-shield"></i> + Staff</button>
                     </div>
                 </div>
 
@@ -134,7 +133,7 @@
     </div>
 
     <!-- MODAL: ADD PROPERTY -->
-    <div id="modal-property" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div id="modal-property" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
             <button onclick="closeModal('modal-property')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
             <h3 class="font-bold text-lg text-white mb-4">Register Property</h3>
@@ -151,7 +150,7 @@
     </div>
 
     <!-- MODAL: ADD UNIT -->
-    <div id="modal-unit" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div id="modal-unit" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
             <button onclick="closeModal('modal-unit')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
             <h3 class="font-bold text-lg text-white mb-4">Register Unit</h3>
@@ -165,7 +164,7 @@
     </div>
 
     <!-- MODAL: TENANT ONBOARDING -->
-    <div id="modal-tenant" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div id="modal-tenant" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative my-8">
             <button onclick="closeModal('modal-tenant')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
             <h3 class="font-bold text-lg text-white mb-4">Tenant Onboarding</h3>
@@ -189,7 +188,7 @@
     </div>
 
     <!-- MODAL: ISSUE INVOICE -->
-    <div id="modal-invoice" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div id="modal-invoice" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
             <button onclick="closeModal('modal-invoice')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
             <h3 class="font-bold text-lg text-white mb-4">Issue Invoice</h3>
@@ -205,7 +204,7 @@
     </div>
 
     <!-- MODAL: RECORD EXPENSE -->
-    <div id="modal-expense" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div id="modal-expense" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
             <button onclick="closeModal('modal-expense')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
             <h3 class="font-bold text-lg text-white mb-4">Record Expense</h3>
@@ -223,7 +222,7 @@
     </div>
 
     <!-- MODAL: CREATE TICKET (MAINTENANCE) -->
-    <div id="modal-ticket" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div id="modal-ticket" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
             <button onclick="closeModal('modal-ticket')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
             <h3 class="font-bold text-lg text-white mb-4">Create Maintenance Ticket</h3>
@@ -245,7 +244,7 @@
     </div>
 
     <!-- MODAL: REGISTER STAFF (SUPER ADMIN) -->
-    <div id="modal-register" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div id="modal-register" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
             <button onclick="closeModal('modal-register')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
             <h3 class="font-bold text-lg text-white mb-4">Register Staff Member</h3>
@@ -265,7 +264,7 @@
     </div>
 
     <!-- MODAL: LUKU VENDING -->
-    <div id="modal-luku" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div id="modal-luku" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
             <button onclick="closeModal('modal-luku')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
             <h3 class="font-bold text-lg text-white mb-4">Vend Luku Token</h3>
@@ -279,7 +278,7 @@
     </div>
 
     <!-- MODAL: LUKU RESULT UI -->
-    <div id="modal-luku-result" class="fixed inset-0 bg-black/90 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+    <div id="modal-luku-result" style="display: none;" class="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-amber-500/50 w-full max-w-md rounded-3xl p-8 text-center shadow-[0_0_40px_rgba(245,158,11,0.2)]">
             <div class="mx-auto w-16 h-16 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-3xl mb-4">
                 <i class="fa-solid fa-bolt"></i>
@@ -403,17 +402,15 @@
         }
 
         function showAppView() {
-            document.getElementById('view-login').classList.add('hidden');
-            document.getElementById('view-app').classList.remove('hidden');
-            document.getElementById('view-app').classList.add('flex');
+            document.getElementById('view-login').style.display = 'none';
+            document.getElementById('view-app').style.display = 'flex';
             
             const user = JSON.parse(localStorage.getItem('keyarch_user') || '{}');
             document.getElementById('user-role-badge').innerText = user.role || 'USER';
             document.getElementById('user-name-display').innerText = user.full_name || '';
 
-            // SHOW STAFF REGISTRATION BUTTON ONLY FOR SUPER ADMIN
             if (user.role === 'SUPER_ADMIN') {
-                document.getElementById('btn-admin-register').classList.remove('hidden');
+                document.getElementById('btn-admin-register').style.display = 'inline-block';
             }
 
             loadAllData();
@@ -455,7 +452,6 @@
             const token = localStorage.getItem('keyarch_token');
             const headers = { 'Authorization': `Bearer ${token}` };
             
-            // Properties
             const propSelect = document.getElementById('unit-prop-id');
             if (propSelect) {
                 const propRes = await fetch('/api/properties', { headers });
@@ -465,7 +461,6 @@
                 }
             }
             
-            // Units (for Onboarding & Tickets)
             const unitRes = await fetch('/api/units', { headers });
             if (unitRes.ok) {
                 const units = await unitRes.json();
@@ -482,7 +477,6 @@
                 }
             }
 
-            // Leases (for Invoices)
             const leaseSelect = document.getElementById('inv-lease-id');
             if (leaseSelect) {
                 const leaseRes = await fetch('/api/leases', { headers });
@@ -500,8 +494,8 @@
             window.location.reload();
         }
 
-        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
     </script>
 </body>
 </html>
