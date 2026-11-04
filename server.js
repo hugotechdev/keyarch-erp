@@ -212,6 +212,23 @@ async function initDatabase() {
             );
         `);
 
+        // 1b. BACKFILL COLUMNS ON TABLES CREATED BY AN OLDER SCHEMA (CREATE TABLE IF NOT EXISTS skips them)
+        const ref = 'INT REFERENCES companies(company_id) ON DELETE CASCADE';
+        const backfill = [
+            ['companies', 'subscription_plan', "VARCHAR(50) DEFAULT 'STANDARD'"],
+            ['companies', 'is_active', 'BOOLEAN DEFAULT true'],
+            ['users', 'company_id', ref],
+            ['users', 'phone_number', 'VARCHAR(50)'],
+            ['users', "role", "VARCHAR(30) DEFAULT 'COMPANY_ADMIN'"],
+            ['users', 'is_active', 'BOOLEAN DEFAULT true'],
+        ];
+        for (const t of ['properties', 'units', 'tenants', 'leases', 'invoices', 'payments', 'expenses', 'work_orders', 'luku_vouchers', 'audit_logs']) {
+            backfill.push([t, 'company_id', ref]);
+        }
+        for (const [table, col, def] of backfill) {
+            await pool.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${col} ${def}`);
+        }
+
         await pool.query("CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000");
 
         // 2. SEED MASTER PLATFORM OWNER COMPANY (Hugo Tech)
@@ -235,6 +252,7 @@ async function initDatabase() {
             );
             console.log('✅ Platform Master Super Admin Seeded: admin@keyarch.co.tz');
         }
+        await pool.query("UPDATE users SET company_id = $1 WHERE email = 'admin@keyarch.co.tz' AND company_id IS NULL", [masterCompanyId]);
 
         console.log('✅ Database Schema Initialized & Migrations Completed Successfully.');
     } catch (err) {
