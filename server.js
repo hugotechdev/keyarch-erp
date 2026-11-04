@@ -52,9 +52,23 @@ async function initDatabase() {
         if (!process.env.DATABASE_URL) return;
 
         console.log('🔄 Checking database connection and running Multi-Tenant migrations...');
-        
         await pool.query('SELECT NOW()');
 
+        // 1. Audit logs table (if not exists)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                log_id SERIAL PRIMARY KEY,
+                company_id INT,
+                user_id INT,
+                action_performed VARCHAR(255),
+                module_affected VARCHAR(100),
+                ip_address VARCHAR(50),
+                metadata JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // 2. Companies table
         await pool.query(`
             CREATE TABLE IF NOT EXISTS companies (
                 company_id SERIAL PRIMARY KEY,
@@ -65,6 +79,7 @@ async function initDatabase() {
             );
         `);
 
+        // 3. Ensure core tables have company_id
         await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
         await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(30) DEFAULT 'COMPANY_ADMIN'");
         
@@ -81,6 +96,7 @@ async function initDatabase() {
 
         await pool.query("CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000");
 
+        // Seed Master Company (Hugo Tech)
         const companyCheck = await pool.query("SELECT * FROM companies WHERE company_name = 'Hugo Tech Platform Master'");
         let masterCompanyId;
         if (companyCheck.rows.length === 0) {
@@ -90,6 +106,7 @@ async function initDatabase() {
             masterCompanyId = companyCheck.rows[0].company_id;
         }
 
+        // Seed Platform Super Admin
         const userCheck = await pool.query("SELECT * FROM users WHERE email = 'admin@keyarch.co.tz'");
         if (userCheck.rows.length === 0) {
             const hashedPassword = await bcrypt.hash('Admin@2026', 10);
@@ -131,7 +148,7 @@ function allowRoles(...allowedRoles) {
     };
 }
 
-// 1. AUTHENTICATION & CLIENT ONBOARDING
+// 1. AUTHENTICATION & COMPANY REGISTRATION
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and Password are required.' });
@@ -148,7 +165,9 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 
         const user = userQuery.rows[0];
         if (!user.is_active) return res.status(403).json({ error: 'Account suspended.' });
-        if (user.role !== 'SUPER_ADMIN' && !user.company_active) return res.status(403).json({ error: 'Company account is inactive or suspended.' });
+        if (user.role !== 'SUPER_ADMIN' && user.company_active === false) {
+            return res.status(403).json({ error: 'Company account is inactive or suspended.' });
+        }
 
         const isPasswordValid = await bcrypt.compare(password, user.password_hash);
         if (!isPasswordValid) return res.status(401).json({ error: 'Invalid Email or Password.' });
@@ -167,13 +186,14 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
             user: { user_id: user.user_id, company_id: user.company_id, company_name: user.company_name, full_name: user.full_name, email: user.email, role: user.role } 
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('Login Error:', err);
+        res.status(500).json({ error: 'Server error during login: ' + err.message });
     }
 });
 
-// REGISTER NEW COMPANY / SAAS CLIENT (Property Owner Sign-Up)
+// REGISTER COMPANY / PROPERTY OWNER
 app.post('/api/auth/register-company', async (req, res) => {
-    const { company_name, admin_full_name, email, password, phone_number, subscription_plan } = req.body;
+    const { company_name, admin_full_name, email, password, phone_number } = req.body;
     
     if (!company_name || !admin_full_name || !email || !password) {
         return res.status(400).json({ error: 'Please provide all required fields (Company Name, Full Name, Email, Password).' });
@@ -183,14 +203,14 @@ app.post('/api/auth/register-company', async (req, res) => {
         return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
-    const client = await pool.connect();
-    
+    let client;
     try {
+        client = await pool.connect();
         await client.query('BEGIN');
 
         const compRes = await client.query(
             'INSERT INTO companies (company_name, subscription_plan) VALUES ($1, $2) RETURNING *',
-            [company_name, subscription_plan || 'STANDARD']
+            [company_name, 'STANDARD']
         );
         const company = compRes.rows[0];
 
@@ -206,25 +226,24 @@ app.post('/api/auth/register-company', async (req, res) => {
 
         res.status(201).json({ message: 'Company onboarded successfully', company, admin_user: user });
     } catch (err) {
-        await client.query('ROLLBACK');
-        if (err.code === '23505') return res.status(400).json({ error: 'This email address is already registered.' });
-        res.status(500).json({ error: err.message });
+        if (client) await client.query('ROLLBACK');
+        console.error('Registration Database Error:', err);
+        if (err.code === '23505') {
+            return res.status(400).json({ error: 'This email address is already registered.' });
+        }
+        res.status(500).json({ error: 'Registration error: ' + err.message });
     } finally {
-        client.release();
+        if (client) client.release();
     }
 });
 
-// REGISTER STAFF ACCOUNT (Executed by COMPANY_ADMIN or SUPER_ADMIN)
+// REGISTER STAFF
 app.post('/api/auth/register-staff', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN'), async (req, res) => {
     const { full_name, email, password, phone_number, role } = req.body;
     const companyId = req.user.role === 'SUPER_ADMIN' ? (req.body.company_id || req.user.company_id) : req.user.company_id;
 
     if (!full_name || !email || !password) {
         return res.status(400).json({ error: 'Full Name, Email, and Password are required.' });
-    }
-
-    if (password.length < 6) {
-        return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
     try {
@@ -238,7 +257,7 @@ app.post('/api/auth/register-staff', authenticateToken, allowRoles('SUPER_ADMIN'
         res.status(201).json({ message: 'Staff member registered successfully', user: result.rows[0] });
     } catch (err) { 
         if (err.code === '23505') return res.status(400).json({ error: 'This email address is already registered.' });
-        res.status(500).json({ error: err.message }); 
+        res.status(500).json({ error: 'Staff registration error: ' + err.message }); 
     }
 });
 
@@ -301,11 +320,12 @@ app.post('/api/units', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADM
 
 // 3. TENANT ONBOARDING TRANSACTION
 app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
-    const client = await pool.connect();
+    let client;
     try {
-        const { full_name, nida_passport_no, phone_number, email, unit_id, start_date, end_date, agreed_rent, payment_cycle, generate_initial_invoice } = req.body;
+        const { full_name, nida_passport_no, phone_number, email, unit_id, start_date, end_date, agreed_rent, generate_initial_invoice } = req.body;
         const companyId = req.user.company_id;
 
+        client = await pool.connect();
         await client.query('BEGIN');
 
         const unitCheck = await client.query('SELECT status FROM units WHERE unit_id = $1 AND company_id = $2', [unit_id, companyId]);
@@ -320,7 +340,7 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
 
         const leaseRes = await client.query(
             'INSERT INTO leases (company_id, unit_id, tenant_id, start_date, end_date, agreed_rent, payment_cycle, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *', 
-            [companyId, unit_id, tenant.tenant_id, start_date, end_date, agreed_rent, payment_cycle || 'MONTHLY', 'ACTIVE']
+            [companyId, unit_id, tenant.tenant_id, start_date, end_date, agreed_rent, 'MONTHLY', 'ACTIVE']
         );
         const lease = leaseRes.rows[0];
 
@@ -343,10 +363,10 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
         await client.query('COMMIT');
         res.status(201).json({ message: 'Tenant onboarded successfully', tenant, lease, invoice });
     } catch (err) {
-        await client.query('ROLLBACK');
+        if (client) await client.query('ROLLBACK');
         res.status(500).json({ error: 'Onboarding Failed: ' + err.message });
     } finally {
-        client.release();
+        if (client) client.release();
     }
 });
 
@@ -433,7 +453,7 @@ app.post('/api/tickets/create', authenticateToken, allowRoles('SUPER_ADMIN', 'CO
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 6. FINANCE: EXPENSES & LUKU VENDING
+// 6. FINANCE & LUKU VENDING APIs
 app.get('/api/expenses', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
@@ -492,7 +512,7 @@ app.get('/api/dashboard/metrics', authenticateToken, async (req, res) => {
         const lukuIncomeQuery = await pool.query("SELECT COALESCE(SUM(amount), 0) AS total FROM luku_vouchers WHERE company_id = $1 AND sold_at >= DATE_TRUNC('month', CURRENT_DATE)", [cId]);
         const monthlyExpensesQuery = await pool.query("SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE company_id = $1 AND expense_date >= DATE_TRUNC('month', CURRENT_DATE)", [cId]);
 
-        const tUnits = parseInt(totalUnits.rows[0]?.count || 0);
+        const tUnits = parseInt(totalProperties.rows[0]?.count || 0);
         const occUnits = parseInt(occupiedUnits.rows[0]?.count || 0);
         const occupancyRate = tUnits > 0 ? ((occUnits / tUnits) * 100).toFixed(2) : 0;
 
@@ -503,7 +523,7 @@ app.get('/api/dashboard/metrics', authenticateToken, async (req, res) => {
 
         res.json({
             totalProperties: parseInt(totalProperties.rows[0]?.count || 0),
-            totalUnits: tUnits,
+            totalUnits: parseInt(totalUnits.rows[0]?.count || 0),
             occupiedUnits: occUnits,
             vacantUnits: parseInt(vacantUnits.rows[0]?.count || 0),
             occupancyRate: occupancyRate,
