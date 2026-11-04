@@ -1,59 +1,667 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KEY ARCH ERP — Enterprise Operations System</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="style.css">
-  <style>
-    .action{color:#fff;font-size:.75rem;font-weight:700;padding:.5rem .75rem;border-radius:.75rem}.metric{padding:1rem;background:#0d172d;border:1px solid #182848;border-radius:1rem;color:#9ca3af;font-size:.75rem}.metric strong{display:block;color:#60a5fa;font-size:1.15rem}.modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;padding:1rem;overflow:auto}.modal:not(.hidden){display:flex}.dialog{position:relative;width:min(100%,28rem);max-height:90vh;overflow:auto;background:#0d172d;border:1px solid #182848;border-radius:1rem;padding:1.5rem}.dialog h2{font-weight:700;font-size:1.15rem;margin:0 2rem 1rem 0}.dialog form{display:grid;gap:.75rem}.dialog input,.dialog select,.dialog textarea{width:100%;padding:.75rem;border-radius:.75rem;background:#14223d;border:1px solid #1e2f52;color:#fff;font-size:.8rem}.dialog button[type=submit],.dialog>button:not(.close){padding:.75rem;border-radius:.75rem;background:#2563eb;color:#fff;font-weight:700}.dialog .close{position:absolute;right:1rem;top:.75rem;background:none;color:#9ca3af;font-size:1.5rem}
-  </style>
-</head>
-<body class="min-h-screen flex flex-col bg-[#060c18] text-gray-100 font-sans">
-  <div id="status-message" role="status" aria-live="polite" class="hidden fixed top-4 right-4 z-[60] max-w-sm rounded-xl border bg-[#0d172d] px-4 py-3 text-sm shadow-2xl"></div>
-  <div id="view-login" class="flex-grow flex items-center justify-center p-4"><div class="bg-[#0a1224] border border-[#182848] w-full max-w-md rounded-2xl p-8 shadow-2xl space-y-6"><div class="text-center"><h1 class="text-3xl font-black text-blue-300">KEY ARCH ERP</h1><p class="text-xs text-gray-400 uppercase tracking-widest">Operations Portal</p></div><form id="form-login" class="space-y-4"><div><label for="login-email" class="block text-xs font-semibold mb-1">Email Address</label><input type="email" id="login-email" autocomplete="username" value="admin@keyarch.co.tz" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm" required></div><div><label for="login-password" class="block text-xs font-semibold mb-1">Password</label><input type="password" id="login-password" autocomplete="current-password" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm" required></div><button type="submit" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold disabled:opacity-50">Sign In →</button></form></div></div>
-  <div id="view-app" class="hidden flex-col min-h-screen"><header class="bg-[#0a1224] border-b border-[#182848] px-6 py-4 sticky top-0 z-40 flex justify-between items-center"><div><span id="user-role-badge" class="text-xs font-bold text-blue-300">ROLE</span> <span id="user-name-display" class="text-xs"></span></div><h1 class="text-xl font-black text-blue-300">KEY ARCH ERP</h1><button id="logout-button" type="button" class="border border-red-500 px-3 py-2 rounded-xl text-xs">Sign Out</button></header>
-  <main class="container mx-auto p-4 md:p-6 max-w-7xl flex-grow space-y-6"><section class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl flex flex-wrap justify-between gap-4 items-center"><div><h2 class="text-lg font-bold">System Operations Center</h2><p class="text-xs text-gray-400">Enterprise property, finance, and maintenance management.</p></div><div class="flex flex-wrap gap-2"><button type="button" data-open="modal-property" class="action bg-blue-600">+ Property</button><button type="button" data-open="modal-unit" class="action bg-cyan-600">+ Unit</button><button type="button" data-open="modal-tenant" class="action bg-emerald-600">+ Tenant</button><button type="button" data-open="modal-invoice" class="action bg-purple-600">+ Invoice</button><button type="button" data-open="modal-luku" class="action bg-amber-600">+ Vend Luku</button><button type="button" data-open="modal-expense" class="action bg-red-600">+ Expense</button><button type="button" data-open="modal-ticket" class="action bg-orange-600">+ Ticket</button><button id="btn-admin-register" type="button" data-open="modal-register" class="action bg-indigo-600 hidden">+ Staff</button></div></section>
-  <section class="grid grid-cols-1 md:grid-cols-3 gap-4"><div class="metric">Expired Leases<strong id="rem-expired">0</strong></div><div class="metric">Expiring This Week<strong id="rem-week">0</strong></div><div class="metric">Expiring This Month<strong id="rem-month">0</strong></div></section>
-  <section class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-center"><div class="metric">Properties<strong id="stat-properties">0</strong></div><div class="metric">Total Units<strong id="stat-units">0</strong></div><div class="metric">Occupancy<strong id="stat-occupancy">0%</strong></div><div class="metric">Active Tenants<strong id="stat-tenants">0</strong></div><div class="metric">Pending Tickets<strong id="stat-tickets">0</strong></div><div class="metric col-span-3">Monthly Performance<div>Income<strong id="stat-income">TZS 0</strong>Profit<strong id="stat-profit">TZS 0</strong></div></div></section></main></div>
-  <div id="modal-property" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-property"><div class="dialog"><button type="button" data-close="modal-property" class="close" aria-label="Close">×</button><h2 id="title-property">Register Property</h2><form id="form-property"><input id="prop-name" aria-label="Property name" placeholder="Property Name *" required><input id="prop-address" aria-label="Address" placeholder="Address *" required><select id="prop-category" aria-label="Property category"><option value="RESIDENTIAL">RESIDENTIAL</option><option value="COMMERCIAL">COMMERCIAL</option></select><button type="submit">Save Property</button></form></div></div>
-  <div id="modal-unit" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-unit"><div class="dialog"><button type="button" data-close="modal-unit" class="close" aria-label="Close">×</button><h2 id="title-unit">Register Unit</h2><form id="form-unit"><select id="unit-prop-id" aria-label="Property" required></select><input id="unit-no" aria-label="Unit number" placeholder="Unit Number *" required><input id="unit-rent" aria-label="Rent amount" type="number" min="0" step="0.01" placeholder="Rent Amount (TZS) *" required><button type="submit">Save Unit</button></form></div></div>
-  <div id="modal-tenant" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-tenant"><div class="dialog"><button type="button" data-close="modal-tenant" class="close" aria-label="Close">×</button><h2 id="title-tenant">Tenant Onboarding</h2><form id="form-tenant"><input id="ten-name" aria-label="Full name" placeholder="Full Name *" required><input id="ten-nida" aria-label="NIDA or passport" placeholder="NIDA / Passport *" required><input id="ten-phone" aria-label="Phone number" type="tel" placeholder="Phone Number *" required><select id="ten-unit-id" aria-label="Vacant unit" required></select><label for="ten-start">Lease start date</label><input id="ten-start" type="date" required><label for="ten-end">Lease end date</label><input id="ten-end" type="date" required><input id="ten-rent" aria-label="Agreed rent" type="number" min="0" step="0.01" placeholder="Agreed Rent (TZS) *" required><button type="submit">Complete Onboarding</button></form></div></div>
-  <div id="modal-invoice" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-invoice"><div class="dialog"><button type="button" data-close="modal-invoice" class="close" aria-label="Close">×</button><h2 id="title-invoice">Issue Invoice</h2><form id="form-invoice"><select id="inv-lease-id" aria-label="Active lease" required></select><input id="inv-amount" aria-label="Amount due" type="number" min="0" step="0.01" placeholder="Amount Due (TZS) *" required><input id="inv-due" aria-label="Due date" type="date" required><button type="submit">Generate Invoice</button></form></div></div>
-  <div id="modal-expense" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-expense"><div class="dialog"><button type="button" data-close="modal-expense" class="close" aria-label="Close">×</button><h2 id="title-expense">Record Expense</h2><form id="form-expense"><select id="exp-category" aria-label="Expense category"><option value="REPAIR">Repair &amp; Maintenance</option><option value="UTILITY">Utility Bills</option><option value="SALARY">Staff Salary</option></select><input id="exp-desc" aria-label="Description" placeholder="Description *" required><input id="exp-amount" aria-label="Amount" type="number" min="0" step="0.01" placeholder="Amount (TZS) *" required><button type="submit">Save Expense</button></form></div></div>
-  <div id="modal-ticket" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-ticket"><div class="dialog"><button type="button" data-close="modal-ticket" class="close" aria-label="Close">×</button><h2 id="title-ticket">Create Maintenance Ticket</h2><form id="form-ticket"><select id="tkt-unit-id" aria-label="Affected unit" required></select><input id="tkt-title" aria-label="Issue title" placeholder="Issue Title *" required><textarea id="tkt-desc" aria-label="Issue description" placeholder="Issue Description"></textarea><select id="tkt-priority" aria-label="Priority"><option>LOW</option><option selected>MEDIUM</option><option>HIGH</option><option>URGENT</option></select><button type="submit">Create Ticket</button></form></div></div>
-  <div id="modal-register" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-register"><div class="dialog"><button type="button" data-close="modal-register" class="close" aria-label="Close">×</button><h2 id="title-register">Register Staff Member</h2><form id="form-register"><input id="reg-name" aria-label="Staff full name" placeholder="Full Name *" required><input id="reg-email" aria-label="Staff email" type="email" placeholder="Email Address *" required><input id="reg-password" aria-label="Password" type="password" minlength="8" placeholder="Password (minimum 8 characters) *" required><select id="reg-role" aria-label="Staff role"><option value="PROPERTY_MANAGER">Property Manager</option><option value="ACCOUNTANT">Accountant</option><option value="TECHNICIAN">Technician</option><option value="SUPER_ADMIN">Super Admin</option></select><button type="submit">Register Staff</button></form></div></div>
-  <div id="modal-luku" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-luku"><div class="dialog"><button type="button" data-close="modal-luku" class="close" aria-label="Close">×</button><h2 id="title-luku">Vend Luku Token</h2><form id="form-luku"><input id="luku-meter" aria-label="Meter number" placeholder="Meter Number *" required><input id="luku-tenant" aria-label="Tenant name" placeholder="Tenant Name *" required><input id="luku-amount" aria-label="Amount" type="number" min="0" step="0.01" placeholder="Amount (TZS) *" required><button type="submit">Generate Token</button></form></div></div>
-  <div id="modal-luku-result" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-luku-result"><div class="dialog"><h2 id="title-luku-result">Luku Token Generated</h2><p id="res-token" class="select-all">—</p><p>Meter: <span id="res-meter">—</span></p><p>Units (kWh): <span id="res-kwh">0</span></p><p>Amount: <span id="res-amount">TZS 0</span></p><button id="copy-token" type="button">Copy token</button><button type="button" data-close="modal-luku-result">Close</button></div></div>
-  <script>
-    const TOKEN_KEY='keyarch_token',USER_KEY='keyarch_user';const el=id=>document.getElementById(id);
-    document.addEventListener('DOMContentLoaded',()=>{document.querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click',()=>openModal(b.dataset.open)));document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeModal(b.dataset.close)));el('logout-button').addEventListener('click',logout);el('copy-token').addEventListener('click',copyToken);el('form-login').addEventListener('submit',login);
-      bind('form-property',()=>submit('/api/properties',{property_name:el('prop-name').value.trim(),address:el('prop-address').value.trim(),category:el('prop-category').value},'modal-property','form-property'));
-      bind('form-unit',()=>submit('/api/units',{property_id:Number(el('unit-prop-id').value),unit_number:el('unit-no').value.trim(),rent_amount:Number(el('unit-rent').value)},'modal-unit','form-unit'));
-      bind('form-tenant',()=>{if(el('ten-end').value<=el('ten-start').value)return notify('Lease end must be after start date.','error');return submit('/api/tenants/onboard',{full_name:el('ten-name').value.trim(),nida_passport_no:el('ten-nida').value.trim(),phone_number:el('ten-phone').value.trim(),unit_id:Number(el('ten-unit-id').value),start_date:el('ten-start').value,end_date:el('ten-end').value,agreed_rent:Number(el('ten-rent').value),generate_initial_invoice:true},'modal-tenant','form-tenant')});
-      bind('form-invoice',()=>submit('/api/invoices/issue',{lease_id:Number(el('inv-lease-id').value),amount_due:Number(el('inv-amount').value),due_date:el('inv-due').value},'modal-invoice','form-invoice'));
-      bind('form-ticket',()=>submit('/api/tickets/create',{unit_id:Number(el('tkt-unit-id').value),title:el('tkt-title').value.trim(),description:el('tkt-desc').value.trim(),priority:el('tkt-priority').value},'modal-ticket','form-ticket'));
-      bind('form-expense',()=>submit('/api/finance/expenses',{category:el('exp-category').value,description:el('exp-desc').value.trim(),amount:Number(el('exp-amount').value)},'modal-expense','form-expense'));
-      bind('form-register',()=>submit('/api/auth/register',{full_name:el('reg-name').value.trim(),email:el('reg-email').value.trim(),password:el('reg-password').value,role:el('reg-role').value},'modal-register','form-register'));
-      bind('form-luku',vendLuku);document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal:not(.hidden)').forEach(m=>closeModal(m.id))});if(localStorage.getItem(TOKEN_KEY))showApp();});
-    function bind(id,handler){el(id).addEventListener('submit',e=>{e.preventDefault();handler()})}
-    async function parseResponse(r){let data;try{data=(r.headers.get('content-type')||'').includes('json')?await r.json():await r.text()}catch{data={}}if(r.status===401){logout();throw Error('Session expired. Please sign in again.')}if(!r.ok)throw Error(data?.error||data?.message||(typeof data==='string'&&data)||'Request failed.');return data}
-    async function request(url,options={}){const headers={...(options.headers||{})},token=localStorage.getItem(TOKEN_KEY);if(token)headers.Authorization=`Bearer ${token}`;return parseResponse(await fetch(url,{...options,headers}))}
-    async function login(e){const b=e.currentTarget.querySelector('[type=submit]');b.disabled=true;try{const d=await parseResponse(await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:el('login-email').value.trim(),password:el('login-password').value})}));if(!d.token)throw Error('Login response did not include a token.');localStorage.setItem(TOKEN_KEY,d.token);localStorage.setItem(USER_KEY,JSON.stringify(d.user||{}));showApp()}catch(err){notify(err.message,'error')}finally{b.disabled=false}}
-    async function submit(url,body,modal,formId){const form=el(formId),b=form.querySelector('[type=submit]');b.disabled=true;try{const d=await request(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});form.reset();closeModal(modal);notify(d.message||'Operation completed successfully.','success');await refresh()}catch(err){notify(err.message,'error')}finally{b.disabled=false}}
-    async function vendLuku(){const f=el('form-luku'),b=f.querySelector('[type=submit]');b.disabled=true;try{const d=await request('/api/finance/luku/vend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({meter_number:el('luku-meter').value.trim(),tenant_name:el('luku-tenant').value.trim(),amount:Number(el('luku-amount').value)})});f.reset();closeModal('modal-luku');el('res-token').textContent=d.token_number||'—';el('res-meter').textContent=d.meter_number||'—';el('res-kwh').textContent=d.kwh_units??0;el('res-amount').textContent=`TZS ${Number(d.amount||0).toLocaleString()}`;openModal('modal-luku-result');notify('Token generated.','success');refresh()}catch(err){notify(err.message,'error')}finally{b.disabled=false}}
-    function options(select,data,value,text,placeholder){const frag=document.createDocumentFragment(),first=new Option(placeholder,'');frag.append(first);(Array.isArray(data)?data:[]).forEach(item=>frag.append(new Option(text(item),value(item))));select.replaceChildren(frag)}
-    async function refresh(){if(!localStorage.getItem(TOKEN_KEY))return;const results=await Promise.allSettled([metrics(),reminders(),dropdowns()]);const bad=results.find(x=>x.status==='rejected');if(bad)notify(bad.reason.message||'Some dashboard data did not load.','error')}
-    async function metrics(){const d=await request('/api/dashboard/metrics');el('stat-properties').textContent=d.totalProperties??0;el('stat-units').textContent=d.totalUnits??0;el('stat-occupancy').textContent=`${d.occupancyRate??0}%`;el('stat-tenants').textContent=d.activeTenants??0;el('stat-tickets').textContent=d.pendingTickets??0;el('stat-income').textContent=`TZS ${Number(d.monthlyIncome||0).toLocaleString()}`;el('stat-profit').textContent=`TZS ${Number(d.netProfit||0).toLocaleString()}`}
-    async function reminders(){const d=await request('/api/dashboard/reminders');el('rem-expired').textContent=d.expired??0;el('rem-week').textContent=d.dueThisWeek??0;el('rem-month').textContent=d.dueThisMonth??0}
-    async function dropdowns(){const[p,u,l]=await Promise.all([request('/api/properties'),request('/api/units'),request('/api/leases')]);options(el('unit-prop-id'),p,x=>String(x.property_id),x=>x.property_name||'Property','Select property...');const units=Array.isArray(u)?u:[];options(el('ten-unit-id'),units.filter(x=>x.status==='VACANT'),x=>String(x.unit_id),x=>`${x.property_name||'Property'} - ${x.unit_number||'Unit'}`,'Select vacant unit...');options(el('tkt-unit-id'),units,x=>String(x.unit_id),x=>`${x.property_name||'Property'} - ${x.unit_number||'Unit'}`,'Select affected unit...');options(el('inv-lease-id'),(Array.isArray(l)?l:[]).filter(x=>x.status==='ACTIVE'),x=>String(x.lease_id),x=>`${x.tenant_name||'Tenant'} (${x.unit_number||'Unit'})`,'Select active lease...')}
-    function showApp(){el('view-login').classList.add('hidden');el('view-app').classList.remove('hidden');el('view-app').classList.add('flex');let u={};try{u=JSON.parse(localStorage.getItem(USER_KEY)||'{}')||{}}catch{localStorage.removeItem(USER_KEY)}el('user-role-badge').textContent=u.role||'USER';el('user-name-display').textContent=u.full_name||'';el('btn-admin-register').classList.toggle('hidden',u.role!=='SUPER_ADMIN');refresh()}
-    function logout(){localStorage.removeItem(TOKEN_KEY);localStorage.removeItem(USER_KEY);el('view-app').classList.add('hidden');el('view-app').classList.remove('flex');el('view-login').classList.remove('hidden')}
-    function openModal(id){const m=el(id);if(m){m.classList.remove('hidden');m.querySelector('input,select,textarea,button')?.focus()}}function closeModal(id){el(id)?.classList.add('hidden')}
-    function notify(message,type='info'){const n=el('status-message');n.textContent=message;n.classList.remove('hidden','border-red-500','border-emerald-500','border-blue-500');n.classList.add(type==='error'?'border-red-500':type==='success'?'border-emerald-500':'border-blue-500');clearTimeout(notify.timer);notify.timer=setTimeout(()=>n.classList.add('hidden'),4500)}
-    async function copyToken(){try{await navigator.clipboard.writeText(el('res-token').textContent);notify('Token copied.','success')}catch{notify('Unable to access clipboard. Select and copy the token manually.','error')}}
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="KEY ARCH ERP operations portal for property, lease, finance, and support management." />
+    <meta name="theme-color" content="#060c18" />
+    <title>KEY ARCH ERP — Enterprise Operations System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      body { scroll-behavior: smooth; }
+      .modal { position: fixed; inset: 0; background: rgba(2, 6, 23, 0.8); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem; z-index: 50; }
+      .modal.hidden { display: none; }
+      .dialog { width: min(100%, 28rem); background: #0d172d; border: 1px solid #182848; border-radius: 1.5rem; padding: 1.5rem; position: relative; }
+      .close-btn { position: absolute; top: 1rem; right: 1rem; color: #9ca3af; font-size: 1.5rem; }
+      .metric-card { background: #0d172d; border: 1px solid #182848; border-radius: 1rem; }
+      .action-btn { transition: all 0.2s ease; }
+      .action-btn:hover { transform: translateY(-1px); }
+      .status-toast { position: fixed; top: 1rem; right: 1rem; z-index: 100; max-width: 22rem; }
+      .status-toast.hidden { display: none; }
+    </style>
+  </head>
+  <body class="min-h-screen flex flex-col bg-[#060c18] text-gray-100 font-sans">
+    <div id="status-message" role="status" aria-live="polite" class="status-toast hidden rounded-xl border border-blue-500/50 bg-[#0d172d] px-4 py-3 text-sm text-slate-200 shadow-2xl"></div>
+
+    <div id="view-login" class="flex-grow flex items-center justify-center p-4">
+      <div class="bg-[#0a1224] border border-[#182848] w-full max-w-md rounded-2xl p-8 shadow-2xl space-y-6">
+        <div class="text-center space-y-1">
+          <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
+            KEY ARCH <span class="text-xs font-semibold px-2 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 align-middle">ERP</span>
+          </h1>
+          <p class="text-xs text-gray-400 uppercase tracking-widest">Operations Portal</p>
+        </div>
+
+        <form id="form-login" class="space-y-4" novalidate>
+          <div>
+            <label for="login-email" class="block text-xs font-semibold text-gray-300 mb-1">Email Address</label>
+            <input type="email" id="login-email" name="email" value="admin@keyarch.co.tz" autocomplete="email" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required />
+          </div>
+          <div>
+            <label for="login-password" class="block text-xs font-semibold text-gray-300 mb-1">Password</label>
+            <input type="password" id="login-password" name="password" autocomplete="current-password" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required />
+          </div>
+          <button type="submit" class="action-btn w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg transition">
+            Sign In &rarr;
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div id="view-app" class="hidden flex-col min-h-screen justify-between">
+      <header class="bg-[#0a1224]/90 backdrop-blur-md border-b border-[#182848] px-6 py-4 sticky top-0 z-40 shadow-2xl flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+          <span id="user-role-badge" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-900/80 border border-blue-500 text-blue-300 uppercase">ROLE</span>
+          <span id="user-name-display" class="text-xs font-bold text-white hidden md:inline">User Name</span>
+        </div>
+
+        <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
+          KEY ARCH <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300">ERP</span>
+        </h1>
+
+        <button type="button" onclick="logout()" class="bg-red-900/40 hover:bg-red-800/60 border border-red-500/50 px-3 py-1.5 rounded-xl text-xs font-bold text-red-300 flex items-center gap-1.5">
+          <i class="fa-solid fa-power-off"></i>
+          <span class="hidden md:inline">Sign Out</span>
+        </button>
+      </header>
+
+      <main class="container mx-auto p-4 md:p-6 max-w-7xl flex-grow">
+        <section class="space-y-6">
+          <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+              <h2 class="text-lg font-bold text-white">System Operations Center</h2>
+              <p class="text-xs text-gray-400">Enterprise property, finance, and maintenance management.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" data-open="modal-property" class="action-btn bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-building"></i> + Property</button>
+              <button type="button" data-open="modal-unit" class="action-btn bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-door-open"></i> + Unit</button>
+              <button type="button" data-open="modal-tenant" class="action-btn bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-user-plus"></i> + Tenant</button>
+              <button type="button" data-open="modal-invoice" class="action-btn bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-file-invoice-dollar"></i> + Invoice</button>
+              <button type="button" data-open="modal-luku" class="action-btn bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-bolt"></i> + Vend Luku</button>
+              <button type="button" data-open="modal-expense" class="action-btn bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-money-bill-transfer"></i> + Expense</button>
+              <button type="button" data-open="modal-ticket" class="action-btn bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-screwdriver-wrench"></i> + Ticket</button>
+              <button id="btn-admin-register" type="button" data-open="modal-register" class="action-btn bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl hidden"><i class="fa-solid fa-user-shield"></i> + Staff</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="metric-card p-4 border-l-4 border-red-500 flex justify-between items-center">
+              <div>
+                <div class="text-xs text-gray-400 font-semibold uppercase">Expired Leases</div>
+                <div id="rem-expired" class="text-2xl font-black text-red-400">0</div>
+              </div>
+              <i class="fa-solid fa-file-circle-exclamation text-red-500/30 text-3xl"></i>
+            </div>
+            <div class="metric-card p-4 border-l-4 border-amber-500 flex justify-between items-center">
+              <div>
+                <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Week</div>
+                <div id="rem-week" class="text-2xl font-black text-amber-400">0</div>
+              </div>
+              <i class="fa-solid fa-clock-rotate-left text-amber-500/30 text-3xl"></i>
+            </div>
+            <div class="metric-card p-4 border-l-4 border-blue-500 flex justify-between items-center">
+              <div>
+                <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Month</div>
+                <div id="rem-month" class="text-2xl font-black text-blue-400">0</div>
+              </div>
+              <i class="fa-solid fa-calendar-check text-blue-500/30 text-3xl"></i>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-center">
+            <div class="metric-card p-3">
+              <div class="text-[10px] text-gray-400 uppercase">Properties</div>
+              <div id="stat-properties" class="text-lg font-bold text-blue-400">0</div>
+            </div>
+            <div class="metric-card p-3">
+              <div class="text-[10px] text-gray-400 uppercase">Total Units</div>
+              <div id="stat-units" class="text-lg font-bold text-cyan-400">0</div>
+            </div>
+            <div class="metric-card p-3">
+              <div class="text-[10px] text-gray-400 uppercase">Occupancy</div>
+              <div id="stat-occupancy" class="text-lg font-bold text-emerald-400">0%</div>
+            </div>
+            <div class="metric-card p-3">
+              <div class="text-[10px] text-gray-400 uppercase">Active Tenants</div>
+              <div id="stat-tenants" class="text-lg font-bold text-emerald-400">0</div>
+            </div>
+            <div class="metric-card p-3">
+              <div class="text-[10px] text-gray-400 uppercase">Pending Tickets</div>
+              <div id="stat-tickets" class="text-lg font-bold text-orange-400">0</div>
+            </div>
+            <div class="metric-card p-3 col-span-3">
+              <div class="text-[10px] text-gray-400 uppercase">Monthly Performance</div>
+              <div class="flex justify-around items-center mt-1">
+                <div><span class="text-[10px] text-gray-500 block">Income</span><span id="stat-income" class="text-sm font-bold text-emerald-400">TZS 0</span></div>
+                <div><span class="text-[10px] text-gray-500 block">Profit</span><span id="stat-profit" class="text-sm font-bold text-cyan-400">TZS 0</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="modal-property" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-property">
+      <div class="dialog">
+        <button type="button" class="close-btn" data-close="modal-property" aria-label="Close property form">&times;</button>
+        <h3 id="title-property" class="font-bold text-lg text-white mb-4">Register Property</h3>
+        <form id="form-property" class="space-y-3">
+          <input type="text" id="prop-name" placeholder="Property Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <input type="text" id="prop-address" placeholder="Address *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <select id="prop-category" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+            <option value="RESIDENTIAL">RESIDENTIAL</option>
+            <option value="COMMERCIAL">COMMERCIAL</option>
+          </select>
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl text-white font-bold text-xs">Save Property</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="modal-unit" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-unit">
+      <div class="dialog">
+        <button type="button" class="close-btn" data-close="modal-unit" aria-label="Close unit form">&times;</button>
+        <h3 id="title-unit" class="font-bold text-lg text-white mb-4">Register Unit</h3>
+        <form id="form-unit" class="space-y-3">
+          <select id="unit-prop-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required></select>
+          <input type="text" id="unit-no" placeholder="Unit Number (e.g. 101) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <input type="number" id="unit-rent" placeholder="Rent Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 py-3 rounded-xl text-white font-bold text-xs">Save Unit</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="modal-tenant" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-tenant">
+      <div class="dialog">
+        <button type="button" class="close-btn" data-close="modal-tenant" aria-label="Close tenant form">&times;</button>
+        <h3 id="title-tenant" class="font-bold text-lg text-white mb-4">Tenant Onboarding</h3>
+        <form id="form-tenant" class="space-y-3">
+          <div class="text-xs font-semibold text-emerald-400">1. Personal Details</div>
+          <input type="text" id="ten-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <input type="text" id="ten-nida" placeholder="NIDA / Passport *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <input type="tel" id="ten-phone" placeholder="Phone Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+
+          <div class="text-xs font-semibold text-emerald-400 mt-4">2. Lease Agreement</div>
+          <select id="ten-unit-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+            <option value="">Select Vacant Unit...</option>
+          </select>
+          <div class="grid grid-cols-2 gap-2">
+            <input type="date" id="ten-start" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+            <input type="date" id="ten-end" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          </div>
+          <input type="number" id="ten-rent" placeholder="Agreed Rent (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl text-white font-bold text-xs mt-4">Complete Onboarding</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="modal-invoice" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-invoice">
+      <div class="dialog">
+        <button type="button" class="close-btn" data-close="modal-invoice" aria-label="Close invoice form">&times;</button>
+        <h3 id="title-invoice" class="font-bold text-lg text-white mb-4">Issue Invoice</h3>
+        <form id="form-invoice" class="space-y-3">
+          <select id="inv-lease-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+            <option value="">Select Active Lease...</option>
+          </select>
+          <input type="number" id="inv-amount" placeholder="Amount Due (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <input type="date" id="inv-due" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded-xl text-white font-bold text-xs">Generate Invoice</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="modal-expense" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-expense">
+      <div class="dialog">
+        <button type="button" class="close-btn" data-close="modal-expense" aria-label="Close expense form">&times;</button>
+        <h3 id="title-expense" class="font-bold text-lg text-white mb-4">Record Expense</h3>
+        <form id="form-expense" class="space-y-3">
+          <select id="exp-category" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+            <option value="REPAIR">Repair & Maintenance</option>
+            <option value="UTILITY">Utility Bills</option>
+            <option value="SALARY">Staff Salary</option>
+          </select>
+          <input type="text" id="exp-desc" placeholder="Description *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <input type="number" id="exp-amount" placeholder="Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <button type="submit" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-xl text-white font-bold text-xs">Save Expense</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="modal-ticket" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-ticket">
+      <div class="dialog">
+        <button type="button" class="close-btn" data-close="modal-ticket" aria-label="Close ticket form">&times;</button>
+        <h3 id="title-ticket" class="font-bold text-lg text-white mb-4">Create Maintenance Ticket</h3>
+        <form id="form-ticket" class="space-y-3">
+          <select id="tkt-unit-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+            <option value="">Select Affected Unit...</option>
+          </select>
+          <input type="text" id="tkt-title" placeholder="Issue Title *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <textarea id="tkt-desc" placeholder="Issue Description" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs h-24" required></textarea>
+          <select id="tkt-priority" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+            <option value="LOW">LOW</option>
+            <option value="MEDIUM" selected>MEDIUM</option>
+            <option value="HIGH">HIGH</option>
+            <option value="URGENT">URGENT</option>
+          </select>
+          <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 py-3 rounded-xl text-white font-bold text-xs">Create Ticket</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="modal-register" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-register">
+      <div class="dialog">
+        <button type="button" class="close-btn" data-close="modal-register" aria-label="Close staff registration form">&times;</button>
+        <h3 id="title-register" class="font-bold text-lg text-white mb-4">Register Staff Member</h3>
+        <form id="form-register" class="space-y-3">
+          <input type="text" id="reg-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <input type="email" id="reg-email" placeholder="Email Address *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <input type="password" id="reg-password" placeholder="Password *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <select id="reg-role" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+            <option value="PROPERTY_MANAGER">PROPERTY MANAGER</option>
+            <option value="ACCOUNTANT">ACCOUNTANT</option>
+            <option value="TECHNICIAN">TECHNICIAN</option>
+          </select>
+          <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl text-white font-bold text-xs">Create Staff Member</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="modal-luku" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-luku">
+      <div class="dialog">
+        <button type="button" class="close-btn" data-close="modal-luku" aria-label="Close Luku form">&times;</button>
+        <h3 id="title-luku" class="font-bold text-lg text-white mb-4">Vend Luku Token</h3>
+        <form id="form-luku" class="space-y-3">
+          <input type="text" id="luku-meter" placeholder="Meter Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <input type="text" id="luku-tenant" placeholder="Tenant Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <input type="number" id="luku-amount" placeholder="Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required />
+          <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 py-3 rounded-xl text-white font-bold text-xs">Generate Token</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="modal-luku-result" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="title-luku-result">
+      <div class="dialog">
+        <button type="button" class="close-btn" data-close="modal-luku-result" aria-label="Close token result">&times;</button>
+        <h3 id="title-luku-result" class="font-bold text-lg text-white mb-4">Luku Token Generated</h3>
+        <p class="text-sm text-gray-300 mb-3">Your token and usage summary are shown below.</p>
+        <div class="space-y-3 text-sm text-slate-200">
+          <div><span class="text-gray-400">Token Number:</span> <span id="res-token" class="font-bold text-white"></span></div>
+          <div><span class="text-gray-400">KWh:</span> <span id="res-kwh" class="font-bold text-cyan-300"></span></div>
+          <div><span class="text-gray-400">Tenant:</span> <span id="res-tenant" class="font-bold text-emerald-300"></span></div>
+          <button type="button" onclick="copyToken()" class="w-full bg-cyan-600 hover:bg-cyan-700 py-3 rounded-xl text-white font-bold text-xs">Copy Token</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const TOKEN_KEY = 'keyarch_token';
+      const USER_KEY = 'keyarch_user';
+
+      const el = (id) => document.getElementById(id);
+
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[data-open]').forEach((button) => {
+          button.addEventListener('click', () => openModal(button.dataset.open));
+        });
+
+        document.querySelectorAll('[data-close]').forEach((button) => {
+          button.addEventListener('click', () => closeModal(button.dataset.close));
+        });
+
+        document.querySelectorAll('.modal').forEach((modal) => {
+          modal.addEventListener('click', (event) => {
+            if (event.target === modal) closeModal(modal.id);
+          });
+        });
+
+        const formLogin = el('form-login');
+        if (formLogin) formLogin.addEventListener('submit', login);
+
+        bind('form-property', () => submit('/api/properties', {
+          property_name: el('prop-name').value.trim(),
+          address: el('prop-address').value.trim(),
+          category: el('prop-category').value
+        }, 'modal-property', 'form-property'));
+
+        bind('form-unit', () => submit('/api/units', {
+          property_id: Number(el('unit-prop-id').value),
+          unit_number: el('unit-no').value.trim(),
+          rent_amount: Number(el('unit-rent').value)
+        }, 'modal-unit', 'form-unit'));
+
+        bind('form-tenant', () => {
+          if (el('ten-end').value <= el('ten-start').value) {
+            notify('Lease end must be after the start date.', 'error');
+            return;
+          }
+
+          submit('/api/tenants/onboard', {
+            full_name: el('ten-name').value.trim(),
+            nida_passport_no: el('ten-nida').value.trim(),
+            phone_number: el('ten-phone').value.trim(),
+            unit_id: Number(el('ten-unit-id').value),
+            start_date: el('ten-start').value,
+            end_date: el('ten-end').value,
+            agreed_rent: Number(el('ten-rent').value)
+          }, 'modal-tenant', 'form-tenant');
+        });
+
+        bind('form-invoice', () => submit('/api/invoices/issue', {
+          lease_id: Number(el('inv-lease-id').value),
+          amount_due: Number(el('inv-amount').value),
+          due_date: el('inv-due').value
+        }, 'modal-invoice', 'form-invoice'));
+
+        bind('form-expense', () => submit('/api/finance/expenses', {
+          category: el('exp-category').value,
+          description: el('exp-desc').value.trim(),
+          amount: Number(el('exp-amount').value)
+        }, 'modal-expense', 'form-expense'));
+
+        bind('form-ticket', () => submit('/api/tickets/create', {
+          unit_id: Number(el('tkt-unit-id').value),
+          title: el('tkt-title').value.trim(),
+          description: el('tkt-desc').value.trim(),
+          priority: el('tkt-priority').value
+        }, 'modal-ticket', 'form-ticket'));
+
+        bind('form-register', () => submit('/api/auth/register', {
+          full_name: el('reg-name').value.trim(),
+          email: el('reg-email').value.trim(),
+          password: el('reg-password').value,
+          role: el('reg-role').value
+        }, 'modal-register', 'form-register'));
+
+        bind('form-luku', vendLuku);
+
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            document.querySelectorAll('.modal:not(.hidden)').forEach((modal) => closeModal(modal.id));
+          }
+        });
+
+        const savedToken = localStorage.getItem(TOKEN_KEY);
+        const savedUser = localStorage.getItem(USER_KEY);
+
+        if (savedToken && savedUser) {
+          showApp(JSON.parse(savedUser));
+          refresh();
+        }
+      });
+
+      function bind(id, handler) {
+        const form = el(id);
+        if (!form) return;
+        form.addEventListener('submit', (event) => {
+          event.preventDefault();
+          handler();
+        });
+      }
+
+      function openModal(id) {
+        const modal = el(id);
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+        const focusTarget = modal.querySelector('input, select, textarea, button');
+        if (focusTarget) focusTarget.focus();
+      }
+
+      function closeModal(id) {
+        const modal = el(id);
+        if (!modal) return;
+        modal.classList.add('hidden');
+        if (!document.querySelector('.modal:not(.hidden)')) {
+          document.body.classList.remove('overflow-hidden');
+        }
+      }
+
+      function notify(message, type = 'info') {
+        const toast = el('status-message');
+        if (!toast) return;
+        toast.textContent = message;
+        toast.classList.remove('hidden', 'border-red-500', 'border-emerald-500', 'border-blue-500');
+        toast.classList.add(type === 'error' ? 'border-red-500' : type === 'success' ? 'border-emerald-500' : 'border-blue-500');
+        toast.classList.remove('text-red-200', 'text-emerald-200', 'text-blue-200');
+        toast.classList.add(type === 'error' ? 'text-red-200' : type === 'success' ? 'text-emerald-200' : 'text-blue-200');
+        toast.classList.remove('hidden');
+        clearTimeout(notify.timeoutId);
+        notify.timeoutId = setTimeout(() => toast.classList.add('hidden'), 3500);
+      }
+
+      async function parseResponse(response) {
+        let data = {};
+        const contentType = response.headers.get('content-type') || '';
+
+        if (contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          data = await response.text();
+        }
+
+        if (response.status === 401) {
+          logout();
+          throw new Error('Session expired. Please sign in again.');
+        }
+
+        if (!response.ok) {
+          throw new Error(typeof data === 'string' ? data : (data.error || 'Request failed'));
+        }
+
+        return data;
+      }
+
+      async function request(url, options = {}) {
+        const headers = { ...(options.headers || {}) };
+        const token = localStorage.getItem(TOKEN_KEY);
+
+        if (token) headers.Authorization = `Bearer ${token}`;
+
+        return parseResponse(await fetch(url, { ...options, headers }));
+      }
+
+      async function login(event) {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const submitButton = form.querySelector('[type="submit"]');
+        const email = el('login-email').value.trim();
+        const password = el('login-password').value;
+
+        if (!email || !password) {
+          notify('Please enter your email and password.', 'error');
+          return;
+        }
+
+        submitButton.disabled = true;
+        submitButton.textContent = 'Signing In...';
+
+        try {
+          const data = await parseResponse(await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          }));
+
+          localStorage.setItem(TOKEN_KEY, data.token);
+          localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+          showApp(data.user);
+          notify('Login successful.', 'success');
+          refresh();
+        } catch (error) {
+          notify(error.message || 'Login failed.', 'error');
+        } finally {
+          submitButton.disabled = false;
+          submitButton.textContent = 'Sign In →';
+        }
+      }
+
+      async function submit(url, body, modalId, formId) {
+        const form = el(formId);
+        const submitButton = form ? form.querySelector('[type="submit"]') : null;
+        if (submitButton) {
+          submitButton.disabled = true;
+          submitButton.textContent = 'Saving...';
+        }
+
+        try {
+          const data = await request(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+
+          notify('Saved successfully.', 'success');
+          closeModal(modalId);
+          form?.reset();
+          refresh();
+          return data;
+        } catch (error) {
+          notify(error.message || 'Save failed.', 'error');
+          return null;
+        } finally {
+          if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.textContent = submitButton.dataset.originalText || submitButton.textContent;
+          }
+        }
+      }
+
+      async function vendLuku() {
+        const form = el('form-luku');
+        const submitButton = form.querySelector('[type="submit"]');
+        const originalText = 'Generate Token';
+        submitButton.disabled = true;
+        submitButton.textContent = 'Generating...';
+
+        try {
+          const data = await request('/api/finance/luku/vend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              meter_number: el('luku-meter').value.trim(),
+              tenant_name: el('luku-tenant').value.trim(),
+              amount: Number(el('luku-amount').value)
+            })
+          });
+
+          el('res-token').textContent = data.token_number || 'N/A';
+          el('res-kwh').textContent = `${data.kwh_units || 0} kWh`;
+          el('res-tenant').textContent = data.tenant_name || el('luku-tenant').value.trim();
+          closeModal('modal-luku');
+          form.reset();
+          openModal('modal-luku-result');
+          notify('Luku token generated successfully.', 'success');
+          refresh();
+        } catch (error) {
+          notify(error.message || 'Luku generation failed.', 'error');
+        } finally {
+          submitButton.disabled = false;
+          submitButton.textContent = originalText;
+        }
+      }
+
+      function optionList(select, data, valueSelector, textSelector, placeholder = 'Select...') {
+        const fragment = document.createDocumentFragment();
+        const firstOption = new Option(placeholder, '');
+        fragment.appendChild(firstOption);
+
+        (Array.isArray(data) ? data : []).forEach((item) => {
+          const option = new Option(textSelector(item), valueSelector(item));
+          fragment.appendChild(option);
+        });
+
+        select.innerHTML = '';
+        select.appendChild(fragment);
+      }
+
+      async function refresh() {
+        if (!localStorage.getItem(TOKEN_KEY)) return;
+
+        const results = await Promise.allSettled([
+          metrics(),
+          reminders(),
+          dropdowns()
+        ]);
+
+        const rejected = results.find((result) => result.status === 'rejected');
+        if (rejected) {
+          notify('Unable to refresh dashboard data.', 'error');
+        }
+      }
+
+      async function metrics() {
+        const data = await request('/api/dashboard/metrics');
+        el('stat-properties').textContent = data.totalProperties ?? 0;
+        el('stat-units').textContent = data.totalUnits ?? 0;
+        el('stat-occupancy').textContent = `${data.occupancyRate ?? 0}%`;
+        el('stat-tenants').textContent = data.activeTenants ?? 0;
+        el('stat-tickets').textContent = data.pendingTickets ?? 0;
+        el('stat-income').textContent = `TZS ${Number(data.monthlyIncome || 0).toLocaleString()}`;
+        el('stat-profit').textContent = `TZS ${Number(data.netProfit || 0).toLocaleString()}`;
+      }
+
+      async function reminders() {
+        const data = await request('/api/dashboard/reminders');
+        el('rem-expired').textContent = data.expired ?? 0;
+        el('rem-week').textContent = data.dueThisWeek ?? 0;
+        el('rem-month').textContent = data.dueThisMonth ?? 0;
+      }
+
+      async function dropdowns() {
+        const [properties, units, leases] = await Promise.all([
+          request('/api/properties'),
+          request('/api/units'),
+          request('/api/leases')
+        ]);
+
+        optionList(el('unit-prop-id'), properties, (item) => String(item.property_id), (item) => item.property_name, 'Select property...');
+        optionList(el('ten-unit-id'), units, (item) => String(item.unit_id), (item) => `${item.unit_number} • ${item.property_name || 'Property'}`, 'Select vacant unit...');
+        optionList(el('inv-lease-id'), leases, (item) => String(item.lease_id), (item) => `${item.tenant_name} • ${item.unit_number}`, 'Select active lease...');
+        optionList(el('tkt-unit-id'), units, (item) => String(item.unit_id), (item) => `${item.unit_number} • ${item.property_name || 'Property'}`, 'Select affected unit...');
+      }
+
+      function showApp(user) {
+        el('view-login').classList.add('hidden');
+        el('view-app').classList.remove('hidden');
+        el('view-app').classList.add('flex');
+
+        const userRole = user?.role || 'USER';
+        const userName = user?.full_name || 'User Name';
+
+        el('user-role-badge').textContent = userRole;
+        el('user-name-display').textContent = userName;
+        el('user-name-display').classList.remove('hidden');
+
+        const isSuperAdmin = userRole === 'SUPER_ADMIN';
+        const adminBtn = el('btn-admin-register');
+        if (adminBtn) {
+          adminBtn.classList.toggle('hidden', !isSuperAdmin);
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USER_KEY);
+
+        el('view-app').classList.add('hidden');
+        el('view-app').classList.remove('flex');
+        el('view-login').classList.remove('hidden');
+
+        const loginForm = el('form-login');
+        if (loginForm) loginForm.reset();
+
+        notify('Signed out successfully.', 'info');
+      }
+
+      async function copyToken() {
+        try {
+          await navigator.clipboard.writeText(el('res-token').textContent);
+          notify('Token copied to clipboard.', 'success');
+        } catch (error) {
+          notify('Unable to access clipboard. Please copy the token manually.', 'error');
+        }
+      }
+    </script>
+  </body>
 </html>
