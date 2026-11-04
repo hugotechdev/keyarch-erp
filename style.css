@@ -1,21 +1,291 @@
+/* =====================================================
+   KEY ARCH ERP
+   Enterprise Dark Theme
+===================================================== */
+
+:root {
+    --bg-main: #060c18;
+    --bg-card: #0d172d;
+    --bg-panel: #0a1224;
+    --border: #182848;
+    --border-soft: #1e2f52;
+
+    --blue: #3b82f6;
+    --cyan: #06b6d4;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --purple: #8b5cf6;
+
+    --text: #f3f4f6;
+    --muted: #94a3b8;
+}
+
+/* =====================================================
+   GLOBAL
+===================================================== */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
 body {
-    background-color: #0b1329;
-    color: #f3f4f6;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: var(--bg-main);
+    color: var(--text);
+    font-family:
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        "Helvetica Neue",
+        Arial,
+        sans-serif;
 }
 
-.card-dark {
-    background-color: #111c38;
-    border: 1px solid #1e2d54;
+/* =====================================================
+   SCROLLBAR
+===================================================== */
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
 }
 
-.input-dark {
-    background-color: #172447;
-    border: 1px solid #233563;
-    color: #ffffff;
+::-webkit-scrollbar-track {
+    background: #0a1224;
 }
 
-.input-dark:focus {
+::-webkit-scrollbar-thumb {
+    background: #1e2f52;
+    border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #253d6f;
+}
+
+/* =====================================================
+   TRANSITIONS
+===================================================== */
+
+button,
+input,
+textarea,
+select,
+a,
+.fixed,
+.modal-content {
+    transition: all 0.2s ease-in-out;
+}
+
+/* =====================================================
+   FORM ELEMENTS
+===================================================== */
+
+input,
+textarea,
+select {
+    color: white;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #64748b;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+}
+
+/* =====================================================
+   MODALS
+===================================================== */
+
+.modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+}
+
+.modal-show {
+    animation: popIn .18s ease-out;
+}
+
+@keyframes popIn {
+    from {
+        opacity: 0;
+        transform: scale(.97);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* =====================================================
+   DASHBOARD CARDS
+===================================================== */
+
+.metric-card,
+.dashboard-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+}
+
+.metric-card:hover,
+.dashboard-card:hover {
+    border-color: #27447d;
+}
+
+/* =====================================================
+   TABLES
+===================================================== */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table th {
+    background: #101d37;
+    color: #93c5fd;
+    text-align: left;
+}
+
+table th,
+table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+table tr:hover {
+    background: rgba(255,255,255,.02);
+}
+
+/* =====================================================
+   BUTTONS
+===================================================== */
+
+button {
+    cursor: pointer;
+}
+
+button:hover {
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* =====================================================
+   STATUS BADGES
+===================================================== */
+
+.status-active {
+    color: #22c55e;
+}
+
+.status-paid {
+    color: #22c55e;
+}
+
+.status-pending {
+    color: #f59e0b;
+}
+
+.status-overdue {
+    color: #ef4444;
+}
+
+.status-vacant {
+    color: #06b6d4;
+}
+
+.status-occupied {
+    color: #22c55e;
+}
+
+.status-maintenance {
+    color: #f59e0b;
+}
+
+/* =====================================================
+   ROLE BADGES
+===================================================== */
+
+.role-admin {
+    background: rgba(239,68,68,.15);
+    color: #fca5a5;
+}
+
+.role-manager {
+    background: rgba(59,130,246,.15);
+    color: #93c5fd;
+}
+
+.role-accountant {
+    background: rgba(34,197,94,.15);
+    color: #86efac;
+}
+
+.role-technician {
+    background: rgba(245,158,11,.15);
+    color: #fcd34d;
+}
+
+/* =====================================================
+   LUKU TOKEN
+===================================================== */
+
+.luku-token {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: #fbbf24;
+}
+
+/* =====================================================
+   FINANCIAL VALUES
+===================================================== */
+
+.amount-income {
+    color: #22c55e;
+    font-weight: 700;
+}
+
+.amount-expense {
+    color: #ef4444;
+    font-weight: 700;
+}
+
+.amount-profit {
+    color: #06b6d4;
+    font-weight: 700;
+}
+
+/* =====================================================
+   MOBILE
+===================================================== */
+
+@media (max-width: 768px) {
+
+    .mobile-stack {
+        flex-direction: column;
+    }
+
+    .luku-token {
+        font-size: 20px;
+        letter-spacing: 2px;
+    }
 }
