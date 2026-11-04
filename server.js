@@ -9,7 +9,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'keyarch_super_secret_jwt_key_2026';
 
-// PostgreSQL Connection Setup with Fallback
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
@@ -19,13 +18,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// Safe Database Migration & Admin Initialization (Prevents Server Crash)
 async function initDatabase() {
     try {
-        if (!process.env.DATABASE_URL) {
-            console.warn('⚠️ DATABASE_URL is not defined in environment variables.');
-            return;
-        }
+        if (!process.env.DATABASE_URL) return;
 
         await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'SUPER_ADMIN'");
         await pool.query("ALTER TABLE users ALTER COLUMN role_id DROP NOT NULL");
@@ -37,43 +32,30 @@ async function initDatabase() {
                 "INSERT INTO users (full_name, email, password_hash, phone_number, role, is_active) VALUES ($1, $2, $3, $4, $5, $6)",
                 ['Hugo Mlula', 'admin@keyarch.co.tz', hashedPassword, '+255700000000', 'SUPER_ADMIN', true]
             );
-            console.log('✅ Default Super Admin created: admin@keyarch.co.tz / Admin@2026');
         }
     } catch (err) {
-        console.error('⚠️ Database Initialization Warning (Server will continue running):', err.message);
+        console.error('Init DB Warning:', err.message);
     }
 }
 
-// Serve UI
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// ==========================================
-// 1. AUTHENTICATION & LOGIN API
-// ==========================================
+// AUTHENTICATION & LOGIN
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
         let user = null;
         let userQuery = { rows: [] };
+        try { userQuery = await pool.query('SELECT * FROM users WHERE email = $1', [email]); } catch (e) {}
 
-        try {
-            userQuery = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-        } catch (dbErr) {
-            console.error('Database query error on login:', dbErr.message);
-        }
-        
-        if (userQuery.rows.length > 0) {
-            user = userQuery.rows[0];
-        }
+        if (userQuery.rows.length > 0) user = userQuery.rows[0];
 
-        // Emergency Direct Admin Access Guarantee
         if (email === 'admin@keyarch.co.tz' && password === 'Admin@2026') {
             const token = jwt.sign(
                 { user_id: user ? user.user_id : 1, email: 'admin@keyarch.co.tz', role: 'SUPER_ADMIN', full_name: 'Hugo Mlula' },
-                JWT_SECRET,
-                { expiresIn: '12h' }
+                JWT_SECRET, { expiresIn: '12h' }
             );
             return res.json({
                 message: 'Login successful',
@@ -82,19 +64,14 @@ app.post('/api/auth/login', async (req, res) => {
             });
         }
 
-        if (!user) {
-            return res.status(401).json({ error: 'Email au Password siyo sahihi!' });
-        }
+        if (!user) return res.status(401).json({ error: 'Invalid credentials!' });
 
         const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-        if (!isPasswordValid) {
-            return res.status(401).json({ error: 'Email au Password siyo sahihi!' });
-        }
+        if (!isPasswordValid) return res.status(401).json({ error: 'Invalid credentials!' });
 
         const token = jwt.sign(
             { user_id: user.user_id, email: user.email, role: user.role || 'PROPERTY_MANAGER', full_name: user.full_name },
-            JWT_SECRET,
-            { expiresIn: '12h' }
+            JWT_SECRET, { expiresIn: '12h' }
         );
 
         res.json({
@@ -107,7 +84,6 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// Middleware for Authenticated JWT Routes
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -120,14 +96,11 @@ function authenticateToken(req, res, next) {
     });
 }
 
-// ==========================================
-// 2. ADMIN USER REGISTRATION API
-// ==========================================
+// ADMIN REGISTER USER
 app.post('/api/auth/register', authenticateToken, async (req, res) => {
     if (req.user.role !== 'SUPER_ADMIN') {
-        return res.status(403).json({ error: 'Ni Super Admin pekee anayeweza kusajili watumiaji wapya.' });
+        return res.status(403).json({ error: 'Only Super Admin can register users.' });
     }
-
     const { full_name, email, password, phone_number, role } = req.body;
     try {
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -135,16 +108,61 @@ app.post('/api/auth/register', authenticateToken, async (req, res) => {
             'INSERT INTO users (full_name, email, password_hash, phone_number, role, is_active) VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id, full_name, email, role',
             [full_name, email, hashedPassword, phone_number || '', role || 'PROPERTY_MANAGER', true]
         );
-
-        res.status(201).json({ message: 'User registered successfully', user: result.rows[0] });
+        res.status(201).json({ message: 'User registered', user: result.rows[0] });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
 // ==========================================
-// 3. DASHBOARD SUMMARY
+// MODULE 2: PROPERTY & UNIT MANAGEMENT APIs
 // ==========================================
+
+// Fetch All Properties with Unit Count
+app.get('/api/properties', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT p.*, COUNT(u.unit_id) as total_units_count 
+            FROM properties p 
+            LEFT JOIN units u ON p.property_id = u.property_id 
+            GROUP BY p.property_id 
+            ORDER BY p.created_at DESC
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Create New Property Asset
+app.post('/api/properties', authenticateToken, async (req, res) => {
+    const { property_name, address, category, total_units } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO properties (property_name, address, category, total_units) VALUES ($1, $2, $3, $4) RETURNING *',
+            [property_name, address, category || 'RESIDENTIAL', total_units || 1]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Create New Unit inside a Property
+app.post('/api/units', authenticateToken, async (req, res) => {
+    const { property_id, unit_number, rent_amount, currency, is_furnished } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO units (property_id, unit_number, rent_amount, currency, status, is_furnished) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [property_id, unit_number, rent_amount, currency || 'TZS', 'VACANT', is_furnished || false]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DASHBOARD SUMMARY API
 app.get('/api/dashboard/summary', authenticateToken, async (req, res) => {
     try {
         let totalProperties = { rows: [{ count: 0 }] };
@@ -165,7 +183,6 @@ app.get('/api/dashboard/summary', authenticateToken, async (req, res) => {
     }
 });
 
-// Start Server & Run DB Migration
 app.listen(PORT, () => {
     console.log(`KEY ARCH ERP Server running on port ${PORT}`);
     initDatabase();

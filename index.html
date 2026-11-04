@@ -10,7 +10,7 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between bg-[#060c18] text-gray-100 font-sans">
 
-    <!-- VIEW 1: LOGIN SCREEN (Default View) -->
+    <!-- VIEW 1: LOGIN SCREEN -->
     <div id="view-login" class="flex-grow flex items-center justify-center p-4">
         <div class="bg-[#0a1224] border border-[#182848] w-full max-w-md rounded-2xl p-8 shadow-2xl space-y-6">
             <div class="text-center space-y-1">
@@ -41,104 +41,127 @@
         </div>
     </div>
 
-    <!-- VIEW 2: MAIN SYSTEM DASHBOARD (Hidden until logged in) -->
+    <!-- VIEW 2: MAIN DASHBOARD -->
     <div id="view-app" class="hidden flex-col min-h-screen justify-between">
-        
-        <!-- TOP HEADER -->
         <header class="bg-[#0a1224]/90 backdrop-blur-md border-b border-[#182848] px-6 py-4 sticky top-0 z-40 shadow-2xl flex justify-between items-center">
             <div class="flex items-center space-x-3">
                 <span id="user-role-badge" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-900/80 border border-blue-500 text-blue-300 uppercase">SUPER_ADMIN</span>
                 <span id="user-name-display" class="text-xs font-bold text-white hidden md:inline">Hugo Mlula</span>
             </div>
             
-            <div class="text-center">
-                <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
-                    KEY ARCH <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300">ERP</span>
-                </h1>
-            </div>
+            <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
+                KEY ARCH <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300">ERP</span>
+            </h1>
 
-            <button onclick="logout()" class="bg-red-900/40 hover:bg-red-800/60 border border-red-500/50 px-3 py-1.5 rounded-xl text-xs font-bold text-red-300 flex items-center gap-1.5 transition">
+            <button onclick="logout()" class="bg-red-900/40 border border-red-500/50 px-3 py-1.5 rounded-xl text-xs font-bold text-red-300 flex items-center gap-1.5">
                 <i class="fa-solid fa-power-off"></i> <span class="hidden md:inline">Sign Out</span>
             </button>
         </header>
 
-        <!-- MAIN DASHBOARD CONTENT -->
         <main class="container mx-auto p-4 md:p-6 max-w-6xl flex-grow">
-            <section class="space-y-6">
-                
-                <!-- CONTRACT REMINDERS -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="p-4 bg-[#0d172d] border-l-4 border-red-500 rounded-2xl shadow-lg flex justify-between items-center">
-                        <div>
-                            <div class="text-xs text-gray-400 font-semibold uppercase">Expired Leases</div>
-                            <div id="rem-expired" class="text-2xl font-black text-red-400">0</div>
-                        </div>
-                        <i class="fa-solid fa-file-circle-exclamation text-red-500/30 text-3xl"></i>
+            <!-- DASHBOARD SECTION -->
+            <section id="sec-dashboard" class="space-y-6">
+                <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">System Operations Center</h2>
+                        <p class="text-xs text-gray-400">Manage properties, tenants, and team roles securely.</p>
                     </div>
-                    <div class="p-4 bg-[#0d172d] border-l-4 border-amber-500 rounded-2xl shadow-lg flex justify-between items-center">
-                        <div>
-                            <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Week</div>
-                            <div id="rem-week" class="text-2xl font-black text-amber-400">0</div>
-                        </div>
-                        <i class="fa-solid fa-clock-rotate-left text-amber-500/30 text-3xl"></i>
-                    </div>
-                    <div class="p-4 bg-[#0d172d] border-l-4 border-blue-500 rounded-2xl shadow-lg flex justify-between items-center">
-                        <div>
-                            <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Month</div>
-                            <div id="rem-month" class="text-2xl font-black text-blue-400">0</div>
-                        </div>
-                        <i class="fa-solid fa-calendar-check text-blue-500/30 text-3xl"></i>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="openModal('modal-property')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg">
+                            <i class="fa-solid fa-building-circle-check"></i> + Add Property Asset
+                        </button>
+                        <button id="btn-admin-register" onclick="openModal('modal-register')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg">
+                            <i class="fa-solid fa-user-plus"></i> + Register Staff
+                        </button>
                     </div>
                 </div>
 
-                <!-- METRICS GRID -->
-                <div class="grid grid-cols-2 md:grid-cols-6 gap-3 text-center">
-                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                        <div class="text-[10px] text-gray-400 uppercase">Properties</div>
-                        <div id="stat-properties" class="text-lg font-bold text-blue-400">0</div>
+                <!-- METRICS -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-xs text-gray-400 uppercase">Properties</div>
+                        <div id="stat-properties" class="text-2xl font-bold text-blue-400">0</div>
                     </div>
-                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                        <div class="text-[10px] text-gray-400 uppercase">Active Tenants</div>
-                        <div id="stat-tenants" class="text-lg font-bold text-emerald-400">0</div>
+                    <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-xs text-gray-400 uppercase">Active Tenants</div>
+                        <div id="stat-tenants" class="text-2xl font-bold text-emerald-400">0</div>
                     </div>
-                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                        <div class="text-[10px] text-gray-400 uppercase">Open Tickets</div>
-                        <div id="stat-tickets" class="text-lg font-bold text-amber-400">0</div>
+                    <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-xs text-gray-400 uppercase">Open Tickets</div>
+                        <div class="text-2xl font-bold text-amber-400">0</div>
                     </div>
-                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                        <div class="text-[10px] text-gray-400 uppercase">Total Income</div>
-                        <div id="stat-income" class="text-sm font-bold text-emerald-400">TZS 0</div>
-                    </div>
-                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                        <div class="text-[10px] text-gray-400 uppercase">Total Expenses</div>
-                        <div id="stat-expense" class="text-sm font-bold text-red-400">TZS 0</div>
-                    </div>
-                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                        <div class="text-[10px] text-gray-400 uppercase">Net Profit</div>
-                        <div id="stat-profit" class="text-sm font-bold text-cyan-400">TZS 0</div>
+                    <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-xs text-gray-400 uppercase">System Status</div>
+                        <div class="text-2xl font-bold text-cyan-400">ONLINE</div>
                     </div>
                 </div>
 
+                <!-- PROPERTY PORTFOLIO LIST -->
+                <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl space-y-4">
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center">
+                        <i class="fa-solid fa-building text-blue-400 mr-2"></i> Registered Property Assets
+                    </h3>
+                    <div id="property-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 bg-[#14223d] rounded-xl text-xs text-gray-400">Loading properties...</div>
+                    </div>
+                </div>
             </section>
         </main>
 
-        <!-- BOTTOM NAV -->
-        <nav class="bg-[#0a1224]/95 border-t border-[#182848] py-3 sticky bottom-0 z-40 backdrop-blur-md">
+        <nav class="bg-[#0a1224]/95 border-t border-[#182848] py-3 sticky bottom-0 z-40">
             <div class="max-w-md mx-auto flex justify-between items-center px-6 text-[10px] font-semibold text-gray-400">
                 <button class="text-blue-400 flex flex-col items-center"><i class="fa-solid fa-chart-line text-base mb-1"></i>Home</button>
                 <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-building text-base mb-1"></i>Properties</button>
                 <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-users text-base mb-1"></i>Tenants</button>
-                <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-wallet text-base mb-1"></i>Accounts</button>
-                <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-wrench text-base mb-1"></i>Tickets</button>
                 <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-sliders text-base mb-1"></i>Settings</button>
             </div>
         </nav>
     </div>
 
+    <!-- MODAL 1: ADD PROPERTY -->
+    <div id="modal-property" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
+            <button onclick="closeModal('modal-property')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white">Register Property Asset</h3>
+            <form id="form-property" class="space-y-3">
+                <input type="text" id="prop-name" placeholder="Property Name (e.g. HUGO Tower) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" id="prop-address" placeholder="Address (e.g. Mbezi Beach) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <select id="prop-category" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="RESIDENTIAL">RESIDENTIAL</option>
+                    <option value="COMMERCIAL">COMMERCIAL</option>
+                    <option value="OFFICE_SPACE">OFFICE SPACE</option>
+                    <option value="VACATION">VACATION / AIRBNB</option>
+                </select>
+                <input type="number" id="prop-units" placeholder="Total Units Count *" value="1" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl text-white font-bold text-xs">Save Property Asset</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: ADMIN REGISTER NEW USER -->
+    <div id="modal-register" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
+            <button onclick="closeModal('modal-register')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white">Register System User (Staff)</h3>
+            <form id="form-register" class="space-y-3">
+                <input type="text" id="reg-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="email" id="reg-email" placeholder="Email Address *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="password" id="reg-password" placeholder="Password *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="tel" id="reg-phone" placeholder="Phone Number" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                <select id="reg-role" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="PROPERTY_MANAGER">Property Manager</option>
+                    <option value="ACCOUNTANT">Accountant</option>
+                    <option value="TECHNICIAN">Technician / Maintenance</option>
+                    <option value="SUPER_ADMIN">Super Admin</option>
+                </select>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl text-white font-bold text-xs">Register Staff Member</button>
+            </form>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const token = localStorage.getItem('keyarch_token');
-            if (token) {
+            if (localStorage.getItem('keyarch_token')) {
                 showAppView();
             }
 
@@ -146,71 +169,137 @@
                 e.preventDefault();
                 const email = document.getElementById('login-email').value;
                 const password = document.getElementById('login-password').value;
-                const errBox = document.getElementById('login-error');
+                
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
 
-                errBox.classList.add('hidden');
-
-                try {
-                    const res = await fetch('/api/auth/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email, password })
-                    });
-                    const data = await res.json();
-
-                    if (!res.ok) {
-                        errBox.innerText = data.error || 'Login failed';
-                        errBox.classList.remove('hidden');
-                        return;
-                    }
-
+                if (res.ok) {
                     localStorage.setItem('keyarch_token', data.token);
                     localStorage.setItem('keyarch_user', JSON.stringify(data.user));
                     showAppView();
-                } catch (err) {
-                    errBox.innerText = 'Server Error! Jaribu tena baadaye.';
-                    errBox.classList.remove('hidden');
+                } else {
+                    alert(data.error || 'Login Failed!');
+                }
+            });
+
+            // ADD PROPERTY ASSET SUBMIT
+            document.getElementById('form-property').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const token = localStorage.getItem('keyarch_token');
+                const propData = {
+                    property_name: document.getElementById('prop-name').value,
+                    address: document.getElementById('prop-address').value,
+                    category: document.getElementById('prop-category').value,
+                    total_units: parseInt(document.getElementById('prop-units').value)
+                };
+
+                const res = await fetch('/api/properties', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(propData)
+                });
+
+                if (res.ok) {
+                    alert('Jengo jipya limesajiliwa kikamilifu!');
+                    closeModal('modal-property');
+                    loadProperties();
+                    loadDashboardSummary();
+                } else {
+                    alert('Usajili wa jengo umeshindikana!');
+                }
+            });
+
+            // ADMIN REGISTER USER SUBMIT
+            document.getElementById('form-register').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const token = localStorage.getItem('keyarch_token');
+                const userData = {
+                    full_name: document.getElementById('reg-name').value,
+                    email: document.getElementById('reg-email').value,
+                    password: document.getElementById('reg-password').value,
+                    phone_number: document.getElementById('reg-phone').value,
+                    role: document.getElementById('reg-role').value
+                };
+
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                if (res.ok) {
+                    alert('Mtumiaji mpya amesajiliwa kikamilifu!');
+                    closeModal('modal-register');
+                } else {
+                    const err = await res.json();
+                    alert(err.error || 'Usajili umeshindikana!');
                 }
             });
         });
 
-        async function showAppView() {
+        function showAppView() {
             document.getElementById('view-login').classList.add('hidden');
             document.getElementById('view-app').classList.remove('hidden');
             document.getElementById('view-app').classList.add('flex');
 
             const user = JSON.parse(localStorage.getItem('keyarch_user') || '{}');
-            document.getElementById('user-role-badge').innerText = user.role || 'USER';
-            document.getElementById('user-name-display').innerText = user.full_name || '';
+            document.getElementById('user-role-badge').innerText = user.role || 'SUPER_ADMIN';
+            document.getElementById('user-name-display').innerText = user.full_name || 'Hugo Mlula';
+
+            if (user.role !== 'SUPER_ADMIN') {
+                document.getElementById('btn-admin-register').classList.add('hidden');
+            }
 
             loadDashboardSummary();
+            loadProperties();
         }
 
         async function loadDashboardSummary() {
             const token = localStorage.getItem('keyarch_token');
-            try {
-                const res = await fetch('/api/dashboard/summary', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.status === 401 || res.status === 403) {
-                    logout();
-                    return;
-                }
+            const res = await fetch('/api/dashboard/summary', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
                 const data = await res.json();
-
-                document.getElementById('rem-expired').innerText = data.reminders.expired;
-                document.getElementById('rem-week').innerText = data.reminders.expiring_week;
-                document.getElementById('rem-month').innerText = data.reminders.expiring_month;
-
                 document.getElementById('stat-properties').innerText = data.properties;
                 document.getElementById('stat-tenants').innerText = data.tenants;
-                document.getElementById('stat-tickets').innerText = data.open_tickets;
+            }
+        }
 
-                document.getElementById('stat-income').innerText = 'TZS ' + data.financials.total_income.toLocaleString();
-                document.getElementById('stat-expense').innerText = 'TZS ' + data.financials.total_expense.toLocaleString();
-                document.getElementById('stat-profit').innerText = 'TZS ' + data.financials.net_profit.toLocaleString();
-            } catch (err) {
-                console.error(err);
+        async function loadProperties() {
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch('/api/properties', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const container = document.getElementById('property-list-container');
+            if (res.ok) {
+                const properties = await res.json();
+                if (properties.length === 0) {
+                    container.innerHTML = '<div class="text-xs text-gray-400 p-3">Hakuna jengo lililosajiliwa bado. Bonyeza "+ Add Property Asset" kusajili.</div>';
+                    return;
+                }
+                container.innerHTML = properties.map(p => `
+                    <div class="p-4 bg-[#14223d] border border-[#1e2f52] rounded-xl flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-white text-sm">${p.property_name}</div>
+                            <div class="text-xs text-gray-400"><i class="fa-solid fa-location-dot text-red-400 mr-1"></i>${p.address}</div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] bg-blue-900/80 text-blue-300 px-2 py-0.5 rounded border border-blue-500">${p.category}</span>
+                            <div class="text-xs text-gray-300 mt-1">${p.total_units_count || p.total_units} Units</div>
+                        </div>
+                    </div>
+                `).join('');
             }
         }
 
@@ -219,6 +308,9 @@
             localStorage.removeItem('keyarch_user');
             window.location.reload();
         }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
     </script>
 </body>
 </html>
