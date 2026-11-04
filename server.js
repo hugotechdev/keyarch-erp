@@ -10,7 +10,6 @@ const helmet = require('helmet');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// HTTP Security Headers
 app.use(
     helmet({
         contentSecurityPolicy: false,
@@ -31,14 +30,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
-// RATE LIMITER KWA LOGIN
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, 
-    max: 5, 
-    message: { error: 'Majaribio mengi ya kuingia yameshindikana. Tafadhali jaribu tena baada ya dakika 15.' }
+    max: 10, 
+    message: { error: 'Too many login attempts. Please try again after 15 minutes.' }
 });
 
-// AUDIT LOG HELPER (Multi-Tenant Support)
 async function createAuditLog(clientOrPool, companyId, userId, action, moduleAffected, ipAddress, metadata = {}) {
     try {
         await clientOrPool.query(
@@ -50,7 +47,6 @@ async function createAuditLog(clientOrPool, companyId, userId, action, moduleAff
     }
 }
 
-// AUTO-MIGRATIONS & MULTI-TENANT DATABASE INITIALIZATION
 async function initDatabase() {
     try {
         if (!process.env.DATABASE_URL) return;
@@ -59,7 +55,6 @@ async function initDatabase() {
         
         await pool.query('SELECT NOW()');
 
-        // 1. Companies Table (SaaS Tenants)
         await pool.query(`
             CREATE TABLE IF NOT EXISTS companies (
                 company_id SERIAL PRIMARY KEY,
@@ -70,7 +65,6 @@ async function initDatabase() {
             );
         `);
 
-        // 2. Add company_id to core tables
         await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
         await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(30) DEFAULT 'COMPANY_ADMIN'");
         
@@ -87,7 +81,6 @@ async function initDatabase() {
 
         await pool.query("CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000");
 
-        // Seed Platform Master Owner Company (Hugo Tech)
         const companyCheck = await pool.query("SELECT * FROM companies WHERE company_name = 'Hugo Tech Platform Master'");
         let masterCompanyId;
         if (companyCheck.rows.length === 0) {
@@ -97,7 +90,6 @@ async function initDatabase() {
             masterCompanyId = companyCheck.rows[0].company_id;
         }
 
-        // Seed System Super Admin (Hugo Mlula)
         const userCheck = await pool.query("SELECT * FROM users WHERE email = 'admin@keyarch.co.tz'");
         if (userCheck.rows.length === 0) {
             const hashedPassword = await bcrypt.hash('Admin@2026', 10);
@@ -105,12 +97,12 @@ async function initDatabase() {
                 "INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7)",
                 [masterCompanyId, 'Hugo Mlula', 'admin@keyarch.co.tz', hashedPassword, '+255700000000', 'SUPER_ADMIN', true]
             );
-            console.log('✅ SaaS Platform Super Admin Seeded Successfully: admin@keyarch.co.tz');
+            console.log('✅ Platform Master Super Admin Seeded: admin@keyarch.co.tz');
         }
 
         console.log('✅ Multi-Tenant SaaS Database Initialization Completed.');
     } catch (err) {
-        console.error('❌ DB Initialization Warning/Error:', err.message);
+        console.error('❌ DB Initialization Error:', err.message);
     }
 }
 
@@ -118,16 +110,13 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// ==========================================
-// MIDDLEWARES
-// ==========================================
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'Huruhusiwi kuingia bila Token!' });
+    if (!token) return res.status(401).json({ error: 'Access denied. Missing authentication token.' });
 
     jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) return res.status(403).json({ error: 'Session imekwisha. Ingia upya.' });
+        if (err) return res.status(403).json({ error: 'Session expired or invalid token. Please log in again.' });
         req.user = user;
         next();
     });
@@ -136,19 +125,17 @@ function authenticateToken(req, res, next) {
 function allowRoles(...allowedRoles) {
     return (req, res, next) => {
         if (!req.user || !allowedRoles.includes(req.user.role)) {
-            return res.status(403).json({ error: 'Access Denied: Huna mamlaka ya kitendo hiki.' });
+            return res.status(403).json({ error: 'Access Denied: Unauthorized role permission.' });
         }
         next();
     };
 }
 
-// ==========================================
 // 1. AUTHENTICATION & CLIENT ONBOARDING
-// ==========================================
-
-// LOGIN
 app.post('/api/auth/login', loginLimiter, async (req, res) => {
     const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Email and Password are required.' });
+
     try {
         const userQuery = await pool.query(
             `SELECT u.*, c.company_name, c.is_active as company_active 
@@ -157,14 +144,14 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
              WHERE u.email = $1`, 
             [email]
         );
-        if (userQuery.rows.length === 0) return res.status(401).json({ error: 'Email au Password siyo sahihi!' });
+        if (userQuery.rows.length === 0) return res.status(401).json({ error: 'Invalid Email or Password.' });
 
         const user = userQuery.rows[0];
-        if (!user.is_active) return res.status(403).json({ error: 'Akaunti yako imesimamishwa.' });
-        if (user.role !== 'SUPER_ADMIN' && !user.company_active) return res.status(403).json({ error: 'Kampuni yako imefungiwa huduma za mfumo.' });
+        if (!user.is_active) return res.status(403).json({ error: 'Account suspended.' });
+        if (user.role !== 'SUPER_ADMIN' && !user.company_active) return res.status(403).json({ error: 'Company account is inactive or suspended.' });
 
         const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-        if (!isPasswordValid) return res.status(401).json({ error: 'Email au Password siyo sahihi!' });
+        if (!isPasswordValid) return res.status(401).json({ error: 'Invalid Email or Password.' });
 
         const token = jwt.sign(
             { user_id: user.user_id, company_id: user.company_id, email: user.email, role: user.role, full_name: user.full_name },
@@ -184,27 +171,29 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     }
 });
 
-// REGISTER NEW COMPANY / SAAS CLIENT (Property Owner Sign-up)
+// REGISTER NEW COMPANY / SAAS CLIENT (Property Owner Sign-Up)
 app.post('/api/auth/register-company', async (req, res) => {
     const { company_name, admin_full_name, email, password, phone_number, subscription_plan } = req.body;
+    
+    if (!company_name || !admin_full_name || !email || !password) {
+        return res.status(400).json({ error: 'Please provide all required fields (Company Name, Full Name, Email, Password).' });
+    }
+
+    if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
     const client = await pool.connect();
     
     try {
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-        if (!passwordRegex.test(password)) {
-            return res.status(400).json({ error: 'Nenosiri lazima liwe na herufi 8+, herufi kubwa, ndogo, namba na alama maalum.' });
-        }
-
         await client.query('BEGIN');
 
-        // Create Company
         const compRes = await client.query(
             'INSERT INTO companies (company_name, subscription_plan) VALUES ($1, $2) RETURNING *',
             [company_name, subscription_plan || 'STANDARD']
         );
         const company = compRes.rows[0];
 
-        // Create Company Admin User
         const hashedPassword = await bcrypt.hash(password, 10);
         const userRes = await client.query(
             'INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING user_id, full_name, email, role',
@@ -218,7 +207,7 @@ app.post('/api/auth/register-company', async (req, res) => {
         res.status(201).json({ message: 'Company onboarded successfully', company, admin_user: user });
     } catch (err) {
         await client.query('ROLLBACK');
-        if (err.code === '23505') return res.status(400).json({ error: 'Email hii tayari imeshasajiliwa.' });
+        if (err.code === '23505') return res.status(400).json({ error: 'This email address is already registered.' });
         res.status(500).json({ error: err.message });
     } finally {
         client.release();
@@ -230,9 +219,12 @@ app.post('/api/auth/register-staff', authenticateToken, allowRoles('SUPER_ADMIN'
     const { full_name, email, password, phone_number, role } = req.body;
     const companyId = req.user.role === 'SUPER_ADMIN' ? (req.body.company_id || req.user.company_id) : req.user.company_id;
 
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    if (!passwordRegex.test(password)) {
-        return res.status(400).json({ error: 'Nenosiri lazima liwe na herufi 8+, herufi kubwa, ndogo, namba na alama maalum.' });
+    if (!full_name || !email || !password) {
+        return res.status(400).json({ error: 'Full Name, Email, and Password are required.' });
+    }
+
+    if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
     try {
@@ -245,14 +237,12 @@ app.post('/api/auth/register-staff', authenticateToken, allowRoles('SUPER_ADMIN'
         await createAuditLog(pool, companyId, req.user.user_id, `Created Staff Account (${role})`, 'USER_MGMT', req.ip, { created_email: email, role });
         res.status(201).json({ message: 'Staff member registered successfully', user: result.rows[0] });
     } catch (err) { 
-        if (err.code === '23505') return res.status(400).json({ error: 'Email hii tayari ipo kwenye mfumo.' });
+        if (err.code === '23505') return res.status(400).json({ error: 'This email address is already registered.' });
         res.status(500).json({ error: err.message }); 
     }
 });
 
-// ==========================================
-// 2. PROPERTIES & UNITS APIs (Tenant-Isolated)
-// ==========================================
+// 2. PROPERTIES & UNITS APIs
 app.get('/api/properties', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
@@ -304,14 +294,12 @@ app.post('/api/units', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADM
         await createAuditLog(pool, req.user.company_id, req.user.user_id, `Created Unit`, 'UNITS', req.ip, { unit_id: result.rows[0].unit_id, property_id, unit_number });
         res.status(201).json(result.rows[0]);
     } catch (err) { 
-        if (err.code === '23505') return res.status(400).json({ error: `Unit ${unit_number} tayari ipo kwenye jengo hili!` });
+        if (err.code === '23505') return res.status(400).json({ error: `Unit ${unit_number} already exists for this property.` });
         res.status(500).json({ error: err.message }); 
     }
 });
 
-// ==========================================
 // 3. TENANT ONBOARDING TRANSACTION
-// ==========================================
 app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
     const client = await pool.connect();
     try {
@@ -321,8 +309,8 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
         await client.query('BEGIN');
 
         const unitCheck = await client.query('SELECT status FROM units WHERE unit_id = $1 AND company_id = $2', [unit_id, companyId]);
-        if (unitCheck.rows.length === 0) throw new Error('Unit iliyochaguliwa haipatikani.');
-        if (unitCheck.rows[0].status === 'OCCUPIED') throw new Error('Unit hii tayari ina mpangaji mwingine active.');
+        if (unitCheck.rows.length === 0) throw new Error('Selected unit was not found.');
+        if (unitCheck.rows[0].status === 'OCCUPIED') throw new Error('Selected unit is already occupied.');
 
         const tenantRes = await client.query(
             'INSERT INTO tenants (company_id, full_name, nida_passport_no, phone_number, email) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
@@ -369,9 +357,7 @@ app.get('/api/tenants', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ==========================================
 // 4. LEASES & INVOICES APIs
-// ==========================================
 app.get('/api/leases', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
@@ -419,9 +405,7 @@ app.post('/api/invoices/issue', authenticateToken, allowRoles('SUPER_ADMIN', 'CO
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ==========================================
 // 5. WORK ORDERS / TICKETS APIs
-// ==========================================
 app.get('/api/tickets', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
@@ -449,9 +433,7 @@ app.post('/api/tickets/create', authenticateToken, allowRoles('SUPER_ADMIN', 'CO
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ==========================================
 // 6. FINANCE: EXPENSES & LUKU VENDING
-// ==========================================
 app.get('/api/expenses', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
@@ -495,9 +477,7 @@ app.post('/api/finance/luku/vend', authenticateToken, allowRoles('SUPER_ADMIN', 
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ==========================================
-// 7. DASHBOARD METRICS & REMINDERS APIs (Company Filtered)
-// ==========================================
+// 7. DASHBOARD METRICS & REMINDERS APIs
 app.get('/api/dashboard/metrics', authenticateToken, async (req, res) => {
     const cId = req.user.company_id;
     try {
