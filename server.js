@@ -51,24 +51,10 @@ async function initDatabase() {
     try {
         if (!process.env.DATABASE_URL) return;
 
-        console.log('🔄 Checking database connection and running Multi-Tenant migrations...');
+        console.log('🔄 Initializing Database Schema & Multi-Tenant Migrations...');
         await pool.query('SELECT NOW()');
 
-        // 1. Audit logs table (if not exists)
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS audit_logs (
-                log_id SERIAL PRIMARY KEY,
-                company_id INT,
-                user_id INT,
-                action_performed VARCHAR(255),
-                module_affected VARCHAR(100),
-                ip_address VARCHAR(50),
-                metadata JSONB,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-
-        // 2. Companies table
+        // 1. CREATE ALL BASE TABLES IF NOT EXIST
         await pool.query(`
             CREATE TABLE IF NOT EXISTS companies (
                 company_id SERIAL PRIMARY KEY,
@@ -79,24 +65,156 @@ async function initDatabase() {
             );
         `);
 
-        // 3. Ensure core tables have company_id
-        await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
-        await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(30) DEFAULT 'COMPANY_ADMIN'");
-        
-        await pool.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
-        await pool.query("ALTER TABLE units ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
-        await pool.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
-        await pool.query("ALTER TABLE leases ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
-        await pool.query("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
-        await pool.query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
-        await pool.query("ALTER TABLE expenses ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
-        await pool.query("ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
-        await pool.query("ALTER TABLE luku_vouchers ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
-        await pool.query("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                user_id SERIAL PRIMARY KEY,
+                company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+                full_name VARCHAR(150) NOT NULL,
+                email VARCHAR(150) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                phone_number VARCHAR(50),
+                role VARCHAR(30) DEFAULT 'COMPANY_ADMIN',
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS properties (
+                property_id SERIAL PRIMARY KEY,
+                company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+                property_name VARCHAR(150) NOT NULL,
+                address TEXT NOT NULL,
+                category VARCHAR(50) DEFAULT 'RESIDENTIAL',
+                total_units INT DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS units (
+                unit_id SERIAL PRIMARY KEY,
+                company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+                property_id INT REFERENCES properties(property_id) ON DELETE CASCADE,
+                unit_number VARCHAR(50) NOT NULL,
+                rent_amount NUMERIC(12, 2) NOT NULL,
+                currency VARCHAR(10) DEFAULT 'TZS',
+                status VARCHAR(20) DEFAULT 'VACANT',
+                is_furnished BOOLEAN DEFAULT false,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT unique_unit_per_property UNIQUE(property_id, unit_number)
+            );
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS tenants (
+                tenant_id SERIAL PRIMARY KEY,
+                company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+                full_name VARCHAR(150) NOT NULL,
+                nida_passport_no VARCHAR(100),
+                phone_number VARCHAR(50),
+                email VARCHAR(150),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS leases (
+                lease_id SERIAL PRIMARY KEY,
+                company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+                unit_id INT REFERENCES units(unit_id) ON DELETE CASCADE,
+                tenant_id INT REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+                start_date DATE NOT NULL,
+                end_date DATE NOT NULL,
+                agreed_rent NUMERIC(12, 2) NOT NULL,
+                payment_cycle VARCHAR(30) DEFAULT 'MONTHLY',
+                status VARCHAR(20) DEFAULT 'ACTIVE',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS invoices (
+                invoice_id SERIAL PRIMARY KEY,
+                company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+                lease_id INT REFERENCES leases(lease_id) ON DELETE CASCADE,
+                invoice_number VARCHAR(100) UNIQUE NOT NULL,
+                amount_due NUMERIC(12, 2) NOT NULL,
+                due_date DATE NOT NULL,
+                status VARCHAR(20) DEFAULT 'PENDING',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS payments (
+                payment_id SERIAL PRIMARY KEY,
+                company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+                invoice_id INT REFERENCES invoices(invoice_id) ON DELETE CASCADE,
+                amount_paid NUMERIC(12, 2) NOT NULL,
+                payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                payment_method VARCHAR(50) DEFAULT 'BANK'
+            );
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS expenses (
+                expense_id SERIAL PRIMARY KEY,
+                company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+                property_id INT REFERENCES properties(property_id) ON DELETE CASCADE,
+                description TEXT NOT NULL,
+                amount NUMERIC(12, 2) NOT NULL,
+                category VARCHAR(50) DEFAULT 'MISC',
+                recorded_by INT REFERENCES users(user_id) ON DELETE SET NULL,
+                expense_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS work_orders (
+                ticket_id SERIAL PRIMARY KEY,
+                company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+                unit_id INT REFERENCES units(unit_id) ON DELETE CASCADE,
+                assigned_technician_id INT REFERENCES users(user_id) ON DELETE SET NULL,
+                title VARCHAR(200) NOT NULL,
+                description TEXT,
+                priority VARCHAR(20) DEFAULT 'MEDIUM',
+                status VARCHAR(20) DEFAULT 'OPEN',
+                estimated_cost NUMERIC(12, 2) DEFAULT 0.00,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS luku_vouchers (
+                voucher_id SERIAL PRIMARY KEY,
+                company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+                meter_number VARCHAR(100) NOT NULL,
+                tenant_name VARCHAR(150) NOT NULL,
+                amount NUMERIC(12, 2) NOT NULL,
+                token_number VARCHAR(100) NOT NULL,
+                kwh_units NUMERIC(10, 2) NOT NULL,
+                sold_by INT REFERENCES users(user_id) ON DELETE SET NULL,
+                sold_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                log_id SERIAL PRIMARY KEY,
+                company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+                user_id INT REFERENCES users(user_id) ON DELETE SET NULL,
+                action_performed VARCHAR(255) NOT NULL,
+                module_affected VARCHAR(100) NOT NULL,
+                ip_address VARCHAR(50),
+                metadata JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
 
         await pool.query("CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000");
 
-        // Seed Master Company (Hugo Tech)
+        // 2. SEED MASTER PLATFORM OWNER COMPANY (Hugo Tech)
         const companyCheck = await pool.query("SELECT * FROM companies WHERE company_name = 'Hugo Tech Platform Master'");
         let masterCompanyId;
         if (companyCheck.rows.length === 0) {
@@ -106,10 +224,11 @@ async function initDatabase() {
             masterCompanyId = companyCheck.rows[0].company_id;
         }
 
-        // Seed Platform Super Admin
+        // 3. SEED SUPER ADMIN USER
+        const masterPassword = process.env.MASTER_ADMIN_PASSWORD || 'Admin@2026';
         const userCheck = await pool.query("SELECT * FROM users WHERE email = 'admin@keyarch.co.tz'");
         if (userCheck.rows.length === 0) {
-            const hashedPassword = await bcrypt.hash('Admin@2026', 10);
+            const hashedPassword = await bcrypt.hash(masterPassword, 10);
             await pool.query(
                 "INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7)",
                 [masterCompanyId, 'Hugo Mlula', 'admin@keyarch.co.tz', hashedPassword, '+255700000000', 'SUPER_ADMIN', true]
@@ -117,7 +236,7 @@ async function initDatabase() {
             console.log('✅ Platform Master Super Admin Seeded: admin@keyarch.co.tz');
         }
 
-        console.log('✅ Multi-Tenant SaaS Database Initialization Completed.');
+        console.log('✅ Database Schema Initialized & Migrations Completed Successfully.');
     } catch (err) {
         console.error('❌ DB Initialization Error:', err.message);
     }
@@ -205,6 +324,12 @@ app.post('/api/auth/register-company', async (req, res) => {
 
     let client;
     try {
+        // Fast Check for Duplicate Email before transaction
+        const existingUser = await pool.query('SELECT user_id FROM users WHERE email = $1', [email]);
+        if (existingUser.rows.length > 0) {
+            return res.status(400).json({ error: 'This email address is already registered.' });
+        }
+
         client = await pool.connect();
         await client.query('BEGIN');
 
@@ -497,7 +622,7 @@ app.post('/api/finance/luku/vend', authenticateToken, allowRoles('SUPER_ADMIN', 
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 7. DASHBOARD METRICS & REMINDERS APIs
+// 7. DASHBOARD METRICS & REMINDERS APIs (Corrected totalUnits)
 app.get('/api/dashboard/metrics', authenticateToken, async (req, res) => {
     const cId = req.user.company_id;
     try {
@@ -512,7 +637,7 @@ app.get('/api/dashboard/metrics', authenticateToken, async (req, res) => {
         const lukuIncomeQuery = await pool.query("SELECT COALESCE(SUM(amount), 0) AS total FROM luku_vouchers WHERE company_id = $1 AND sold_at >= DATE_TRUNC('month', CURRENT_DATE)", [cId]);
         const monthlyExpensesQuery = await pool.query("SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE company_id = $1 AND expense_date >= DATE_TRUNC('month', CURRENT_DATE)", [cId]);
 
-        const tUnits = parseInt(totalProperties.rows[0]?.count || 0);
+        const tUnits = parseInt(totalUnits.rows[0]?.count || 0);
         const occUnits = parseInt(occupiedUnits.rows[0]?.count || 0);
         const occupancyRate = tUnits > 0 ? ((occUnits / tUnits) * 100).toFixed(2) : 0;
 
@@ -523,7 +648,7 @@ app.get('/api/dashboard/metrics', authenticateToken, async (req, res) => {
 
         res.json({
             totalProperties: parseInt(totalProperties.rows[0]?.count || 0),
-            totalUnits: parseInt(totalUnits.rows[0]?.count || 0),
+            totalUnits: tUnits,
             occupiedUnits: occUnits,
             vacantUnits: parseInt(vacantUnits.rows[0]?.count || 0),
             occupancyRate: occupancyRate,
