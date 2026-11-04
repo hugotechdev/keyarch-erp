@@ -1,207 +1,501 @@
-<!-- Header ya Juu (Top Header & User Badge) -->
-<header class="top-header">
-    <div class="logo-container">
-        <i class="fa-solid fa-building-user logo-icon"></i>
-        <h2>KeyArch <span>ERP</span></h2>
-    </div>
-    <div class="header-right">
-        <div class="user-profile">
-            <span id="user-role-badge" class="badge badge-admin">SUPER ADMIN</span>
-            <span id="user-name">Msimamizi Mkuu</span>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KEY ARCH ERP — Enterprise Operations System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-[#060c18] text-gray-100 font-sans">
+
+    <!-- VIEW 1: SECURE LOGIN SCREEN -->
+    <div id="view-login" class="flex-grow flex items-center justify-center p-4">
+        <div class="bg-[#0a1224] border border-[#182848] w-full max-w-md rounded-2xl p-8 shadow-2xl space-y-6">
+            <div class="text-center space-y-1">
+                <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
+                    KEY ARCH <span class="text-xs font-semibold px-2 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 align-middle">ERP</span>
+                </h1>
+                <p class="text-xs text-gray-400 uppercase tracking-widest">Operations Portal</p>
+            </div>
+            <form id="form-login" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Email Address</label>
+                    <input type="email" id="login-email" value="admin@keyarch.co.tz" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Password</label>
+                    <input type="password" id="login-password" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
+                </div>
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg transition">
+                    Sign In &rarr;
+                </button>
+            </form>
         </div>
-        <button id="logout-btn" class="btn btn-secondary btn-sm" onclick="handleLogout()">
-            <i class="fa-solid fa-right-from-bracket"></i>
-        </button>
     </div>
-</header>
 
-<div class="main-layout">
-    <main class="dashboard-container">
+    <!-- VIEW 2: MAIN DASHBOARD -->
+    <div id="view-app" style="display: none;" class="flex-col min-h-screen justify-between">
+        
+        <!-- HEADER -->
+        <header class="bg-[#0a1224]/90 backdrop-blur-md border-b border-[#182848] px-6 py-4 sticky top-0 z-40 shadow-2xl flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <span id="user-role-badge" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-900/80 border border-blue-500 text-blue-300 uppercase">ROLE</span>
+                <span id="user-name-display" class="text-xs font-bold text-white hidden md:inline">User Name</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
+                KEY ARCH <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300">ERP</span>
+            </h1>
+            <button onclick="logout()" class="bg-red-900/40 hover:bg-red-800/60 border border-red-500/50 px-3 py-1.5 rounded-xl text-xs font-bold text-red-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-power-off"></i> <span class="hidden md:inline">Sign Out</span>
+            </button>
+        </header>
 
-        <!-- SEHEMU YA 1: Top Section - Banner & Contract Reminders -->
-        <section class="reminders-banner">
-            <div class="reminder-card alert-danger">
-                <div class="icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-                <div class="details">
-                    <h4>Mikataba Iliyopitiliza</h4>
-                    <span id="cnt-expired" class="count">0</span>
+        <main class="container mx-auto p-4 md:p-6 max-w-7xl flex-grow">
+            <section class="space-y-6">
+                
+                <!-- ACTION CONTROL BAR -->
+                <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">System Operations Center</h2>
+                        <p class="text-xs text-gray-400">Enterprise property, finance, and maintenance management.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="openModal('modal-property')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-building"></i> + Property</button>
+                        <button onclick="openModal('modal-unit')" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-door-open"></i> + Unit</button>
+                        <button onclick="openModal('modal-tenant')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-user-plus"></i> + Onboard Tenant</button>
+                        <button onclick="openModal('modal-invoice')" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-file-invoice-dollar"></i> + Invoice</button>
+                        <button onclick="openModal('modal-luku')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-bolt"></i> + Vend Luku</button>
+                        <button onclick="openModal('modal-expense')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-money-bill-transfer"></i> + Expense</button>
+                        <button onclick="openModal('modal-ticket')" class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-screwdriver-wrench"></i> + Ticket</button>
+                        <button id="btn-admin-register" onclick="openModal('modal-register')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl" style="display:none;"><i class="fa-solid fa-user-shield"></i> + Staff</button>
+                    </div>
                 </div>
-            </div>
-            <div class="reminder-card alert-warning">
-                <div class="icon"><i class="fa-solid fa-clock"></i></div>
-                <div class="details">
-                    <h4>Inaisha Wiki Hii</h4>
-                    <span id="cnt-due-week" class="count">0</span>
-                </div>
-            </div>
-            <div class="reminder-card alert-info">
-                <div class="icon"><i class="fa-solid fa-calendar-days"></i></div>
-                <div class="details">
-                    <h4>Inaisha Mwezi Huu</h4>
-                    <span id="cnt-due-month" class="count">0</span>
-                </div>
-            </div>
-        </section>
 
-        <!-- SEHEMU YA 2: Second Section - Operational & Financial Metrics Grid -->
-        <section class="metrics-grid">
-            <div class="metric-card">
-                <i class="fa-solid fa-city metric-icon"></i>
-                <h3>Majengo & Nyumba</h3>
-                <p id="metric-properties-units">0 / 0</p>
-            </div>
-            <div class="metric-card">
-                <i class="fa-solid fa-users metric-icon"></i>
-                <h3>Wapangaji Wanaoishi</h3>
-                <p id="metric-active-tenants">0</p>
-            </div>
-            <div class="metric-card">
-                <i class="fa-solid fa-wrench metric-icon"></i>
-                <h3>Tiketi za Matengenezo</h3>
-                <p id="metric-open-tickets">0</p>
-            </div>
-            <div class="metric-card text-success">
-                <i class="fa-solid fa-wallet metric-icon"></i>
-                <h3>Jumla ya Mapato</h3>
-                <p id="metric-total-income">TSH 0</p>
-            </div>
-            <div class="metric-card text-danger">
-                <i class="fa-solid fa-arrow-trend-down metric-icon"></i>
-                <h3>Jumla ya Matumizi</h3>
-                <p id="metric-total-expenses">TSH 0</p>
-            </div>
-            <div class="metric-card text-primary">
-                <i class="fa-solid fa-chart-line metric-icon"></i>
-                <h3>Faida Halisi (Net Profit)</h3>
-                <p id="metric-net-profit">TSH 0</p>
-            </div>
-        </section>
+                <!-- LEASE REMINDERS -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="p-4 bg-[#0d172d] border-l-4 border-red-500 rounded-2xl flex justify-between items-center">
+                        <div>
+                            <div class="text-xs text-gray-400 font-semibold uppercase">Expired Leases</div>
+                            <div id="rem-expired" class="text-2xl font-black text-red-400">0</div>
+                        </div>
+                        <i class="fa-solid fa-file-circle-exclamation text-red-500/30 text-3xl"></i>
+                    </div>
+                    <div class="p-4 bg-[#0d172d] border-l-4 border-amber-500 rounded-2xl flex justify-between items-center">
+                        <div>
+                            <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Week</div>
+                            <div id="rem-week" class="text-2xl font-black text-amber-400">0</div>
+                        </div>
+                        <i class="fa-solid fa-clock-rotate-left text-amber-500/30 text-3xl"></i>
+                    </div>
+                    <div class="p-4 bg-[#0d172d] border-l-4 border-blue-500 rounded-2xl flex justify-between items-center">
+                        <div>
+                            <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Month</div>
+                            <div id="rem-month" class="text-2xl font-black text-blue-400">0</div>
+                        </div>
+                        <i class="fa-solid fa-calendar-check text-blue-500/30 text-3xl"></i>
+                    </div>
+                </div>
 
-        <!-- SEHEMU YA 3: Third Section - Central Action Hub (Category Tabs) -->
-        <section class="action-hub-card">
-            <div class="hub-header">
-                <h3><i class="fa-solid fa-bolt text-warning"></i> Njia za Haraka (Quick Actions)</h3>
-                <div class="tab-buttons">
-                    <button class="tab-btn active" onclick="switchActionTab('asset-tab')">Majengo & Wapangaji</button>
-                    <button class="tab-btn" onclick="switchActionTab('finance-tab')">Fedha & Luku</button>
-                    <button class="tab-btn" onclick="switchActionTab('maintenance-tab')">Matengenezo</button>
-                    <button class="tab-btn" onclick="switchActionTab('billing-tab')">Invois & Bili</button>
+                <!-- SYSTEM METRICS -->
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-center">
+                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-[10px] text-gray-400 uppercase">Properties</div>
+                        <div id="stat-properties" class="text-lg font-bold text-blue-400">0</div>
+                    </div>
+                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-[10px] text-gray-400 uppercase">Total Units</div>
+                        <div id="stat-units" class="text-lg font-bold text-cyan-400">0</div>
+                    </div>
+                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-[10px] text-gray-400 uppercase">Occupancy</div>
+                        <div id="stat-occupancy" class="text-lg font-bold text-emerald-400">0%</div>
+                    </div>
+                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-[10px] text-gray-400 uppercase">Active Tenants</div>
+                        <div id="stat-tenants" class="text-lg font-bold text-emerald-400">0</div>
+                    </div>
+                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-[10px] text-gray-400 uppercase">Pending Tickets</div>
+                        <div id="stat-tickets" class="text-lg font-bold text-orange-400">0</div>
+                    </div>
+                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl col-span-3">
+                        <div class="text-[10px] text-gray-400 uppercase">Monthly Performance</div>
+                        <div class="flex justify-around items-center mt-1">
+                            <div><span class="text-[10px] text-gray-500 block">Income</span><span id="stat-income" class="text-sm font-bold text-emerald-400">TZS 0</span></div>
+                            <div><span class="text-[10px] text-gray-500 block">Profit</span><span id="stat-profit" class="text-sm font-bold text-cyan-400">TZS 0</span></div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
+        </main>
+    </div>
 
-            <div class="tab-content-container">
-                <!-- Tab 1: Majengo & Wapangaji -->
-                <div id="asset-tab" class="tab-content active">
-                    <button class="btn btn-primary" onclick="openModal('modal-add-property')"><i class="fa-solid fa-plus"></i> Saji Jengo Kipya</button>
-                    <button class="btn btn-secondary" onclick="openModal('modal-onboard-tenant')"><i class="fa-solid fa-user-plus"></i> Saji Mpangaji Mpya</button>
-                </div>
-                <!-- Tab 2: Fedha & Luku -->
-                <div id="finance-tab" class="tab-content">
-                    <button class="btn btn-success" onclick="openModal('modal-record-income')"><i class="fa-solid fa-money-bill-down"></i> Kerekodi Mapato</button>
-                    <button class="btn btn-warning" onclick="openModal('modal-vend-luku')"><i class="fa-solid fa-bolt-lightning"></i> Uza Tokeni ya Luku</button>
-                    <button class="btn btn-danger" onclick="openModal('modal-record-expense')"><i class="fa-solid fa-receipt"></i> Kerekodi Matumizi</button>
-                </div>
-                <!-- Tab 3: Matengenezo -->
-                <div id="maintenance-tab" class="tab-content">
-                    <button class="btn btn-primary" onclick="openModal('modal-new-ticket')"><i class="fa-solid fa-screwdriver-wrench"></i> Fungua Tiketi ya Matengenezo</button>
-                </div>
-                <!-- Tab 4: Invois & Bili -->
-                <div id="billing-tab" class="tab-content">
-                    <button class="btn btn-info" onclick="openModal('modal-issue-invoice')"><i class="fa-solid fa-file-invoice-dollar"></i> Toa Invois Mpya</button>
-                </div>
-            </div>
-        </section>
-
-        <!-- SEHEMU YA 4: Fourth Section - Main Operational Portfolio & Ledger Cards -->
-        <section class="operational-tables-grid">
-            <!-- Hali ya Majengo -->
-            <div class="card-panel">
-                <div class="panel-header">
-                    <h3><i class="fa-solid fa-building"></i> Hali ya Majengo (Portfolio Status)</h3>
-                </div>
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Jengo</th>
-                                <th>Anwani</th>
-                                <th>Aina</th>
-                                <th>Nyumba (Units)</th>
-                                <th>Hali</th>
-                            </tr>
-                        </thead>
-                        <tbody id="portfolio-table-body">
-                            <tr><td colspan="5" class="text-center">Inapakia taarifa za majengo...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Muhtasari wa Miamala -->
-            <div class="card-panel">
-                <div class="panel-header">
-                    <h3><i class="fa-solid fa-list-check"></i> Muhtasari wa Miamala (Recent Ledger)</h3>
-                </div>
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Aina</th>
-                                <th>Kipengele</th>
-                                <th>Kiasi</th>
-                                <th>Tarehe</th>
-                                <th>Hali</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ledger-table-body">
-                            <tr><td colspan="5" class="text-center">Inapakia taarifa za miamala...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-    </main>
-</div>
-
-<!-- SEHEMU YA 5: Bottom Navigation Shortcut Bar -->
-<nav class="bottom-nav-bar">
-    <a href="#dashboard" class="nav-item active"><i class="fa-solid fa-house"></i><span>Nyumbani</span></a>
-    <a href="#properties" class="nav-item"><i class="fa-solid fa-city"></i><span>Majengo</span></a>
-    <a href="#tenants" class="nav-item"><i class="fa-solid fa-users"></i><span>Wapangaji</span></a>
-    <a href="#accounts" class="nav-item"><i class="fa-solid fa-scale-balanced"></i><span>Akaunti</span></a>
-    <a href="#tickets" class="nav-item"><i class="fa-solid fa-wrench"></i><span>Tiketi</span></a>
-    <a href="#settings" class="nav-item"><i class="fa-solid fa-gear"></i><span>Mipangilio</span></a>
-</nav>
-
-<!-- MODAL: Sell Luku Voucher -->
-<div id="modal-vend-luku" class="modal-backdrop">
-    <div class="modal-box">
-        <div class="modal-header">
-            <h3><i class="fa-solid fa-bolt-lightning text-warning"></i> Uza Tokeni ya Luku</h3>
-            <button class="close-btn" onclick="closeModal('modal-vend-luku')">&times;</button>
-        </div>
-        <form id="form-vend-luku" onsubmit="handleVendLuku(event)">
-            <div class="form-group">
-                <label>Chagua Nyumba / Mita *</label>
-                <select id="luku-unit-select" required class="form-control">
-                    <option value="">Chagua Nyumba...</option>
+    <!-- MODAL: ADD PROPERTY -->
+    <div id="modal-property" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
+            <button onclick="closeModal('modal-property')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Register Property</h3>
+            <form id="form-property" class="space-y-3">
+                <input type="text" id="prop-name" placeholder="Property Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" id="prop-address" placeholder="Address *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <select id="prop-category" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="RESIDENTIAL">RESIDENTIAL</option>
+                    <option value="COMMERCIAL">COMMERCIAL</option>
                 </select>
-            </div>
-            <div class="form-group">
-                <label>Kiasi cha Fedha (TSH) *</label>
-                <input type="number" id="luku-amount" min="1000" step="500" placeholder="Mfano: 10000" required class="form-control">
-            </div>
-            <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('modal-vend-luku')">Ghaili</button>
-                <button type="submit" class="btn btn-warning">Tengeneza Tokeni</button>
-            </div>
-        </form>
-        <div id="luku-result-box" class="luku-result-container hidden">
-            <h4>Tokeni ya Luku Imetengenezwa:</h4>
-            <div id="luku-token-display" class="luku-token">0000-0000-0000-0000</div>
-            <p>Uniti (kWh): <strong id="luku-units-display">0.00</strong></p>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl text-white font-bold text-xs">Save Property</button>
+            </form>
         </div>
     </div>
-</div>
 
+    <!-- MODAL: ADD UNIT -->
+    <div id="modal-unit" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
+            <button onclick="closeModal('modal-unit')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Register Unit</h3>
+            <form id="form-unit" class="space-y-3">
+                <select id="unit-prop-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required></select>
+                <input type="text" id="unit-no" placeholder="Unit Number (e.g. 101) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="number" id="unit-rent" placeholder="Rent Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 py-3 rounded-xl text-white font-bold text-xs">Save Unit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: TENANT ONBOARDING -->
+    <div id="modal-tenant" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative my-8">
+            <button onclick="closeModal('modal-tenant')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Tenant Onboarding</h3>
+            <form id="form-tenant" class="space-y-3">
+                <div class="text-xs font-semibold text-emerald-400">1. Personal Details</div>
+                <input type="text" id="ten-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" id="ten-nida" placeholder="NIDA / Passport *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="tel" id="ten-phone" placeholder="Phone Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <div class="text-xs font-semibold text-emerald-400 mt-4">2. Lease Agreement</div>
+                <select id="ten-unit-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                    <option value="">Select Vacant Unit...</option>
+                </select>
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="date" id="ten-start" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                    <input type="date" id="ten-end" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                </div>
+                <input type="number" id="ten-rent" placeholder="Agreed Rent (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl text-white font-bold text-xs mt-4">Complete Onboarding</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ISSUE INVOICE -->
+    <div id="modal-invoice" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
+            <button onclick="closeModal('modal-invoice')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Issue Invoice</h3>
+            <form id="form-invoice" class="space-y-3">
+                <select id="inv-lease-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                    <option value="">Select Active Lease...</option>
+                </select>
+                <input type="number" id="inv-amount" placeholder="Amount Due (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="date" id="inv-due" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded-xl text-white font-bold text-xs">Generate Invoice</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: RECORD EXPENSE -->
+    <div id="modal-expense" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
+            <button onclick="closeModal('modal-expense')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Record Expense</h3>
+            <form id="form-expense" class="space-y-3">
+                <select id="exp-category" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="REPAIR">Repair & Maintenance</option>
+                    <option value="UTILITY">Utility Bills</option>
+                    <option value="SALARY">Staff Salary</option>
+                </select>
+                <input type="text" id="exp-desc" placeholder="Description *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="number" id="exp-amount" placeholder="Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-xl text-white font-bold text-xs">Save Expense</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CREATE TICKET (MAINTENANCE) -->
+    <div id="modal-ticket" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
+            <button onclick="closeModal('modal-ticket')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Create Maintenance Ticket</h3>
+            <form id="form-ticket" class="space-y-3">
+                <select id="tkt-unit-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                    <option value="">Select Affected Unit...</option>
+                </select>
+                <input type="text" id="tkt-title" placeholder="Issue Title *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <textarea id="tkt-desc" placeholder="Issue Description" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs h-20"></textarea>
+                <select id="tkt-priority" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="LOW">LOW</option>
+                    <option value="MEDIUM" selected>MEDIUM</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="URGENT">URGENT</option>
+                </select>
+                <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 py-3 rounded-xl text-white font-bold text-xs">Create Ticket</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTER STAFF (SUPER ADMIN) -->
+    <div id="modal-register" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
+            <button onclick="closeModal('modal-register')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Register Staff Member</h3>
+            <form id="form-register" class="space-y-3">
+                <input type="text" id="reg-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="email" id="reg-email" placeholder="Email Address *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="password" id="reg-password" placeholder="Password (Min 8, Upper, Lower, Num, Special) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <select id="reg-role" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="PROPERTY_MANAGER">Property Manager</option>
+                    <option value="ACCOUNTANT">Accountant</option>
+                    <option value="TECHNICIAN">Technician</option>
+                    <option value="SUPER_ADMIN">Super Admin</option>
+                </select>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl text-white font-bold text-xs">Register Staff</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: LUKU VENDING -->
+    <div id="modal-luku" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative">
+            <button onclick="closeModal('modal-luku')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Vend Luku Token</h3>
+            <form id="form-luku" class="space-y-3">
+                <input type="text" id="luku-meter" placeholder="Meter Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" id="luku-tenant" placeholder="Tenant Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="number" id="luku-amount" placeholder="Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 py-3 rounded-xl text-white font-bold text-xs">Generate Token</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: LUKU RESULT UI -->
+    <div id="modal-luku-result" style="display: none;" class="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-amber-500/50 w-full max-w-md rounded-3xl p-8 text-center shadow-[0_0_40px_rgba(245,158,11,0.2)]">
+            <div class="mx-auto w-16 h-16 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-3xl mb-4">
+                <i class="fa-solid fa-bolt"></i>
+            </div>
+            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Luku Token Generated</h3>
+            <div id="res-token" class="text-3xl font-black text-amber-400 tracking-widest bg-[#14223d] py-4 rounded-xl border border-[#1e2f52] my-4 select-all">
+                0000-0000-0000-0000
+            </div>
+            <div class="grid grid-cols-2 gap-4 text-left bg-[#14223d] p-4 rounded-xl border border-[#1e2f52] mb-6">
+                <div><span class="text-[10px] text-gray-500 block uppercase">Meter</span><span id="res-meter" class="text-sm font-bold text-white">0</span></div>
+                <div><span class="text-[10px] text-gray-500 block uppercase">Units (kWh)</span><span id="res-kwh" class="text-sm font-bold text-cyan-400">0.0</span></div>
+                <div class="col-span-2"><span class="text-[10px] text-gray-500 block uppercase">Amount</span><span id="res-amount" class="text-sm font-bold text-emerald-400">TZS 0</span></div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="copyLukuToken()" class="flex-1 bg-[#14223d] hover:bg-[#1e2f52] border border-[#233863] py-3 rounded-xl text-white font-bold text-xs"><i class="fa-solid fa-copy"></i> Copy</button>
+                <button onclick="closeModal('modal-luku-result')" class="flex-1 bg-amber-600 hover:bg-amber-700 py-3 rounded-xl text-white font-bold text-xs">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('keyarch_token')) showAppView();
+
+            document.getElementById('form-login').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: document.getElementById('login-email').value,
+                        password: document.getElementById('login-password').value
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('keyarch_token', data.token);
+                    localStorage.setItem('keyarch_user', JSON.stringify(data.user));
+                    showAppView();
+                } else alert(data.error || 'Login Failed!');
+            });
+
+            document.getElementById('form-property').addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendPost('/api/properties', { property_name: document.getElementById('prop-name').value, address: document.getElementById('prop-address').value, category: document.getElementById('prop-category').value }, 'modal-property', 'form-property');
+            });
+
+            document.getElementById('form-unit').addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendPost('/api/units', { property_id: parseInt(document.getElementById('unit-prop-id').value), unit_number: document.getElementById('unit-no').value, rent_amount: parseFloat(document.getElementById('unit-rent').value) }, 'modal-unit', 'form-unit');
+            });
+
+            document.getElementById('form-tenant').addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendPost('/api/tenants/onboard', { full_name: document.getElementById('ten-name').value, nida_passport_no: document.getElementById('ten-nida').value, phone_number: document.getElementById('ten-phone').value, unit_id: parseInt(document.getElementById('ten-unit-id').value), start_date: document.getElementById('ten-start').value, end_date: document.getElementById('ten-end').value, agreed_rent: parseFloat(document.getElementById('ten-rent').value), generate_initial_invoice: true }, 'modal-tenant', 'form-tenant');
+            });
+
+            document.getElementById('form-invoice').addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendPost('/api/invoices/issue', { lease_id: parseInt(document.getElementById('inv-lease-id').value), amount_due: parseFloat(document.getElementById('inv-amount').value), due_date: document.getElementById('inv-due').value }, 'modal-invoice', 'form-invoice');
+            });
+
+            document.getElementById('form-ticket').addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendPost('/api/tickets/create', { unit_id: parseInt(document.getElementById('tkt-unit-id').value), title: document.getElementById('tkt-title').value, description: document.getElementById('tkt-desc').value, priority: document.getElementById('tkt-priority').value }, 'modal-ticket', 'form-ticket');
+            });
+
+            document.getElementById('form-expense').addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendPost('/api/finance/expenses', { category: document.getElementById('exp-category').value, description: document.getElementById('exp-desc').value, amount: parseFloat(document.getElementById('exp-amount').value) }, 'modal-expense', 'form-expense');
+            });
+
+            document.getElementById('form-register').addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendPost('/api/auth/register', { full_name: document.getElementById('reg-name').value, email: document.getElementById('reg-email').value, password: document.getElementById('reg-password').value, role: document.getElementById('reg-role').value }, 'modal-register', 'form-register');
+            });
+
+            document.getElementById('form-luku').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const token = localStorage.getItem('keyarch_token');
+                const res = await fetch('/api/finance/luku/vend', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ meter_number: document.getElementById('luku-meter').value, tenant_name: document.getElementById('luku-tenant').value, amount: parseFloat(document.getElementById('luku-amount').value) })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    document.getElementById('form-luku').reset();
+                    closeModal('modal-luku');
+                    document.getElementById('res-token').innerText = data.token_number;
+                    document.getElementById('res-meter').innerText = data.meter_number;
+                    document.getElementById('res-kwh').innerText = data.kwh_units;
+                    document.getElementById('res-amount').innerText = 'TZS ' + parseFloat(data.amount).toLocaleString();
+                    openModal('modal-luku-result');
+                    loadAllData();
+                } else alert('Error: ' + data.error);
+            });
+        });
+
+        async function sendPost(url, bodyData, modalId, formId) {
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(bodyData)
+            });
+            if (res.ok) {
+                if(formId) document.getElementById(formId).reset();
+                closeModal(modalId);
+                loadAllData();
+                alert('Success! Kitendo kimekamilika kikamilifu.');
+            } else {
+                const data = await res.json();
+                alert('Imefeli: ' + (data.error || 'Server error'));
+            }
+        }
+
+        function copyLukuToken() {
+            navigator.clipboard.writeText(document.getElementById('res-token').innerText);
+            alert('Token copied!');
+        }
+
+        function showAppView() {
+            document.getElementById('view-login').style.display = 'none';
+            document.getElementById('view-app').style.display = 'flex';
+            
+            const user = JSON.parse(localStorage.getItem('keyarch_user') || '{}');
+            document.getElementById('user-role-badge').innerText = user.role || 'USER';
+            document.getElementById('user-name-display').innerText = user.full_name || '';
+
+            if (user.role === 'SUPER_ADMIN') {
+                document.getElementById('btn-admin-register').style.display = 'inline-block';
+            }
+
+            loadAllData();
+        }
+
+        function loadAllData() {
+            loadDashboardMetrics();
+            loadReminders();
+            loadDropdowns();
+        }
+
+        async function loadDashboardMetrics() {
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch('/api/dashboard/metrics', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('stat-properties').innerText = data.totalProperties;
+                document.getElementById('stat-units').innerText = data.totalUnits;
+                document.getElementById('stat-occupancy').innerText = data.occupancyRate + '%';
+                document.getElementById('stat-tenants').innerText = data.activeTenants;
+                document.getElementById('stat-tickets').innerText = data.pendingTickets;
+                document.getElementById('stat-income').innerText = 'TZS ' + data.monthlyIncome.toLocaleString();
+                document.getElementById('stat-profit').innerText = 'TZS ' + data.netProfit.toLocaleString();
+            }
+        }
+
+        async function loadReminders() {
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch('/api/dashboard/reminders', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('rem-expired').innerText = data.expired;
+                document.getElementById('rem-week').innerText = data.dueThisWeek;
+                document.getElementById('rem-month').innerText = data.dueThisMonth;
+            }
+        }
+
+        async function loadDropdowns() {
+            const token = localStorage.getItem('keyarch_token');
+            const headers = { 'Authorization': `Bearer ${token}` };
+            
+            const propSelect = document.getElementById('unit-prop-id');
+            if (propSelect) {
+                const propRes = await fetch('/api/properties', { headers });
+                if (propRes.ok) {
+                    const props = await propRes.json();
+                    propSelect.innerHTML = props.map(p => `<option value="${p.property_id}">${p.property_name}</option>`).join('');
+                }
+            }
+            
+            const unitRes = await fetch('/api/units', { headers });
+            if (unitRes.ok) {
+                const units = await unitRes.json();
+                const vacantUnits = units.filter(u => u.status === 'VACANT');
+                
+                const tenUnitSelect = document.getElementById('ten-unit-id');
+                if (tenUnitSelect) {
+                    tenUnitSelect.innerHTML = vacantUnits.map(u => `<option value="${u.unit_id}">${u.property_name} - ${u.unit_number}</option>`).join('');
+                }
+                
+                const tktUnitSelect = document.getElementById('tkt-unit-id');
+                if (tktUnitSelect) {
+                    tktUnitSelect.innerHTML = units.map(u => `<option value="${u.unit_id}">${u.property_name} - ${u.unit_number}</option>`).join('');
+                }
+            }
+
+            const leaseSelect = document.getElementById('inv-lease-id');
+            if (leaseSelect) {
+                const leaseRes = await fetch('/api/leases', { headers });
+                if (leaseRes.ok) {
+                    const leases = await leaseRes.json();
+                    const activeLeases = leases.filter(l => l.status === 'ACTIVE');
+                    leaseSelect.innerHTML = activeLeases.map(l => `<option value="${l.lease_id}">${l.tenant_name} (${l.unit_number})</option>`).join('');
+                }
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('keyarch_token');
+            localStorage.removeItem('keyarch_user');
+            window.location.reload();
+        }
+
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    </script>
+</body>
+</html>
