@@ -10,7 +10,7 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between bg-[#060c18] text-gray-100 font-sans pb-16">
 
-    <!-- VIEW 1: SECURE LOGIN SCREEN -->
+    <!-- VIEW 1: AUTHENTICATION PORTAL (LOGIN & REGISTER) -->
     <div id="view-login" class="flex-grow flex items-center justify-center p-4">
         <div class="bg-[#0a1224] border border-[#182848] w-full max-w-md rounded-2xl p-8 shadow-2xl space-y-6">
             <div class="text-center space-y-1">
@@ -19,7 +19,19 @@
                 </h1>
                 <p class="text-xs text-gray-400 uppercase tracking-widest">Operations Portal</p>
             </div>
-            <form id="form-login" class="space-y-4">
+
+            <!-- AUTH SWITCH TABS -->
+            <div class="flex border-b border-[#182848] bg-[#14223d]/40 rounded-xl p-1">
+                <button type="button" onclick="switchAuthTab('login')" id="tab-auth-login" class="flex-1 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white transition">
+                    Sign In
+                </button>
+                <button type="button" onclick="switchAuthTab('register')" id="tab-auth-register" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition">
+                    Create Account
+                </button>
+            </div>
+
+            <!-- FORM 1: LOGIN -->
+            <form id="form-login" class="space-y-4 block">
                 <div>
                     <label class="block text-xs font-semibold text-gray-300 mb-1">Email Address</label>
                     <input type="email" id="login-email" value="admin@keyarch.co.tz" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
@@ -32,6 +44,38 @@
                     Sign In &rarr;
                 </button>
             </form>
+
+            <!-- FORM 2: REGISTER -->
+            <form id="form-portal-register" class="space-y-3 hidden">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Full Name *</label>
+                    <input type="text" id="p-reg-name" placeholder="Hugo Mlula" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Email Address *</label>
+                    <input type="email" id="p-reg-email" placeholder="name@keyarch.co.tz" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Phone Number</label>
+                    <input type="tel" id="p-reg-phone" placeholder="+255 700 000 000" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Role *</label>
+                    <select id="p-reg-role" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none">
+                        <option value="SUPER_ADMIN">Super Admin</option>
+                        <option value="PROPERTY_MANAGER" selected>Property Manager</option>
+                        <option value="ACCOUNTANT">Accountant</option>
+                        <option value="TECHNICIAN">Technician</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Password *</label>
+                    <input type="password" id="p-reg-password" placeholder="Min 8, Upper, Lower, Num, Special" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold text-sm shadow-lg transition mt-2">
+                    Register Account &rarr;
+                </button>
+            </form>
         </div>
     </div>
 
@@ -42,7 +86,7 @@
         <header class="bg-[#0a1224]/90 backdrop-blur-md border-b border-[#182848] px-6 py-4 sticky top-0 z-40 shadow-2xl flex justify-between items-center">
             <div class="flex items-center space-x-3">
                 <span id="user-role-badge" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-900/80 border border-blue-500 text-blue-300 uppercase">SUPER_ADMIN</span>
-                <span id="user-name-display" class="text-xs font-bold text-white hidden md:inline">Hugo Mlula</span>
+                <span id="user-name-display" class="text-xs font-bold text-white hidden md:inline">User</span>
             </div>
             <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
                 KEY ARCH <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300">ERP</span>
@@ -130,7 +174,6 @@
 
             <!-- CENTRAL OPERATIONS TAB NAVIGATION HUB -->
             <div class="bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl overflow-hidden">
-                <!-- TAB BAR -->
                 <div class="flex border-b border-[#182848] bg-[#0a1224]/50 overflow-x-auto scrollbar-none">
                     <button onclick="switchTab('tab-properties')" id="btn-tab-properties" class="tab-btn active border-b-2 border-blue-500 text-blue-400 px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
                         <i class="fa-solid fa-building"></i> Properties & Units
@@ -146,9 +189,7 @@
                     </button>
                 </div>
 
-                <!-- TAB CONTENT PANELS -->
                 <div class="p-5">
-                    <!-- TAB 1: PROPERTIES & UNITS -->
                     <div id="tab-properties" class="tab-content block space-y-4">
                         <div class="flex justify-between items-center mb-2">
                             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Properties Directory</h3>
@@ -171,7 +212,6 @@
                         </div>
                     </div>
 
-                    <!-- TAB 2: TENANTS & LEASES -->
                     <div id="tab-tenants" class="tab-content hidden space-y-4">
                         <div class="flex justify-between items-center mb-2">
                             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Active Leases Directory</h3>
@@ -195,7 +235,6 @@
                         </div>
                     </div>
 
-                    <!-- TAB 3: FINANCIALS & LUKU -->
                     <div id="tab-finance" class="tab-content hidden space-y-4">
                         <div class="flex justify-between items-center mb-2">
                             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Issued Invoices</h3>
@@ -218,7 +257,6 @@
                         </div>
                     </div>
 
-                    <!-- TAB 4: MAINTENANCE TICKETS -->
                     <div id="tab-tickets" class="tab-content hidden space-y-4">
                         <div class="flex justify-between items-center mb-2">
                             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Work Orders & Maintenance Tickets</h3>
@@ -245,7 +283,7 @@
             </div>
         </main>
 
-        <!-- BOTTOM FIXED NAVIGATION BAR / FOOTER -->
+        <!-- FOOTER -->
         <footer class="fixed bottom-0 left-0 right-0 bg-[#0a1224]/95 backdrop-blur-md border-t border-[#182848] py-2 px-6 z-40 shadow-2xl flex justify-between items-center text-xs text-gray-400">
             <div class="flex items-center space-x-6">
                 <button onclick="openModal('modal-property')" class="hover:text-blue-400 transition flex items-center gap-1.5"><i class="fa-solid fa-building"></i> Properties</button>
@@ -431,6 +469,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('keyarch_token')) showAppView();
 
+            // LOGIN SUBMISSION
             document.getElementById('form-login').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const res = await fetch('/api/auth/login', {
@@ -447,6 +486,35 @@
                     localStorage.setItem('keyarch_user', JSON.stringify(data.user));
                     showAppView();
                 } else alert(data.error || 'Login Failed!');
+            });
+
+            // PORTAL REGISTER SUBMISSION
+            document.getElementById('form-portal-register').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const token = localStorage.getItem('keyarch_token');
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': token ? `Bearer ${token}` : ''
+                    },
+                    body: JSON.stringify({
+                        full_name: document.getElementById('p-reg-name').value,
+                        email: document.getElementById('p-reg-email').value,
+                        phone_number: document.getElementById('p-reg-phone').value,
+                        role: document.getElementById('p-reg-role').value,
+                        password: document.getElementById('p-reg-password').value
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Success! Account created successfully. You can now Sign In.');
+                    switchAuthTab('login');
+                    document.getElementById('login-email').value = document.getElementById('p-reg-email').value;
+                    document.getElementById('form-portal-register').reset();
+                } else {
+                    alert('Registration Failed: ' + (data.error || 'Server error'));
+                }
             });
 
             document.getElementById('form-property').addEventListener('submit', (e) => {
@@ -505,6 +573,29 @@
                 } else alert('Error: ' + data.error);
             });
         });
+
+        function switchAuthTab(type) {
+            const loginForm = document.getElementById('form-login');
+            const regForm = document.getElementById('form-portal-register');
+            const tabLogin = document.getElementById('tab-auth-login');
+            const tabReg = document.getElementById('tab-auth-register');
+
+            if (type === 'login') {
+                loginForm.classList.remove('hidden');
+                regForm.classList.add('hidden');
+                tabLogin.classList.add('bg-blue-600', 'text-white');
+                tabLogin.classList.remove('text-gray-400');
+                tabReg.classList.remove('bg-blue-600', 'text-white');
+                tabReg.classList.add('text-gray-400');
+            } else {
+                loginForm.classList.add('hidden');
+                regForm.classList.remove('hidden');
+                tabReg.classList.add('bg-blue-600', 'text-white');
+                tabReg.classList.remove('text-gray-400');
+                tabLogin.classList.remove('bg-blue-600', 'text-white');
+                tabLogin.classList.add('text-gray-400');
+            }
+        }
 
         async function sendPost(url, bodyData, modalId, formId) {
             const token = localStorage.getItem('keyarch_token');
@@ -636,7 +727,6 @@
             const token = localStorage.getItem('keyarch_token');
             const headers = { 'Authorization': `Bearer ${token}` };
 
-            // Fetch Properties
             const propRes = await fetch('/api/properties', { headers });
             if(propRes.ok) {
                 const props = await propRes.json();
@@ -654,7 +744,6 @@
                 }
             }
 
-            // Fetch Leases
             const leaseRes = await fetch('/api/leases', { headers });
             if(leaseRes.ok) {
                 const leases = await leaseRes.json();
@@ -673,7 +762,6 @@
                 }
             }
 
-            // Fetch Invoices
             const invRes = await fetch('/api/invoices', { headers });
             if(invRes.ok) {
                 const invoices = await invRes.json();
@@ -691,7 +779,6 @@
                 }
             }
 
-            // Fetch Tickets
             const tktRes = await fetch('/api/tickets', { headers });
             if(tktRes.ok) {
                 const tickets = await tktRes.json();
