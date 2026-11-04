@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KEY ARCH ERP — Enterprise Operations System</title>
+    <title>KEY ARCH ERP — System Access & Operations</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
@@ -36,7 +36,7 @@
                 </button>
             </form>
             <div class="text-center text-[11px] text-gray-500">
-                Default Access: <span class="text-gray-300 font-mono">admin@keyarch.co.tz</span> / <span class="text-gray-300 font-mono">Admin@2026</span>
+                Default Credentials: <span class="text-gray-300 font-mono">admin@keyarch.co.tz</span> / <span class="text-gray-300 font-mono">Admin@2026</span>
             </div>
         </div>
     </div>
@@ -44,116 +44,140 @@
     <!-- VIEW 2: MAIN SYSTEM DASHBOARD -->
     <div id="view-app" class="hidden flex-col min-h-screen justify-between">
         
-        <!-- HEADER -->
+        <!-- TOP HEADER -->
         <header class="bg-[#0a1224]/90 backdrop-blur-md border-b border-[#182848] px-6 py-4 sticky top-0 z-40 shadow-2xl flex justify-between items-center">
             <div class="flex items-center space-x-3">
                 <span id="user-role-badge" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-900/80 border border-blue-500 text-blue-300 uppercase">SUPER_ADMIN</span>
                 <span id="user-name-display" class="text-xs font-bold text-white hidden md:inline">Hugo Mlula</span>
             </div>
             
-            <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
-                KEY ARCH <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300">ERP</span>
-            </h1>
+            <div class="text-center">
+                <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
+                    KEY ARCH <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300">ERP</span>
+                </h1>
+            </div>
 
-            <button onclick="logout()" class="bg-red-900/40 border border-red-500/50 px-3 py-1.5 rounded-xl text-xs font-bold text-red-300 flex items-center gap-1.5">
+            <button onclick="logout()" class="bg-red-900/40 hover:bg-red-800/60 border border-red-500/50 px-3 py-1.5 rounded-xl text-xs font-bold text-red-300 flex items-center gap-1.5 transition">
                 <i class="fa-solid fa-power-off"></i> <span class="hidden md:inline">Sign Out</span>
             </button>
         </header>
 
-        <!-- MAIN WORKSPACE CONTENT -->
+        <!-- MAIN DASHBOARD CONTENT -->
         <main class="container mx-auto p-4 md:p-6 max-w-6xl flex-grow">
-            
-            <!-- TOP ACTION BAR -->
-            <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                <div>
-                    <h2 id="active-section-title" class="text-lg font-bold text-white">System Operations Center</h2>
-                    <p class="text-xs text-gray-400">Complete property, tenant, and financial control hub.</p>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="openModal('modal-property')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-building"></i> + Property</button>
-                    <button onclick="openModal('modal-unit')" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-door-open"></i> + Unit</button>
-                    <button onclick="openModal('modal-tenant')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-user-plus"></i> + Tenant</button>
-                    <button onclick="openModal('modal-payment')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-bolt"></i> + Payment/Luku</button>
-                    <button id="btn-admin-register" onclick="openModal('modal-register')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-user-shield"></i> + Staff</button>
-                </div>
-            </div>
-
-            <!-- METRICS -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center mb-6">
-                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                    <div class="text-xs text-gray-400 uppercase">Properties</div>
-                    <div id="stat-properties" class="text-2xl font-bold text-blue-400">0</div>
-                </div>
-                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                    <div class="text-xs text-gray-400 uppercase">Active Tenants</div>
-                    <div id="stat-tenants" class="text-2xl font-bold text-emerald-400">0</div>
-                </div>
-                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                    <div class="text-xs text-gray-400 uppercase">Total Income</div>
-                    <div id="stat-income" class="text-2xl font-bold text-cyan-400">TZS 0</div>
-                </div>
-                <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
-                    <div class="text-xs text-gray-400 uppercase">Open Tickets</div>
-                    <div id="stat-tickets" class="text-2xl font-bold text-amber-400">0</div>
-                </div>
-            </div>
-
-            <!-- DYNAMIC SECTIONS -->
-            <div class="space-y-6">
+            <section class="space-y-6">
                 
-                <!-- SECTION 1: PROPERTIES -->
-                <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl space-y-4">
-                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center">
-                        <i class="fa-solid fa-building text-blue-400 mr-2"></i> Registered Property Portfolio
-                    </h3>
-                    <div id="property-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="p-3 text-xs text-gray-400">Loading properties...</div>
+                <!-- ACTION CONTROL BAR -->
+                <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">System Operations Center</h2>
+                        <p class="text-xs text-gray-400">Manage properties, tenants, and team roles securely.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="openModal('modal-property')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-building"></i> + Add Property</button>
+                        <button onclick="openModal('modal-unit')" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-door-open"></i> + Add Unit</button>
+                        <button onclick="openModal('modal-tenant')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-user-plus"></i> + Add Tenant</button>
+                        <button onclick="openModal('modal-payment')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-bolt"></i> + Payment / Luku</button>
+                        <button id="btn-admin-register" onclick="openModal('modal-register')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 shadow-lg"><i class="fa-solid fa-user-shield"></i> + Staff</button>
                     </div>
                 </div>
 
-                <!-- SECTION 2: TENANTS & PAYMENTS -->
+                <!-- ORIGINAL CONTRACT REMINDERS -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="p-4 bg-[#0d172d] border-l-4 border-red-500 rounded-2xl shadow-lg flex justify-between items-center">
+                        <div>
+                            <div class="text-xs text-gray-400 font-semibold uppercase">Expired Leases</div>
+                            <div id="rem-expired" class="text-2xl font-black text-red-400">0</div>
+                        </div>
+                        <i class="fa-solid fa-file-circle-exclamation text-red-500/30 text-3xl"></i>
+                    </div>
+                    <div class="p-4 bg-[#0d172d] border-l-4 border-amber-500 rounded-2xl shadow-lg flex justify-between items-center">
+                        <div>
+                            <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Week</div>
+                            <div id="rem-week" class="text-2xl font-black text-amber-400">0</div>
+                        </div>
+                        <i class="fa-solid fa-clock-rotate-left text-amber-500/30 text-3xl"></i>
+                    </div>
+                    <div class="p-4 bg-[#0d172d] border-l-4 border-blue-500 rounded-2xl shadow-lg flex justify-between items-center">
+                        <div>
+                            <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Month</div>
+                            <div id="rem-month" class="text-2xl font-black text-blue-400">0</div>
+                        </div>
+                        <i class="fa-solid fa-calendar-check text-blue-500/30 text-3xl"></i>
+                    </div>
+                </div>
+
+                <!-- ORIGINAL METRICS GRID -->
+                <div class="grid grid-cols-2 md:grid-cols-6 gap-3 text-center">
+                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-[10px] text-gray-400 uppercase">Properties</div>
+                        <div id="stat-properties" class="text-lg font-bold text-blue-400">0</div>
+                    </div>
+                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-[10px] text-gray-400 uppercase">Active Tenants</div>
+                        <div id="stat-tenants" class="text-lg font-bold text-emerald-400">0</div>
+                    </div>
+                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-[10px] text-gray-400 uppercase">Open Tickets</div>
+                        <div id="stat-tickets" class="text-lg font-bold text-amber-400">0</div>
+                    </div>
+                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-[10px] text-gray-400 uppercase">Total Income</div>
+                        <div id="stat-income" class="text-sm font-bold text-emerald-400">TZS 0</div>
+                    </div>
+                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-[10px] text-gray-400 uppercase">Total Expenses</div>
+                        <div id="stat-expense" class="text-sm font-bold text-red-400">TZS 0</div>
+                    </div>
+                    <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                        <div class="text-[10px] text-gray-400 uppercase">Net Profit</div>
+                        <div id="stat-profit" class="text-sm font-bold text-cyan-400">TZS 0</div>
+                    </div>
+                </div>
+
+                <!-- PORTFOLIO & TENANTS LISTS -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl space-y-4">
                         <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center">
-                            <i class="fa-solid fa-users text-emerald-400 mr-2"></i> Active Tenants
+                            <i class="fa-solid fa-building text-blue-400 mr-2"></i> Properties Portfolio
                         </h3>
-                        <div id="tenant-list-container" class="space-y-2">
-                            <div class="p-3 text-xs text-gray-400">Loading tenants...</div>
+                        <div id="property-list-container" class="space-y-3">
+                            <div class="text-xs text-gray-400 p-2">Loading properties...</div>
                         </div>
                     </div>
 
                     <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl space-y-4">
                         <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center">
-                            <i class="fa-solid fa-receipt text-amber-400 mr-2"></i> Recent Payments & Luku Sales
+                            <i class="fa-solid fa-receipt text-amber-400 mr-2"></i> Recent Payments & Luku
                         </h3>
-                        <div id="payment-list-container" class="space-y-2">
-                            <div class="p-3 text-xs text-gray-400">Loading payments...</div>
+                        <div id="payment-list-container" class="space-y-3">
+                            <div class="text-xs text-gray-400 p-2">Loading payments...</div>
                         </div>
                     </div>
                 </div>
 
-            </div>
+            </section>
         </main>
 
-        <!-- FOOTER NAV -->
-        <nav class="bg-[#0a1224]/95 border-t border-[#182848] py-3 sticky bottom-0 z-40">
+        <!-- ORIGINAL BOTTOM NAV -->
+        <nav class="bg-[#0a1224]/95 border-t border-[#182848] py-3 sticky bottom-0 z-40 backdrop-blur-md">
             <div class="max-w-md mx-auto flex justify-between items-center px-6 text-[10px] font-semibold text-gray-400">
                 <button class="text-blue-400 flex flex-col items-center"><i class="fa-solid fa-chart-line text-base mb-1"></i>Home</button>
                 <button onclick="openModal('modal-property')" class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-building text-base mb-1"></i>Properties</button>
                 <button onclick="openModal('modal-tenant')" class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-users text-base mb-1"></i>Tenants</button>
                 <button onclick="openModal('modal-payment')" class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-wallet text-base mb-1"></i>Accounts</button>
+                <button class="hover:text-white flex flex-col items-center"><i class="fa-solid fa-wrench text-base mb-1"></i>Tickets</button>
             </div>
         </nav>
     </div>
 
-    <!-- MODAL 1: ADD PROPERTY -->
+    <!-- MODAL 1: PROPERTY -->
     <div id="modal-property" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
             <button onclick="closeModal('modal-property')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
             <h3 class="font-bold text-lg text-white">Register Property Asset</h3>
             <form id="form-property" class="space-y-3">
-                <input type="text" id="prop-name" placeholder="Property Name (e.g. HUGO Tower) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="text" id="prop-address" placeholder="Address (e.g. Mbezi Beach) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" id="prop-name" placeholder="Property Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" id="prop-address" placeholder="Address *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
                 <select id="prop-category" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
                     <option value="RESIDENTIAL">RESIDENTIAL</option>
                     <option value="COMMERCIAL">COMMERCIAL</option>
@@ -165,21 +189,21 @@
         </div>
     </div>
 
-    <!-- MODAL 2: ADD UNIT -->
+    <!-- MODAL 2: UNIT -->
     <div id="modal-unit" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
             <button onclick="closeModal('modal-unit')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
             <h3 class="font-bold text-lg text-white">Register Unit / Room</h3>
             <form id="form-unit" class="space-y-3">
                 <select id="unit-prop-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required></select>
-                <input type="text" id="unit-no" placeholder="Unit Number (e.g. Frame 101, Apt 2B) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" id="unit-no" placeholder="Unit Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
                 <input type="number" id="unit-rent" placeholder="Rent Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
                 <button type="submit" class="w-full bg-cyan-600 py-3 rounded-xl text-white font-bold text-xs">Save Unit</button>
             </form>
         </div>
     </div>
 
-    <!-- MODAL 3: ADD TENANT -->
+    <!-- MODAL 3: TENANT -->
     <div id="modal-tenant" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
             <button onclick="closeModal('modal-tenant')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
@@ -194,7 +218,7 @@
         </div>
     </div>
 
-    <!-- MODAL 4: RECORD PAYMENT & LUKU -->
+    <!-- MODAL 4: PAYMENT -->
     <div id="modal-payment" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
             <button onclick="closeModal('modal-payment')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
@@ -207,14 +231,14 @@
                     <option value="SERVICE_CHARGE">Service Charge</option>
                 </select>
                 <input type="number" id="pay-amount" placeholder="Amount Paid (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="text" id="pay-luku" placeholder="Luku Token Number (If Luku Sale)" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                <input type="text" id="pay-luku" placeholder="Luku Token Number" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
                 <input type="text" id="pay-ref" placeholder="Reference / Receipt No" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
                 <button type="submit" class="w-full bg-amber-600 py-3 rounded-xl text-white font-bold text-xs">Record Payment</button>
             </form>
         </div>
     </div>
 
-    <!-- MODAL 5: REGISTER STAFF -->
+    <!-- MODAL 5: STAFF REGISTER -->
     <div id="modal-register" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 space-y-4 relative">
             <button onclick="closeModal('modal-register')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
@@ -349,10 +373,17 @@
             const res = await fetch('/api/dashboard/summary', { headers: { 'Authorization': `Bearer ${token}` } });
             if (res.ok) {
                 const data = await res.json();
+                document.getElementById('rem-expired').innerText = data.reminders.expired;
+                document.getElementById('rem-week').innerText = data.reminders.expiring_week;
+                document.getElementById('rem-month').innerText = data.reminders.expiring_month;
+
                 document.getElementById('stat-properties').innerText = data.properties;
                 document.getElementById('stat-tenants').innerText = data.tenants;
-                document.getElementById('stat-income').innerText = 'TZS ' + data.financials.total_income.toLocaleString();
                 document.getElementById('stat-tickets').innerText = data.open_tickets;
+
+                document.getElementById('stat-income').innerText = 'TZS ' + data.financials.total_income.toLocaleString();
+                document.getElementById('stat-expense').innerText = 'TZS ' + data.financials.total_expense.toLocaleString();
+                document.getElementById('stat-profit').innerText = 'TZS ' + data.financials.net_profit.toLocaleString();
             }
         }
 
@@ -367,18 +398,18 @@
                 propSelect.innerHTML = properties.map(p => `<option value="${p.property_id}">${p.property_name}</option>`).join('');
 
                 if (properties.length === 0) {
-                    container.innerHTML = '<div class="text-xs text-gray-400 p-3">Hakuna jengo lililosajiliwa.</div>';
+                    container.innerHTML = '<div class="text-xs text-gray-400 p-2">Hakuna jengo lililosajiliwa.</div>';
                     return;
                 }
                 container.innerHTML = properties.map(p => `
-                    <div class="p-4 bg-[#14223d] border border-[#1e2f52] rounded-xl flex justify-between items-center">
+                    <div class="p-3 bg-[#14223d] border border-[#1e2f52] rounded-xl flex justify-between items-center">
                         <div>
-                            <div class="font-bold text-white text-sm">${p.property_name}</div>
-                            <div class="text-xs text-gray-400"><i class="fa-solid fa-location-dot text-red-400 mr-1"></i>${p.address}</div>
+                            <div class="font-bold text-white text-xs">${p.property_name}</div>
+                            <div class="text-[10px] text-gray-400"><i class="fa-solid fa-location-dot text-red-400 mr-1"></i>${p.address}</div>
                         </div>
                         <div class="text-right">
-                            <span class="text-[10px] bg-blue-900/80 text-blue-300 px-2 py-0.5 rounded border border-blue-500">${p.category}</span>
-                            <div class="text-xs text-gray-300 mt-1">${p.total_units_count || p.total_units} Units</div>
+                            <span class="text-[9px] bg-blue-900/80 text-blue-300 px-2 py-0.5 rounded border border-blue-500">${p.category}</span>
+                            <div class="text-[10px] text-gray-300 mt-1">${p.total_units_count || p.total_units} Units</div>
                         </div>
                     </div>
                 `).join('');
@@ -388,26 +419,11 @@
         async function loadTenants() {
             const token = localStorage.getItem('keyarch_token');
             const res = await fetch('/api/tenants', { headers: { 'Authorization': `Bearer ${token}` } });
-            const container = document.getElementById('tenant-list-container');
             const tenantSelect = document.getElementById('pay-tenant-id');
 
             if (res.ok) {
                 const tenants = await res.json();
                 tenantSelect.innerHTML = tenants.map(t => `<option value="${t.tenant_id}">${t.full_name}</option>`).join('');
-
-                if (tenants.length === 0) {
-                    container.innerHTML = '<div class="text-xs text-gray-400 p-2">Hakuna mpangaji aliyesajiliwa.</div>';
-                    return;
-                }
-                container.innerHTML = tenants.map(t => `
-                    <div class="p-3 bg-[#14223d] rounded-xl text-xs flex justify-between items-center">
-                        <div>
-                            <div class="font-bold text-white">${t.full_name}</div>
-                            <div class="text-[10px] text-gray-400">${t.phone_number} | NIDA: ${t.nida_passport_no}</div>
-                        </div>
-                        <span class="text-[9px] bg-emerald-900/80 text-emerald-300 px-2 py-0.5 rounded">Active</span>
-                    </div>
-                `).join('');
             }
         }
 
@@ -423,7 +439,7 @@
                     return;
                 }
                 container.innerHTML = payments.map(p => `
-                    <div class="p-3 bg-[#14223d] rounded-xl text-xs flex justify-between items-center">
+                    <div class="p-3 bg-[#14223d] border border-[#1e2f52] rounded-xl text-xs flex justify-between items-center">
                         <div>
                             <div class="font-bold text-emerald-400">+ TZS ${parseFloat(p.amount_paid).toLocaleString()}</div>
                             <div class="text-[10px] text-gray-400">${p.payment_type} ${p.luku_token ? '| Token: ' + p.luku_token : ''}</div>

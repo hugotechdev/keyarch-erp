@@ -18,7 +18,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// Auto-Run Migrations & Seed Default Super Admin
 async function initDatabase() {
     try {
         if (!process.env.DATABASE_URL) return;
@@ -42,7 +41,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 1. AUTHENTICATION & LOGIN
+// AUTHENTICATION & LOGIN
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -96,7 +95,7 @@ function authenticateToken(req, res, next) {
     });
 }
 
-// 2. ADMIN USER REGISTRATION (RBAC)
+// REGISTER STAFF
 app.post('/api/auth/register', authenticateToken, async (req, res) => {
     if (req.user.role !== 'SUPER_ADMIN') {
         return res.status(403).json({ error: 'Ni Super Admin pekee anayeweza kusajili watumiaji wapya.' });
@@ -114,7 +113,7 @@ app.post('/api/auth/register', authenticateToken, async (req, res) => {
     }
 });
 
-// 3. PROPERTIES & UNITS APIs
+// PROPERTIES & UNITS APIs
 app.get('/api/properties', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(`
@@ -162,7 +161,7 @@ app.post('/api/units', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 4. TENANTS & LEASES APIs
+// TENANTS APIs
 app.get('/api/tenants', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM tenants ORDER BY created_at DESC');
@@ -181,7 +180,7 @@ app.post('/api/tenants', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 5. PAYMENTS & LUKU VOUCHERS APIs
+// PAYMENTS & LUKU APIs
 app.get('/api/payments', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(`
@@ -205,31 +204,7 @@ app.post('/api/payments', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 6. MAINTENANCE WORK ORDERS / TICKETS APIs
-app.get('/api/tickets', authenticateToken, async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT w.*, u.unit_number 
-            FROM work_orders w 
-            LEFT JOIN units u ON w.unit_id = u.unit_id 
-            ORDER BY w.created_at DESC
-        `);
-        res.json(result.rows);
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.post('/api/tickets', authenticateToken, async (req, res) => {
-    const { unit_id, title, description, priority, estimated_cost } = req.body;
-    try {
-        const result = await pool.query(
-            'INSERT INTO work_orders (unit_id, title, description, priority, status, estimated_cost) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [unit_id || null, title, description, priority || 'MEDIUM', 'OPEN', estimated_cost || 0.00]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// 7. DASHBOARD SUMMARY & ANALYTICS API
+// DASHBOARD SUMMARY & METRICS API
 app.get('/api/dashboard/summary', authenticateToken, async (req, res) => {
     try {
         let totalProperties = { rows: [{ count: 0 }] };
@@ -237,12 +212,18 @@ app.get('/api/dashboard/summary', authenticateToken, async (req, res) => {
         let openTickets = { rows: [{ count: 0 }] };
         let totalIncome = { rows: [{ total: 0 }] };
         let totalExpenses = { rows: [{ total: 0 }] };
+        let expiredLeases = { rows: [{ count: 0 }] };
+        let expiringThisWeek = { rows: [{ count: 0 }] };
+        let expiringThisMonth = { rows: [{ count: 0 }] };
 
         try { totalProperties = await pool.query('SELECT COUNT(*) FROM properties'); } catch(e){}
         try { totalTenants = await pool.query('SELECT COUNT(*) FROM tenants'); } catch(e){}
-        try { openTickets = await pool.query("SELECT COUNT(*) FROM work_orders WHERE status = 'OPEN'"); } catch(e){}
+        try { openTickets = await pool.query("SELECT COUNT(*) FROM work_orders WHERE status IN ('OPEN', 'IN_PROGRESS')"); } catch(e){}
         try { totalIncome = await pool.query('SELECT COALESCE(SUM(amount_paid), 0) AS total FROM payments'); } catch(e){}
         try { totalExpenses = await pool.query('SELECT COALESCE(SUM(amount), 0) AS total FROM expenses'); } catch(e){}
+        try { expiredLeases = await pool.query("SELECT COUNT(*) FROM leases WHERE end_date < CURRENT_DATE AND status = 'ACTIVE'"); } catch(e){}
+        try { expiringThisWeek = await pool.query("SELECT COUNT(*) FROM leases WHERE end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'"); } catch(e){}
+        try { expiringThisMonth = await pool.query("SELECT COUNT(*) FROM leases WHERE end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'"); } catch(e){}
 
         const inc = parseFloat(totalIncome.rows[0]?.total || 0);
         const exp = parseFloat(totalExpenses.rows[0]?.total || 0);
@@ -252,7 +233,11 @@ app.get('/api/dashboard/summary', authenticateToken, async (req, res) => {
             tenants: parseInt(totalTenants.rows[0]?.count || 0),
             open_tickets: parseInt(openTickets.rows[0]?.count || 0),
             financials: { total_income: inc, total_expense: exp, net_profit: inc - exp },
-            reminders: { expired: 0, expiring_week: 0, expiring_month: 0 }
+            reminders: {
+                expired: parseInt(expiredLeases.rows[0]?.count || 0),
+                expiring_week: parseInt(expiringThisWeek.rows[0]?.count || 0),
+                expiring_month: parseInt(expiringThisMonth.rows[0]?.count || 0)
+            }
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
