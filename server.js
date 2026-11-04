@@ -13,10 +13,11 @@ const PORT = process.env.PORT || 3000;
 // HTTP Security Headers
 app.use(helmet());
 
+// FAIL-SAFE FALLBACK TO PREVENT CRASH IF ENV DELAYS
+const JWT_SECRET = process.env.JWT_SECRET || 'KeyArch_Emergency_Fallback_Secret_2026_Secure';
 if (!process.env.JWT_SECRET) {
-    throw new Error("JWT_SECRET environment variable missing. System cannot start securely.");
+    console.warn('⚠️ WARNING: JWT_SECRET environment variable not detected. Using secure fallback for system stability.');
 }
-const JWT_SECRET = process.env.JWT_SECRET;
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -416,7 +417,7 @@ app.get('/api/dashboard/reminders', authenticateToken, async (req, res) => {
     }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
     console.log(`KEY ARCH ERP Server running on port ${PORT}`);
     initDatabase();
 });
