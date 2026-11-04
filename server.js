@@ -1,819 +1,561 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KEY ARCH ERP — Enterprise Operations System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="/style.css">
-</head>
-<body class="min-h-screen flex flex-col justify-between bg-[#060c18] text-gray-100 font-sans pb-16">
+const express = require('express');
+const { Pool } = require('pg');
+const cors = require('cors');
+const path = require('path');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
 
-    <!-- VIEW 1: AUTHENTICATION PORTAL (LOGIN & PROPERTY OWNER REGISTER) -->
-    <div id="view-login" class="flex-grow flex items-center justify-center p-4">
-        <div class="bg-[#0a1224] border border-[#182848] w-full max-w-md rounded-2xl p-8 shadow-2xl space-y-6">
-            <div class="text-center space-y-1">
-                <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
-                    KEY ARCH <span class="text-xs font-semibold px-2 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 align-middle">ERP</span>
-                </h1>
-                <p class="text-xs text-gray-400 uppercase tracking-widest">SaaS Property Portal</p>
-            </div>
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-            <!-- AUTH SWITCH TABS -->
-            <div class="flex border-b border-[#182848] bg-[#14223d]/40 rounded-xl p-1">
-                <button type="button" onclick="switchAuthTab('login')" id="tab-auth-login" class="flex-1 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white transition">
-                    Sign In
-                </button>
-                <button type="button" onclick="switchAuthTab('register')" id="tab-auth-register" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition">
-                    Register Company
-                </button>
-            </div>
+// HTTP Security Headers
+app.use(
+    helmet({
+        contentSecurityPolicy: false,
+    })
+);
 
-            <!-- FORM 1: LOGIN -->
-            <form id="form-login" class="space-y-4 block">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Email Address</label>
-                    <input type="email" id="login-email" value="admin@keyarch.co.tz" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Password</label>
-                    <input type="password" id="login-password" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
-                </div>
-                <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg transition">
-                    Sign In &rarr;
-                </button>
-            </form>
+if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET environment variable missing. System cannot start securely.");
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
-            <!-- FORM 2: REGISTER PROPERTY OWNER / SAAS CLIENT -->
-            <form id="form-portal-register" class="space-y-3 hidden">
-                <div class="bg-cyan-950/40 border border-cyan-800/50 p-2.5 rounded-xl text-[11px] text-cyan-300 flex items-center gap-2 mb-1">
-                    <i class="fa-solid fa-building-user text-base text-cyan-400"></i>
-                    <span>Usajili wa Kampuni/Mmiliki wa Majengo na Mfumo Wako.</span>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Company / Business Name *</label>
-                    <input type="text" id="p-reg-company" placeholder="e.g. Mikadi Beach Apartments" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Owner / Director Full Name *</label>
-                    <input type="text" id="p-reg-name" placeholder="Full Name" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Email Address *</label>
-                    <input type="email" id="p-reg-email" placeholder="owner@company.co.tz" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Phone Number *</label>
-                    <input type="tel" id="p-reg-phone" placeholder="+255 700 000 000" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Password *</label>
-                    <input type="password" id="p-reg-password" placeholder="Min 8, Upper, Lower, Num, Special" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
-                </div>
-                <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-sm shadow-lg transition mt-2">
-                    Create Company Account &rarr;
-                </button>
-            </form>
-        </div>
-    </div>
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
-    <!-- VIEW 2: MAIN DASHBOARD -->
-    <div id="view-app" style="display: none;" class="flex-col min-h-screen justify-between">
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname)));
+
+// RATE LIMITER KWA LOGIN
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, 
+    max: 5, 
+    message: { error: 'Majaribio mengi ya kuingia yameshindikana. Tafadhali jaribu tena baada ya dakika 15.' }
+});
+
+// AUDIT LOG HELPER (Multi-Tenant Support)
+async function createAuditLog(clientOrPool, companyId, userId, action, moduleAffected, ipAddress, metadata = {}) {
+    try {
+        await clientOrPool.query(
+            'INSERT INTO audit_logs (company_id, user_id, action_performed, module_affected, ip_address, metadata) VALUES ($1, $2, $3, $4, $5, $6)',
+            [companyId || null, userId || null, action, moduleAffected, ipAddress || '127.0.0.1', JSON.stringify(metadata)]
+        );
+    } catch (err) {
+        console.error('Audit Log Warning:', err.message);
+    }
+}
+
+// AUTO-MIGRATIONS & MULTI-TENANT DATABASE INITIALIZATION
+async function initDatabase() {
+    try {
+        if (!process.env.DATABASE_URL) return;
+
+        console.log('🔄 Checking database connection and running Multi-Tenant migrations...');
         
-        <!-- HEADER -->
-        <header class="bg-[#0a1224]/90 backdrop-blur-md border-b border-[#182848] px-6 py-4 sticky top-0 z-40 shadow-2xl flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <span id="user-role-badge" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-900/80 border border-blue-500 text-blue-300 uppercase">COMPANY_ADMIN</span>
-                <span id="user-company-display" class="text-xs font-bold text-cyan-400 hidden sm:inline border-l border-[#182848] pl-3">Hugo Tech</span>
-                <span id="user-name-display" class="text-xs font-semibold text-gray-300 hidden md:inline">• User</span>
-            </div>
-            <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
-                KEY ARCH <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300">ERP</span>
-            </h1>
-            <button onclick="logout()" class="bg-red-900/40 hover:bg-red-800/60 border border-red-500/50 px-3 py-1.5 rounded-xl text-xs font-bold text-red-300 flex items-center gap-1.5">
-                <i class="fa-solid fa-power-off"></i> <span class="hidden md:inline">Sign Out</span>
-            </button>
-        </header>
+        await pool.query('SELECT NOW()');
 
-        <main class="container mx-auto p-4 md:p-6 max-w-7xl flex-grow space-y-6">
-            
-            <!-- ACTION CONTROL BAR -->
-            <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                <div>
-                    <h2 class="text-lg font-bold text-white">System Operations Center</h2>
-                    <p class="text-xs text-gray-400">Enterprise property, finance, and maintenance management.</p>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="openModal('modal-property')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-building"></i> + Property</button>
-                    <button onclick="openModal('modal-unit')" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-door-open"></i> + Unit</button>
-                    <button onclick="openModal('modal-tenant')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-user-plus"></i> + Onboard Tenant</button>
-                    <button onclick="openModal('modal-invoice')" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-file-invoice-dollar"></i> + Invoice</button>
-                    <button onclick="openModal('modal-luku')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-bolt"></i> + Vend Luku</button>
-                    <button onclick="openModal('modal-expense')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-money-bill-transfer"></i> + Expense</button>
-                    <button onclick="openModal('modal-ticket')" class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-screwdriver-wrench"></i> + Ticket</button>
-                    <button id="btn-admin-register" onclick="openModal('modal-register')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-user-gear"></i> + Staff</button>
-                </div>
-            </div>
+        // 1. Companies Table (SaaS Tenants)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS companies (
+                company_id SERIAL PRIMARY KEY,
+                company_name VARCHAR(150) NOT NULL,
+                subscription_plan VARCHAR(50) DEFAULT 'STANDARD',
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
 
-            <!-- LEASE REMINDERS -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="p-4 bg-[#0d172d] border-l-4 border-red-500 rounded-2xl flex justify-between items-center shadow-lg">
-                    <div>
-                        <div class="text-xs text-gray-400 font-semibold uppercase">Expired Leases</div>
-                        <div id="rem-expired" class="text-2xl font-black text-red-400">0</div>
-                    </div>
-                    <i class="fa-solid fa-file-circle-exclamation text-red-500/30 text-3xl"></i>
-                </div>
-                <div class="p-4 bg-[#0d172d] border-l-4 border-amber-500 rounded-2xl flex justify-between items-center shadow-lg">
-                    <div>
-                        <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Week</div>
-                        <div id="rem-week" class="text-2xl font-black text-amber-400">0</div>
-                    </div>
-                    <i class="fa-solid fa-clock-rotate-left text-amber-500/30 text-3xl"></i>
-                </div>
-                <div class="p-4 bg-[#0d172d] border-l-4 border-blue-500 rounded-2xl flex justify-between items-center shadow-lg">
-                    <div>
-                        <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Month</div>
-                        <div id="rem-month" class="text-2xl font-black text-blue-400">0</div>
-                    </div>
-                    <i class="fa-solid fa-calendar-check text-blue-500/30 text-3xl"></i>
-                </div>
-            </div>
+        // 2. Add company_id to core tables
+        await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
+        await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(30) DEFAULT 'COMPANY_ADMIN'");
+        
+        await pool.query("ALTER TABLE properties ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
+        await pool.query("ALTER TABLE units ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
+        await pool.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
+        await pool.query("ALTER TABLE leases ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
+        await pool.query("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
+        await pool.query("ALTER TABLE payments ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
+        await pool.query("ALTER TABLE expenses ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
+        await pool.query("ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
+        await pool.query("ALTER TABLE luku_vouchers ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
+        await pool.query("ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS company_id INT REFERENCES companies(company_id) ON DELETE CASCADE");
 
-            <!-- SYSTEM METRICS -->
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-center">
-                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
-                    <div class="text-[10px] text-gray-400 uppercase">Properties</div>
-                    <div id="stat-properties" class="text-lg font-bold text-blue-400">0</div>
-                </div>
-                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
-                    <div class="text-[10px] text-gray-400 uppercase">Total Units</div>
-                    <div id="stat-units" class="text-lg font-bold text-cyan-400">0</div>
-                </div>
-                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
-                    <div class="text-[10px] text-gray-400 uppercase">Occupancy</div>
-                    <div id="stat-occupancy" class="text-lg font-bold text-emerald-400">0%</div>
-                </div>
-                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
-                    <div class="text-[10px] text-gray-400 uppercase">Active Tenants</div>
-                    <div id="stat-tenants" class="text-lg font-bold text-emerald-400">0</div>
-                </div>
-                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
-                    <div class="text-[10px] text-gray-400 uppercase">Pending Tickets</div>
-                    <div id="stat-tickets" class="text-lg font-bold text-orange-400">0</div>
-                </div>
-                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl col-span-3 shadow-md">
-                    <div class="text-[10px] text-gray-400 uppercase">Monthly Performance</div>
-                    <div class="flex justify-around items-center mt-1">
-                        <div><span class="text-[10px] text-gray-500 block">Income</span><span id="stat-income" class="text-sm font-bold text-emerald-400">TZS 0</span></div>
-                        <div><span class="text-[10px] text-gray-500 block">Profit</span><span id="stat-profit" class="text-sm font-bold text-cyan-400">TZS 0</span></div>
-                    </div>
-                </div>
-            </div>
+        await pool.query("CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000");
 
-            <!-- CENTRAL OPERATIONS TAB NAVIGATION HUB -->
-            <div class="bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl overflow-hidden">
-                <div class="flex border-b border-[#182848] bg-[#0a1224]/50 overflow-x-auto scrollbar-none">
-                    <button onclick="switchTab('tab-properties')" id="btn-tab-properties" class="tab-btn active border-b-2 border-blue-500 text-blue-400 px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
-                        <i class="fa-solid fa-building"></i> Properties & Units
-                    </button>
-                    <button onclick="switchTab('tab-tenants')" id="btn-tab-tenants" class="tab-btn text-gray-400 hover:text-white px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
-                        <i class="fa-solid fa-users"></i> Tenants & Leases
-                    </button>
-                    <button onclick="switchTab('tab-finance')" id="btn-tab-finance" class="tab-btn text-gray-400 hover:text-white px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
-                        <i class="fa-solid fa-file-invoice-dollar"></i> Financials & Luku
-                    </button>
-                    <button onclick="switchTab('tab-tickets')" id="btn-tab-tickets" class="tab-btn text-gray-400 hover:text-white px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
-                        <i class="fa-solid fa-screwdriver-wrench"></i> Maintenance Tickets
-                    </button>
-                </div>
+        // Seed Platform Master Owner Company (Hugo Tech)
+        const companyCheck = await pool.query("SELECT * FROM companies WHERE company_name = 'Hugo Tech Platform Master'");
+        let masterCompanyId;
+        if (companyCheck.rows.length === 0) {
+            const newComp = await pool.query("INSERT INTO companies (company_name, subscription_plan) VALUES ('Hugo Tech Platform Master', 'ENTERPRISE') RETURNING company_id");
+            masterCompanyId = newComp.rows[0].company_id;
+        } else {
+            masterCompanyId = companyCheck.rows[0].company_id;
+        }
 
-                <div class="p-5">
-                    <div id="tab-properties" class="tab-content block space-y-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Properties Directory</h3>
-                        </div>
-                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
-                            <table class="w-full text-left text-xs text-gray-300">
-                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
-                                    <tr>
-                                        <th class="p-3">ID</th>
-                                        <th class="p-3">Property Name</th>
-                                        <th class="p-3">Category</th>
-                                        <th class="p-3">Address</th>
-                                        <th class="p-3">Total Units</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-properties-body" class="divide-y divide-[#182848]">
-                                    <tr><td colspan="5" class="p-4 text-center text-gray-500">No properties loaded yet.</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+        // Seed System Super Admin (Hugo Mlula)
+        const userCheck = await pool.query("SELECT * FROM users WHERE email = 'admin@keyarch.co.tz'");
+        if (userCheck.rows.length === 0) {
+            const hashedPassword = await bcrypt.hash('Admin@2026', 10);
+            await pool.query(
+                "INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+                [masterCompanyId, 'Hugo Mlula', 'admin@keyarch.co.tz', hashedPassword, '+255700000000', 'SUPER_ADMIN', true]
+            );
+            console.log('✅ SaaS Platform Super Admin Seeded Successfully: admin@keyarch.co.tz');
+        }
 
-                    <div id="tab-tenants" class="tab-content hidden space-y-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Active Leases Directory</h3>
-                        </div>
-                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
-                            <table class="w-full text-left text-xs text-gray-300">
-                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
-                                    <tr>
-                                        <th class="p-3">Lease ID</th>
-                                        <th class="p-3">Tenant Name</th>
-                                        <th class="p-3">Property / Unit</th>
-                                        <th class="p-3">Agreed Rent</th>
-                                        <th class="p-3">End Date</th>
-                                        <th class="p-3">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-leases-body" class="divide-y divide-[#182848]">
-                                    <tr><td colspan="6" class="p-4 text-center text-gray-500">No active leases loaded yet.</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+        console.log('✅ Multi-Tenant SaaS Database Initialization Completed.');
+    } catch (err) {
+        console.error('❌ DB Initialization Warning/Error:', err.message);
+    }
+}
 
-                    <div id="tab-finance" class="tab-content hidden space-y-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Issued Invoices</h3>
-                        </div>
-                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
-                            <table class="w-full text-left text-xs text-gray-300">
-                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
-                                    <tr>
-                                        <th class="p-3">Invoice #</th>
-                                        <th class="p-3">Tenant Name</th>
-                                        <th class="p-3">Amount Due</th>
-                                        <th class="p-3">Due Date</th>
-                                        <th class="p-3">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-invoices-body" class="divide-y divide-[#182848]">
-                                    <tr><td colspan="5" class="p-4 text-center text-gray-500">No invoices generated yet.</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
-                    <div id="tab-tickets" class="tab-content hidden space-y-4">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Work Orders & Maintenance Tickets</h3>
-                        </div>
-                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
-                            <table class="w-full text-left text-xs text-gray-300">
-                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
-                                    <tr>
-                                        <th class="p-3">Ticket ID</th>
-                                        <th class="p-3">Issue Title</th>
-                                        <th class="p-3">Unit</th>
-                                        <th class="p-3">Priority</th>
-                                        <th class="p-3">Technician</th>
-                                        <th class="p-3">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-tickets-body" class="divide-y divide-[#182848]">
-                                    <tr><td colspan="6" class="p-4 text-center text-gray-500">No work orders recorded yet.</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
+// ==========================================
+// MIDDLEWARES
+// ==========================================
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'Huruhusiwi kuingia bila Token!' });
 
-        <!-- FOOTER -->
-        <footer class="fixed bottom-0 left-0 right-0 bg-[#0a1224]/95 backdrop-blur-md border-t border-[#182848] py-2 px-6 z-40 shadow-2xl flex justify-between items-center text-xs text-gray-400">
-            <div class="flex items-center space-x-6">
-                <button onclick="openModal('modal-property')" class="hover:text-blue-400 transition flex items-center gap-1.5"><i class="fa-solid fa-building"></i> Properties</button>
-                <button onclick="openModal('modal-tenant')" class="hover:text-emerald-400 transition flex items-center gap-1.5"><i class="fa-solid fa-users"></i> Tenants</button>
-                <button onclick="openModal('modal-ticket')" class="hover:text-orange-400 transition flex items-center gap-1.5"><i class="fa-solid fa-screwdriver-wrench"></i> Tickets</button>
-                <button onclick="openModal('modal-luku')" class="hover:text-amber-400 transition flex items-center gap-1.5"><i class="fa-solid fa-bolt"></i> Vend Luku</button>
-            </div>
-            <div class="flex items-center space-x-4">
-                <span class="text-[11px] font-mono text-gray-500 hidden sm:inline">&copy; 2026 KEY ARCH ERP • Hugo Tech</span>
-                <button onclick="alert('Settings Panel coming in next release!')" class="hover:text-white bg-[#14223d] border border-[#233863] p-1.5 rounded-lg text-xs"><i class="fa-solid fa-gear"></i></button>
-            </div>
-        </footer>
-    </div>
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.status(403).json({ error: 'Session imekwisha. Ingia upya.' });
+        req.user = user;
+        next();
+    });
+}
 
-    <!-- MODALS -->
-    <!-- MODAL: ADD PROPERTY -->
-    <div id="modal-property" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
-            <button onclick="closeModal('modal-property')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white mb-4">Register Property</h3>
-            <form id="form-property" class="space-y-3">
-                <input type="text" id="prop-name" placeholder="Property Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="text" id="prop-address" placeholder="Address *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <select id="prop-category" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
-                    <option value="RESIDENTIAL">RESIDENTIAL</option>
-                    <option value="COMMERCIAL">COMMERCIAL</option>
-                </select>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Property</button>
-            </form>
-        </div>
-    </div>
+function allowRoles(...allowedRoles) {
+    return (req, res, next) => {
+        if (!req.user || !allowedRoles.includes(req.user.role)) {
+            return res.status(403).json({ error: 'Access Denied: Huna mamlaka ya kitendo hiki.' });
+        }
+        next();
+    };
+}
 
-    <!-- MODAL: ADD UNIT -->
-    <div id="modal-unit" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
-            <button onclick="closeModal('modal-unit')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white mb-4">Register Unit</h3>
-            <form id="form-unit" class="space-y-3">
-                <select id="unit-prop-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required></select>
-                <input type="text" id="unit-no" placeholder="Unit Number (e.g. 101) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="number" id="unit-rent" placeholder="Rent Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Unit</button>
-            </form>
-        </div>
-    </div>
+// ==========================================
+// 1. AUTHENTICATION & CLIENT ONBOARDING
+// ==========================================
 
-    <!-- MODAL: TENANT ONBOARDING -->
-    <div id="modal-tenant" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative my-8 shadow-2xl">
-            <button onclick="closeModal('modal-tenant')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white mb-4">Tenant Onboarding</h3>
-            <form id="form-tenant" class="space-y-3">
-                <div class="text-xs font-semibold text-emerald-400">1. Personal Details</div>
-                <input type="text" id="ten-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="text" id="ten-nida" placeholder="NIDA / Passport *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="tel" id="ten-phone" placeholder="Phone Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <div class="text-xs font-semibold text-emerald-400 mt-4">2. Lease Agreement</div>
-                <select id="ten-unit-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                    <option value="">Select Vacant Unit...</option>
-                </select>
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="date" id="ten-start" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                    <input type="date" id="ten-end" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                </div>
-                <input type="number" id="ten-rent" placeholder="Agreed Rent (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl text-white font-bold text-xs mt-4 shadow-lg">Complete Onboarding</button>
-            </form>
-        </div>
-    </div>
+// LOGIN
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        const userQuery = await pool.query(
+            `SELECT u.*, c.company_name, c.is_active as company_active 
+             FROM users u 
+             LEFT JOIN companies c ON u.company_id = c.company_id 
+             WHERE u.email = $1`, 
+            [email]
+        );
+        if (userQuery.rows.length === 0) return res.status(401).json({ error: 'Email au Password siyo sahihi!' });
 
-    <!-- MODAL: ISSUE INVOICE -->
-    <div id="modal-invoice" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
-            <button onclick="closeModal('modal-invoice')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white mb-4">Issue Invoice</h3>
-            <form id="form-invoice" class="space-y-3">
-                <select id="inv-lease-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                    <option value="">Select Active Lease...</option>
-                </select>
-                <input type="number" id="inv-amount" placeholder="Amount Due (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="date" id="inv-due" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Generate Invoice</button>
-            </form>
-        </div>
-    </div>
+        const user = userQuery.rows[0];
+        if (!user.is_active) return res.status(403).json({ error: 'Akaunti yako imesimamishwa.' });
+        if (user.role !== 'SUPER_ADMIN' && !user.company_active) return res.status(403).json({ error: 'Kampuni yako imefungiwa huduma za mfumo.' });
 
-    <!-- MODAL: RECORD EXPENSE -->
-    <div id="modal-expense" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
-            <button onclick="closeModal('modal-expense')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white mb-4">Record Expense</h3>
-            <form id="form-expense" class="space-y-3">
-                <select id="exp-category" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
-                    <option value="REPAIR">Repair & Maintenance</option>
-                    <option value="UTILITY">Utility Bills</option>
-                    <option value="SALARY">Staff Salary</option>
-                </select>
-                <input type="text" id="exp-desc" placeholder="Description *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="number" id="exp-amount" placeholder="Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <button type="submit" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Expense</button>
-            </form>
-        </div>
-    </div>
+        const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+        if (!isPasswordValid) return res.status(401).json({ error: 'Email au Password siyo sahihi!' });
 
-    <!-- MODAL: CREATE TICKET (MAINTENANCE) -->
-    <div id="modal-ticket" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
-            <button onclick="closeModal('modal-ticket')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white mb-4">Create Maintenance Ticket</h3>
-            <form id="form-ticket" class="space-y-3">
-                <select id="tkt-unit-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                    <option value="">Select Affected Unit...</option>
-                </select>
-                <input type="text" id="tkt-title" placeholder="Issue Title *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <textarea id="tkt-desc" placeholder="Issue Description" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs h-20"></textarea>
-                <select id="tkt-priority" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
-                    <option value="LOW">LOW</option>
-                    <option value="MEDIUM" selected>MEDIUM</option>
-                    <option value="HIGH">HIGH</option>
-                    <option value="URGENT">URGENT</option>
-                </select>
-                <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Create Ticket</button>
-            </form>
-        </div>
-    </div>
+        const token = jwt.sign(
+            { user_id: user.user_id, company_id: user.company_id, email: user.email, role: user.role, full_name: user.full_name },
+            JWT_SECRET,
+            { expiresIn: '12h' }
+        );
 
-    <!-- MODAL: REGISTER STAFF (ACCESSIBLE TO COMPANY OWNER & SUPER ADMIN) -->
-    <div id="modal-register" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
-            <button onclick="closeModal('modal-register')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white mb-4">Register Staff Member</h3>
-            <form id="form-register" class="space-y-3">
-                <input type="text" id="reg-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="email" id="reg-email" placeholder="Email Address *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="password" id="reg-password" placeholder="Password (Min 8, Upper, Lower, Num, Special) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <select id="reg-role" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
-                    <option value="PROPERTY_MANAGER">Property Manager</option>
-                    <option value="ACCOUNTANT">Accountant</option>
-                    <option value="TECHNICIAN">Technician</option>
-                </select>
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Register Staff Member</button>
-            </form>
-        </div>
-    </div>
+        await createAuditLog(pool, user.company_id, user.user_id, `User Logged In`, 'AUTH', req.ip, { email: user.email });
 
-    <!-- MODAL: LUKU VENDING -->
-    <div id="modal-luku" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
-            <button onclick="closeModal('modal-luku')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
-            <h3 class="font-bold text-lg text-white mb-4">Vend Luku Token</h3>
-            <form id="form-luku" class="space-y-3">
-                <input type="text" id="luku-meter" placeholder="Meter Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="text" id="luku-tenant" placeholder="Tenant Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="number" id="luku-amount" placeholder="Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Generate Token</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL: LUKU RESULT UI -->
-    <div id="modal-luku-result" style="display: none;" class="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-[#0d172d] border border-amber-500/50 w-full max-w-md rounded-3xl p-8 text-center shadow-[0_0_40px_rgba(245,158,11,0.2)]">
-            <div class="mx-auto w-16 h-16 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-3xl mb-4">
-                <i class="fa-solid fa-bolt"></i>
-            </div>
-            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Luku Token Generated</h3>
-            <div id="res-token" class="text-3xl font-black text-amber-400 tracking-widest bg-[#14223d] py-4 rounded-xl border border-[#1e2f52] my-4 select-all">
-                0000-0000-0000-0000
-            </div>
-            <div class="grid grid-cols-2 gap-4 text-left bg-[#14223d] p-4 rounded-xl border border-[#1e2f52] mb-6">
-                <div><span class="text-[10px] text-gray-500 block uppercase">Meter</span><span id="res-meter" class="text-sm font-bold text-white">0</span></div>
-                <div><span class="text-[10px] text-gray-500 block uppercase">Units (kWh)</span><span id="res-kwh" class="text-sm font-bold text-cyan-400">0.0</span></div>
-                <div class="col-span-2"><span class="text-[10px] text-gray-500 block uppercase">Amount</span><span id="res-amount" class="text-sm font-bold text-emerald-400">TZS 0</span></div>
-            </div>
-            <div class="flex gap-3">
-                <button onclick="copyLukuToken()" class="flex-1 bg-[#14223d] hover:bg-[#1e2f52] border border-[#233863] py-3 rounded-xl text-white font-bold text-xs"><i class="fa-solid fa-copy"></i> Copy</button>
-                <button onclick="closeModal('modal-luku-result')" class="flex-1 bg-amber-600 hover:bg-amber-700 py-3 rounded-xl text-white font-bold text-xs">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            if (localStorage.getItem('keyarch_token')) showAppView();
-
-            // LOGIN SUBMISSION
-            document.getElementById('form-login').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const res = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: document.getElementById('login-email').value,
-                        password: document.getElementById('login-password').value
-                    })
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    localStorage.setItem('keyarch_token', data.token);
-                    localStorage.setItem('keyarch_user', JSON.stringify(data.user));
-                    showAppView();
-                } else alert(data.error || 'Login Failed!');
-            });
-
-            // PORTAL REGISTER COMPANY / PROPERTY OWNER SUBMISSION
-            document.getElementById('form-portal-register').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const res = await fetch('/api/auth/register-company', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        company_name: document.getElementById('p-reg-company').value,
-                        admin_full_name: document.getElementById('p-reg-name').value,
-                        email: document.getElementById('p-reg-email').value,
-                        phone_number: document.getElementById('p-reg-phone').value,
-                        password: document.getElementById('p-reg-password').value
-                    })
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    alert('Hongera! Kampuni yako imesajiliwa kikamilifu. Sasa unaweza kuingia (Sign In).');
-                    switchAuthTab('login');
-                    document.getElementById('login-email').value = document.getElementById('p-reg-email').value;
-                    document.getElementById('form-portal-register').reset();
-                } else {
-                    alert('Usajili Umefeli: ' + (data.error || 'Server error'));
-                }
-            });
-
-            document.getElementById('form-property').addEventListener('submit', (e) => {
-                e.preventDefault();
-                sendPost('/api/properties', { property_name: document.getElementById('prop-name').value, address: document.getElementById('prop-address').value, category: document.getElementById('prop-category').value }, 'modal-property', 'form-property');
-            });
-
-            document.getElementById('form-unit').addEventListener('submit', (e) => {
-                e.preventDefault();
-                sendPost('/api/units', { property_id: parseInt(document.getElementById('unit-prop-id').value), unit_number: document.getElementById('unit-no').value, rent_amount: parseFloat(document.getElementById('unit-rent').value) }, 'modal-unit', 'form-unit');
-            });
-
-            document.getElementById('form-tenant').addEventListener('submit', (e) => {
-                e.preventDefault();
-                sendPost('/api/tenants/onboard', { full_name: document.getElementById('ten-name').value, nida_passport_no: document.getElementById('ten-nida').value, phone_number: document.getElementById('ten-phone').value, unit_id: parseInt(document.getElementById('ten-unit-id').value), start_date: document.getElementById('ten-start').value, end_date: document.getElementById('ten-end').value, agreed_rent: parseFloat(document.getElementById('ten-rent').value), generate_initial_invoice: true }, 'modal-tenant', 'form-tenant');
-            });
-
-            document.getElementById('form-invoice').addEventListener('submit', (e) => {
-                e.preventDefault();
-                sendPost('/api/invoices/issue', { lease_id: parseInt(document.getElementById('inv-lease-id').value), amount_due: parseFloat(document.getElementById('inv-amount').value), due_date: document.getElementById('inv-due').value }, 'modal-invoice', 'form-invoice');
-            });
-
-            document.getElementById('form-ticket').addEventListener('submit', (e) => {
-                e.preventDefault();
-                sendPost('/api/tickets/create', { unit_id: parseInt(document.getElementById('tkt-unit-id').value), title: document.getElementById('tkt-title').value, description: document.getElementById('tkt-desc').value, priority: document.getElementById('tkt-priority').value }, 'modal-ticket', 'form-ticket');
-            });
-
-            document.getElementById('form-expense').addEventListener('submit', (e) => {
-                e.preventDefault();
-                sendPost('/api/finance/expenses', { category: document.getElementById('exp-category').value, description: document.getElementById('exp-desc').value, amount: parseFloat(document.getElementById('exp-amount').value) }, 'modal-expense', 'form-expense');
-            });
-
-            // INTERNAL REGISTER STAFF SUBMISSION
-            document.getElementById('form-register').addEventListener('submit', (e) => {
-                e.preventDefault();
-                sendPost('/api/auth/register-staff', { full_name: document.getElementById('reg-name').value, email: document.getElementById('reg-email').value, password: document.getElementById('reg-password').value, role: document.getElementById('reg-role').value }, 'modal-register', 'form-register');
-            });
-
-            document.getElementById('form-luku').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const token = localStorage.getItem('keyarch_token');
-                const res = await fetch('/api/finance/luku/vend', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ meter_number: document.getElementById('luku-meter').value, tenant_name: document.getElementById('luku-tenant').value, amount: parseFloat(document.getElementById('luku-amount').value) })
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    document.getElementById('form-luku').reset();
-                    closeModal('modal-luku');
-                    document.getElementById('res-token').innerText = data.token_number;
-                    document.getElementById('res-meter').innerText = data.meter_number;
-                    document.getElementById('res-kwh').innerText = data.kwh_units;
-                    document.getElementById('res-amount').innerText = 'TZS ' + parseFloat(data.amount).toLocaleString();
-                    openModal('modal-luku-result');
-                    loadAllData();
-                } else alert('Error: ' + data.error);
-            });
+        res.json({ 
+            message: 'Login successful', 
+            token, 
+            user: { user_id: user.user_id, company_id: user.company_id, company_name: user.company_name, full_name: user.full_name, email: user.email, role: user.role } 
         });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
-        function switchAuthTab(type) {
-            const loginForm = document.getElementById('form-login');
-            const regForm = document.getElementById('form-portal-register');
-            const tabLogin = document.getElementById('tab-auth-login');
-            const tabReg = document.getElementById('tab-auth-register');
-
-            if (type === 'login') {
-                loginForm.classList.remove('hidden');
-                regForm.classList.add('hidden');
-                tabLogin.classList.add('bg-blue-600', 'text-white');
-                tabLogin.classList.remove('text-gray-400');
-                tabReg.classList.remove('bg-blue-600', 'text-white');
-                tabReg.classList.add('text-gray-400');
-            } else {
-                loginForm.classList.add('hidden');
-                regForm.classList.remove('hidden');
-                tabReg.classList.add('bg-blue-600', 'text-white');
-                tabReg.classList.remove('text-gray-400');
-                tabLogin.classList.remove('bg-blue-600', 'text-white');
-                tabLogin.classList.add('text-gray-400');
-            }
+// REGISTER NEW COMPANY / SAAS CLIENT (Property Owner Sign-up)
+app.post('/api/auth/register-company', async (req, res) => {
+    const { company_name, admin_full_name, email, password, phone_number, subscription_plan } = req.body;
+    const client = await pool.connect();
+    
+    try {
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(password)) {
+            return res.status(400).json({ error: 'Nenosiri lazima liwe na herufi 8+, herufi kubwa, ndogo, namba na alama maalum.' });
         }
 
-        async function sendPost(url, bodyData, modalId, formId) {
-            const token = localStorage.getItem('keyarch_token');
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(bodyData)
-            });
-            if (res.ok) {
-                if(formId) document.getElementById(formId).reset();
-                closeModal(modalId);
-                loadAllData();
-                alert('Success! Kitendo kimekamilika kikamilifu.');
-            } else {
-                const data = await res.json();
-                alert('Imefeli: ' + (data.error || 'Server error'));
-            }
+        await client.query('BEGIN');
+
+        // Create Company
+        const compRes = await client.query(
+            'INSERT INTO companies (company_name, subscription_plan) VALUES ($1, $2) RETURNING *',
+            [company_name, subscription_plan || 'STANDARD']
+        );
+        const company = compRes.rows[0];
+
+        // Create Company Admin User
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const userRes = await client.query(
+            'INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING user_id, full_name, email, role',
+            [company.company_id, admin_full_name, email, hashedPassword, phone_number || '', 'COMPANY_ADMIN', true]
+        );
+        const user = userRes.rows[0];
+
+        await createAuditLog(client, company.company_id, user.user_id, `Registered Company Account`, 'COMPANY_ONBOARDING', req.ip, { company_name, email });
+        await client.query('COMMIT');
+
+        res.status(201).json({ message: 'Company onboarded successfully', company, admin_user: user });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        if (err.code === '23505') return res.status(400).json({ error: 'Email hii tayari imeshasajiliwa.' });
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
+
+// REGISTER STAFF ACCOUNT (Executed by COMPANY_ADMIN or SUPER_ADMIN)
+app.post('/api/auth/register-staff', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN'), async (req, res) => {
+    const { full_name, email, password, phone_number, role } = req.body;
+    const companyId = req.user.role === 'SUPER_ADMIN' ? (req.body.company_id || req.user.company_id) : req.user.company_id;
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+        return res.status(400).json({ error: 'Nenosiri lazima liwe na herufi 8+, herufi kubwa, ndogo, namba na alama maalum.' });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const result = await pool.query(
+            'INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING user_id, full_name, email, role',
+            [companyId, full_name, email, hashedPassword, phone_number || '', role || 'PROPERTY_MANAGER', true]
+        );
+
+        await createAuditLog(pool, companyId, req.user.user_id, `Created Staff Account (${role})`, 'USER_MGMT', req.ip, { created_email: email, role });
+        res.status(201).json({ message: 'Staff member registered successfully', user: result.rows[0] });
+    } catch (err) { 
+        if (err.code === '23505') return res.status(400).json({ error: 'Email hii tayari ipo kwenye mfumo.' });
+        res.status(500).json({ error: err.message }); 
+    }
+});
+
+// ==========================================
+// 2. PROPERTIES & UNITS APIs (Tenant-Isolated)
+// ==========================================
+app.get('/api/properties', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT p.*, COUNT(u.unit_id) as total_units_count 
+             FROM properties p 
+             LEFT JOIN units u ON p.property_id = u.property_id 
+             WHERE p.company_id = $1 
+             GROUP BY p.property_id 
+             ORDER BY p.created_at DESC`,
+            [req.user.company_id]
+        );
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/properties', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
+    const { property_name, address, category, total_units } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO properties (company_id, property_name, address, category, total_units) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
+            [req.user.company_id, property_name, address, category || 'RESIDENTIAL', total_units || 1]
+        );
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Created Property`, 'PROPERTIES', req.ip, { property_id: result.rows[0].property_id, property_name });
+        res.status(201).json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/units', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT u.*, p.property_name 
+             FROM units u 
+             JOIN properties p ON u.property_id = p.property_id 
+             WHERE u.company_id = $1 
+             ORDER BY u.unit_id DESC`,
+            [req.user.company_id]
+        );
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/units', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
+    const { property_id, unit_number, rent_amount, currency, is_furnished } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO units (company_id, property_id, unit_number, rent_amount, currency, status, is_furnished) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *', 
+            [req.user.company_id, property_id, unit_number, rent_amount, currency || 'TZS', 'VACANT', is_furnished || false]
+        );
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Created Unit`, 'UNITS', req.ip, { unit_id: result.rows[0].unit_id, property_id, unit_number });
+        res.status(201).json(result.rows[0]);
+    } catch (err) { 
+        if (err.code === '23505') return res.status(400).json({ error: `Unit ${unit_number} tayari ipo kwenye jengo hili!` });
+        res.status(500).json({ error: err.message }); 
+    }
+});
+
+// ==========================================
+// 3. TENANT ONBOARDING TRANSACTION
+// ==========================================
+app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { full_name, nida_passport_no, phone_number, email, unit_id, start_date, end_date, agreed_rent, payment_cycle, generate_initial_invoice } = req.body;
+        const companyId = req.user.company_id;
+
+        await client.query('BEGIN');
+
+        const unitCheck = await client.query('SELECT status FROM units WHERE unit_id = $1 AND company_id = $2', [unit_id, companyId]);
+        if (unitCheck.rows.length === 0) throw new Error('Unit iliyochaguliwa haipatikani.');
+        if (unitCheck.rows[0].status === 'OCCUPIED') throw new Error('Unit hii tayari ina mpangaji mwingine active.');
+
+        const tenantRes = await client.query(
+            'INSERT INTO tenants (company_id, full_name, nida_passport_no, phone_number, email) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
+            [companyId, full_name, nida_passport_no, phone_number, email]
+        );
+        const tenant = tenantRes.rows[0];
+
+        const leaseRes = await client.query(
+            'INSERT INTO leases (company_id, unit_id, tenant_id, start_date, end_date, agreed_rent, payment_cycle, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *', 
+            [companyId, unit_id, tenant.tenant_id, start_date, end_date, agreed_rent, payment_cycle || 'MONTHLY', 'ACTIVE']
+        );
+        const lease = leaseRes.rows[0];
+
+        await client.query("UPDATE units SET status = 'OCCUPIED' WHERE unit_id = $1 AND company_id = $2", [unit_id, companyId]);
+
+        let invoice = null;
+        if (generate_initial_invoice) {
+            const currentYear = new Date().getFullYear();
+            const seqRes = await client.query("SELECT nextval('invoice_seq')");
+            const autoInvoiceNum = `INV-${currentYear}-${seqRes.rows[0].nextval}`;
+
+            const invRes = await client.query(
+                'INSERT INTO invoices (company_id, lease_id, invoice_number, amount_due, due_date, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', 
+                [companyId, lease.lease_id, autoInvoiceNum, agreed_rent, start_date, 'PENDING']
+            );
+            invoice = invRes.rows[0];
         }
 
-        function copyLukuToken() {
-            navigator.clipboard.writeText(document.getElementById('res-token').innerText);
-            alert('Token copied!');
-        }
+        await createAuditLog(client, companyId, req.user.user_id, `Onboarded Tenant`, 'TENANT_ONBOARDING', req.ip, { tenant_id: tenant.tenant_id, lease_id: lease.lease_id, unit_id, invoice_number: invoice ? invoice.invoice_number : null });
+        await client.query('COMMIT');
+        res.status(201).json({ message: 'Tenant onboarded successfully', tenant, lease, invoice });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: 'Onboarding Failed: ' + err.message });
+    } finally {
+        client.release();
+    }
+});
 
-        function showAppView() {
-            document.getElementById('view-login').style.display = 'none';
-            document.getElementById('view-app').style.display = 'flex';
-            
-            const user = JSON.parse(localStorage.getItem('keyarch_user') || '{}');
-            document.getElementById('user-role-badge').innerText = user.role || 'COMPANY_ADMIN';
-            document.getElementById('user-company-display').innerText = user.company_name || 'Hugo Tech';
-            document.getElementById('user-name-display').innerText = '• ' + (user.full_name || '');
+app.get('/api/tenants', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM tenants WHERE company_id = $1 ORDER BY created_at DESC', [req.user.company_id]);
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-            if (user.role === 'SUPER_ADMIN' || user.role === 'COMPANY_ADMIN') {
-                document.getElementById('btn-admin-register').style.display = 'inline-block';
-            } else {
-                document.getElementById('btn-admin-register').style.display = 'none';
-            }
+// ==========================================
+// 4. LEASES & INVOICES APIs
+// ==========================================
+app.get('/api/leases', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT l.*, t.full_name as tenant_name, u.unit_number, p.property_name 
+             FROM leases l 
+             JOIN tenants t ON l.tenant_id = t.tenant_id 
+             JOIN units u ON l.unit_id = u.unit_id 
+             JOIN properties p ON u.property_id = p.property_id 
+             WHERE l.company_id = $1 
+             ORDER BY l.created_at DESC`,
+            [req.user.company_id]
+        );
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-            loadAllData();
-        }
+app.get('/api/invoices', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT inv.*, l.agreed_rent, t.full_name as tenant_name 
+             FROM invoices inv 
+             JOIN leases l ON inv.lease_id = l.lease_id 
+             JOIN tenants t ON l.tenant_id = t.tenant_id 
+             WHERE inv.company_id = $1 
+             ORDER BY inv.created_at DESC`,
+            [req.user.company_id]
+        );
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(el => {
-                el.classList.remove('border-b-2', 'border-blue-500', 'text-blue-400');
-                el.classList.add('text-gray-400');
-            });
+app.post('/api/invoices/issue', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT'), async (req, res) => {
+    const { lease_id, amount_due, due_date } = req.body;
+    try {
+        const currentYear = new Date().getFullYear();
+        const seqRes = await pool.query("SELECT nextval('invoice_seq')");
+        const autoInvoiceNum = `INV-${currentYear}-${seqRes.rows[0].nextval}`;
 
-            document.getElementById(tabId).classList.remove('hidden');
-            const activeBtn = document.getElementById('btn-' + tabId);
-            if(activeBtn) {
-                activeBtn.classList.add('border-b-2', 'border-blue-500', 'text-blue-400');
-                activeBtn.classList.remove('text-gray-400');
-            }
-        }
+        const result = await pool.query(
+            'INSERT INTO invoices (company_id, lease_id, invoice_number, amount_due, due_date, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', 
+            [req.user.company_id, lease_id, autoInvoiceNum, amount_due, due_date, 'PENDING']
+        );
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Issued Invoice`, 'INVOICES', req.ip, { invoice_number: autoInvoiceNum, lease_id, amount_due });
+        res.status(201).json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-        function loadAllData() {
-            loadDashboardMetrics();
-            loadReminders();
-            loadDropdowns();
-            loadTablesData();
-        }
+// ==========================================
+// 5. WORK ORDERS / TICKETS APIs
+// ==========================================
+app.get('/api/tickets', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT w.*, u.unit_number, tech.full_name as technician_name 
+             FROM work_orders w 
+             LEFT JOIN units u ON w.unit_id = u.unit_id 
+             LEFT JOIN users tech ON w.assigned_technician_id = tech.user_id 
+             WHERE w.company_id = $1 
+             ORDER BY w.created_at DESC`,
+            [req.user.company_id]
+        );
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-        async function loadDashboardMetrics() {
-            const token = localStorage.getItem('keyarch_token');
-            const res = await fetch('/api/dashboard/metrics', { headers: { 'Authorization': `Bearer ${token}` } });
-            if (res.ok) {
-                const data = await res.json();
-                document.getElementById('stat-properties').innerText = data.totalProperties;
-                document.getElementById('stat-units').innerText = data.totalUnits;
-                document.getElementById('stat-occupancy').innerText = data.occupancyRate + '%';
-                document.getElementById('stat-tenants').innerText = data.activeTenants;
-                document.getElementById('stat-tickets').innerText = data.pendingTickets;
-                document.getElementById('stat-income').innerText = 'TZS ' + data.monthlyIncome.toLocaleString();
-                document.getElementById('stat-profit').innerText = 'TZS ' + data.netProfit.toLocaleString();
-            }
-        }
+app.post('/api/tickets/create', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'TECHNICIAN'), async (req, res) => {
+    const { unit_id, title, description, priority, estimated_cost, assigned_technician_id } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO work_orders (company_id, unit_id, assigned_technician_id, title, description, priority, status, estimated_cost) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *', 
+            [req.user.company_id, unit_id || null, assigned_technician_id || null, title, description, priority || 'MEDIUM', 'OPEN', estimated_cost || 0.00]
+        );
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Created Maintenance Ticket`, 'WORK_ORDERS', req.ip, { ticket_id: result.rows[0].ticket_id, title, priority });
+        res.status(201).json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-        async function loadReminders() {
-            const token = localStorage.getItem('keyarch_token');
-            const res = await fetch('/api/dashboard/reminders', { headers: { 'Authorization': `Bearer ${token}` } });
-            if (res.ok) {
-                const data = await res.json();
-                document.getElementById('rem-expired').innerText = data.expired;
-                document.getElementById('rem-week').innerText = data.dueThisWeek;
-                document.getElementById('rem-month').innerText = data.dueThisMonth;
-            }
-        }
+// ==========================================
+// 6. FINANCE: EXPENSES & LUKU VENDING
+// ==========================================
+app.get('/api/expenses', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT e.*, p.property_name, u.full_name as recorded_by_name 
+             FROM expenses e 
+             LEFT JOIN properties p ON e.property_id = p.property_id 
+             LEFT JOIN users u ON e.recorded_by = u.user_id 
+             WHERE e.company_id = $1 
+             ORDER BY e.expense_date DESC`,
+            [req.user.company_id]
+        );
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-        async function loadDropdowns() {
-            const token = localStorage.getItem('keyarch_token');
-            const headers = { 'Authorization': `Bearer ${token}` };
-            
-            const propSelect = document.getElementById('unit-prop-id');
-            if (propSelect) {
-                const propRes = await fetch('/api/properties', { headers });
-                if (propRes.ok) {
-                    const props = await propRes.json();
-                    propSelect.innerHTML = props.map(p => `<option value="${p.property_id}">${p.property_name}</option>`).join('');
-                }
-            }
-            
-            const unitRes = await fetch('/api/units', { headers });
-            if (unitRes.ok) {
-                const units = await unitRes.json();
-                const vacantUnits = units.filter(u => u.status === 'VACANT');
-                
-                const tenUnitSelect = document.getElementById('ten-unit-id');
-                if (tenUnitSelect) {
-                    tenUnitSelect.innerHTML = vacantUnits.map(u => `<option value="${u.unit_id}">${u.property_name} - ${u.unit_number}</option>`).join('');
-                }
-                
-                const tktUnitSelect = document.getElementById('tkt-unit-id');
-                if (tktUnitSelect) {
-                    tktUnitSelect.innerHTML = units.map(u => `<option value="${u.unit_id}">${u.property_name} - ${u.unit_number}</option>`).join('');
-                }
-            }
+app.post('/api/finance/expenses', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT'), async (req, res) => {
+    const { property_id, description, amount, category } = req.body;
+    try {
+        const result = await pool.query(
+            'INSERT INTO expenses (company_id, property_id, description, amount, category, recorded_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', 
+            [req.user.company_id, property_id || null, description, amount, category || 'MISC', req.user.user_id]
+        );
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Recorded Expense`, 'EXPENSES', req.ip, { expense_id: result.rows[0].expense_id, amount, category });
+        res.status(201).json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-            const leaseSelect = document.getElementById('inv-lease-id');
-            if (leaseSelect) {
-                const leaseRes = await fetch('/api/leases', { headers });
-                if (leaseRes.ok) {
-                    const leases = await leaseRes.json();
-                    const activeLeases = leases.filter(l => l.status === 'ACTIVE');
-                    leaseSelect.innerHTML = activeLeases.map(l => `<option value="${l.lease_id}">${l.tenant_name} (${l.unit_number})</option>`).join('');
-                }
-            }
-        }
+app.post('/api/finance/luku/vend', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT'), async (req, res) => {
+    const { meter_number, tenant_name, amount } = req.body;
+    try {
+        const ratePerKwh = 350; 
+        const kwh_units = (amount / ratePerKwh).toFixed(2);
+        const token_number = Array.from({length:4}, () => Math.floor(1000 + Math.random()*9000)).join('-');
 
-        async function loadTablesData() {
-            const token = localStorage.getItem('keyarch_token');
-            const headers = { 'Authorization': `Bearer ${token}` };
+        const result = await pool.query(
+            'INSERT INTO luku_vouchers (company_id, meter_number, tenant_name, amount, token_number, kwh_units, sold_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *', 
+            [req.user.company_id, meter_number, tenant_name, amount, token_number, kwh_units, req.user.user_id]
+        );
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Vended Luku Token`, 'FINANCE_LUKU', req.ip, { voucher_id: result.rows[0].voucher_id, meter_number, token_number, amount, kwh_units });
+        res.status(201).json(result.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
-            const propRes = await fetch('/api/properties', { headers });
-            if(propRes.ok) {
-                const props = await propRes.json();
-                const tbody = document.getElementById('table-properties-body');
-                if(props.length > 0) {
-                    tbody.innerHTML = props.map(p => `
-                        <tr class="hover:bg-[#14223d]/50">
-                            <td class="p-3 font-mono text-gray-400">#${p.property_id}</td>
-                            <td class="p-3 font-bold text-white">${p.property_name}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-blue-900/40 text-blue-300 border border-blue-500/30">${p.category}</span></td>
-                            <td class="p-3 text-gray-400">${p.address}</td>
-                            <td class="p-3 font-bold text-cyan-400">${p.total_units_count || 0}</td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-500">No properties registered under your company yet.</td></tr>`;
-                }
-            }
+// ==========================================
+// 7. DASHBOARD METRICS & REMINDERS APIs (Company Filtered)
+// ==========================================
+app.get('/api/dashboard/metrics', authenticateToken, async (req, res) => {
+    const cId = req.user.company_id;
+    try {
+        const totalProperties = await pool.query('SELECT COUNT(*) FROM properties WHERE company_id = $1', [cId]);
+        const totalUnits = await pool.query('SELECT COUNT(*) FROM units WHERE company_id = $1', [cId]);
+        const occupiedUnits = await pool.query("SELECT COUNT(*) FROM units WHERE company_id = $1 AND status = 'OCCUPIED'", [cId]);
+        const vacantUnits = await pool.query("SELECT COUNT(*) FROM units WHERE company_id = $1 AND status = 'VACANT'", [cId]);
+        const activeTenants = await pool.query("SELECT COUNT(DISTINCT tenant_id) FROM leases WHERE company_id = $1 AND status = 'ACTIVE'", [cId]);
+        const pendingTickets = await pool.query("SELECT COUNT(*) FROM work_orders WHERE company_id = $1 AND status IN ('OPEN', 'IN_PROGRESS')", [cId]);
 
-            const leaseRes = await fetch('/api/leases', { headers });
-            if(leaseRes.ok) {
-                const leases = await leaseRes.json();
-                const tbody = document.getElementById('table-leases-body');
-                if(leases.length > 0) {
-                    tbody.innerHTML = leases.map(l => `
-                        <tr class="hover:bg-[#14223d]/50">
-                            <td class="p-3 font-mono text-gray-400">#${l.lease_id}</td>
-                            <td class="p-3 font-bold text-white">${l.tenant_name}</td>
-                            <td class="p-3">${l.property_name} (${l.unit_number})</td>
-                            <td class="p-3 font-bold text-emerald-400">TZS ${parseFloat(l.agreed_rent).toLocaleString()}</td>
-                            <td class="p-3 text-gray-400">${new Date(l.end_date).toLocaleDateString()}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-900/40 text-emerald-300 border border-emerald-500/30">${l.status}</span></td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No active leases for your company yet.</td></tr>`;
-                }
-            }
+        const monthlyIncomeQuery = await pool.query("SELECT COALESCE(SUM(amount_paid), 0) AS total FROM payments WHERE company_id = $1 AND payment_date >= DATE_TRUNC('month', CURRENT_DATE)", [cId]);
+        const lukuIncomeQuery = await pool.query("SELECT COALESCE(SUM(amount), 0) AS total FROM luku_vouchers WHERE company_id = $1 AND sold_at >= DATE_TRUNC('month', CURRENT_DATE)", [cId]);
+        const monthlyExpensesQuery = await pool.query("SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE company_id = $1 AND expense_date >= DATE_TRUNC('month', CURRENT_DATE)", [cId]);
 
-            const invRes = await fetch('/api/invoices', { headers });
-            if(invRes.ok) {
-                const invoices = await invRes.json();
-                const tbody = document.getElementById('table-invoices-body');
-                if(invoices.length > 0) {
-                    tbody.innerHTML = invoices.map(i => `
-                        <tr class="hover:bg-[#14223d]/50">
-                            <td class="p-3 font-mono font-bold text-purple-400">${i.invoice_number}</td>
-                            <td class="p-3 font-bold text-white">${i.tenant_name}</td>
-                            <td class="p-3 font-bold text-emerald-400">TZS ${parseFloat(i.amount_due).toLocaleString()}</td>
-                            <td class="p-3 text-gray-400">${new Date(i.due_date).toLocaleDateString()}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] ${i.status === 'PAID' ? 'bg-emerald-900/40 text-emerald-300 border border-emerald-500/30' : 'bg-amber-900/40 text-amber-300 border border-amber-500/30'}">${i.status}</span></td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-500">No invoices issued yet.</td></tr>`;
-                }
-            }
+        const tUnits = parseInt(totalUnits.rows[0]?.count || 0);
+        const occUnits = parseInt(occupiedUnits.rows[0]?.count || 0);
+        const occupancyRate = tUnits > 0 ? ((occUnits / tUnits) * 100).toFixed(2) : 0;
 
-            const tktRes = await fetch('/api/tickets', { headers });
-            if(tktRes.ok) {
-                const tickets = await tktRes.json();
-                const tbody = document.getElementById('table-tickets-body');
-                if(tickets.length > 0) {
-                    tbody.innerHTML = tickets.map(t => `
-                        <tr class="hover:bg-[#14223d]/50">
-                            <td class="p-3 font-mono text-gray-400">#${t.ticket_id}</td>
-                            <td class="p-3 font-bold text-white">${t.title}</td>
-                            <td class="p-3">Unit ${t.unit_number || 'N/A'}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-orange-900/40 text-orange-300 border border-orange-500/30">${t.priority}</span></td>
-                            <td class="p-3 text-gray-400">${t.technician_name || 'Unassigned'}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-blue-900/40 text-blue-300 border border-blue-500/30">${t.status}</span></td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No work orders recorded yet.</td></tr>`;
-                }
-            }
-        }
+        const rentInc = parseFloat(monthlyIncomeQuery.rows[0]?.total || 0);
+        const lukuInc = parseFloat(lukuIncomeQuery.rows[0]?.total || 0);
+        const expenses = parseFloat(monthlyExpensesQuery.rows[0]?.total || 0);
+        const income = rentInc + lukuInc;
 
-        function logout() {
-            localStorage.removeItem('keyarch_token');
-            localStorage.removeItem('keyarch_user');
-            window.location.reload();
-        }
+        res.json({
+            totalProperties: parseInt(totalProperties.rows[0]?.count || 0),
+            totalUnits: tUnits,
+            occupiedUnits: occUnits,
+            vacantUnits: parseInt(vacantUnits.rows[0]?.count || 0),
+            occupancyRate: occupancyRate,
+            activeTenants: parseInt(activeTenants.rows[0]?.count || 0),
+            pendingTickets: parseInt(pendingTickets.rows[0]?.count || 0),
+            monthlyIncome: income,
+            monthlyExpenses: expenses,
+            netProfit: income - expenses
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
-        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-    </script>
-</body>
-</html>
+app.get('/api/dashboard/reminders', authenticateToken, async (req, res) => {
+    const cId = req.user.company_id;
+    try {
+        const expiredLeases = await pool.query("SELECT COUNT(*) FROM leases WHERE company_id = $1 AND end_date < CURRENT_DATE AND status = 'ACTIVE'", [cId]);
+        const expiringThisWeek = await pool.query("SELECT COUNT(*) FROM leases WHERE company_id = $1 AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days' AND status = 'ACTIVE'", [cId]);
+        const expiringThisMonth = await pool.query("SELECT COUNT(*) FROM leases WHERE company_id = $1 AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days' AND status = 'ACTIVE'", [cId]);
+
+        res.json({
+            expired: parseInt(expiredLeases.rows[0]?.count || 0),
+            dueThisWeek: parseInt(expiringThisWeek.rows[0]?.count || 0),
+            dueThisMonth: parseInt(expiringThisMonth.rows[0]?.count || 0)
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`KEY ARCH SaaS Multi-Tenant Server running on port ${PORT}`);
+    initDatabase();
+});
