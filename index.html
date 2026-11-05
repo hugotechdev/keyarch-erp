@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/style.css">
     <script>
-        (function () { var t = 'light'; try { t = localStorage.getItem('keyarch_theme') || 'light'; } catch (e) { } document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light'); })();
+        (function () { var t = 'light'; try { t = localStorage.getItem('keyarch_theme') || 'light'; } catch (e) { } document.documentElement.setAttribute('data-theme', (t === 'dark' || t === 'coffee') ? t : 'light'); })();
     </script>
     <style>
         .inp { width:100%; padding:0.7rem 0.75rem; border-radius:0.75rem; background:#14223d; border:1px solid #233863; color:#fff; font-size:0.75rem; outline:none; }
@@ -118,6 +118,82 @@
         html[data-theme="dark"] button.bg-blue-600, html[data-theme="dark"] .bg-gradient-to-r.from-blue-600 { box-shadow: 0 6px 18px rgba(37,99,235,.35); }
         html[data-theme="dark"] .inp:focus, html[data-theme="dark"] input:focus { box-shadow: 0 0 0 3px rgba(34,211,238,.18); border-color: #22D3EE; }
 
+        /* ---------- COFFEE & GOLD ---------- */
+        :root { --ka-gold: linear-gradient(135deg, #F6E3A1 0%, #D9AE4E 48%, #A97C26 100%); }
+        html[data-theme="coffee"] { color-scheme: dark; }
+        html[data-theme="coffee"] body { background: radial-gradient(1100px 650px at 88% -8%, rgba(184,137,43,.22) 0%, transparent 60%), linear-gradient(160deg, #17120E 0%, #130F0B 55%, #1A130D 100%); color: #F5EFE6; }
+        html[data-theme="coffee"] .ka-blobs i:nth-child(1) { background: #B8892B; opacity: .2; }
+        html[data-theme="coffee"] .ka-blobs i:nth-child(2) { background: #7A4B27; opacity: .4; }
+        html[data-theme="coffee"] .ka-blobs i:nth-child(3) { background: #9C6B3C; opacity: .3; }
+        html[data-theme="coffee"] .ka-blobs i:nth-child(4) { background: #D4A84B; opacity: .14; }
+        html[data-theme="coffee"] input, html[data-theme="coffee"] select, html[data-theme="coffee"] textarea { color-scheme: dark; color: #F5EFE6; }
+        html[data-theme="coffee"] select option { background: #2B2119; color: #F5EFE6; }
+        html[data-theme="coffee"] input::placeholder, html[data-theme="coffee"] textarea::placeholder { color: #8A7B6B; }
+        html[data-theme="coffee"] ::-webkit-scrollbar-track { background: #1A130E; }
+        html[data-theme="coffee"] ::-webkit-scrollbar-thumb { background: #4A3A2B; }
+        html[data-theme="coffee"] .bg-\[\#0a1224\], html[data-theme="coffee"] .bg-\[\#0d172d\], html[data-theme="coffee"] .bg-\[\#0e1930\] { background-color: rgba(34,26,20,.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+        html[data-theme="coffee"] .bg-\[\#0a1224\]\/90 { background-color: rgba(24,18,13,.85); }
+        html[data-theme="coffee"] aside.bg-\[\#0a1224\] { background-color: #1B140F; backdrop-filter: none; -webkit-backdrop-filter: none; }
+        html[data-theme="coffee"] .bg-\[\#0d172d\]\/50 { background-color: rgba(34,26,20,.5); }
+        html[data-theme="coffee"] .bg-\[\#101b33\], html[data-theme="coffee"] .bg-\[\#101d38\] { background-color: #281F18; }
+        html[data-theme="coffee"] .bg-\[\#14223d\] { background-color: #2B2119; }
+        html[data-theme="coffee"] .bg-\[\#14223d\]\/60, html[data-theme="coffee"] .bg-\[\#14223d\]\/40 { background-color: rgba(43,33,25,.7); }
+        html[data-theme="coffee"] .bg-\[\#1e2f52\] { background-color: #3A2D22; }
+        html[data-theme="coffee"] .hover\:bg-\[\#1e2f52\]:hover, html[data-theme="coffee"] .hover\:bg-\[\#14223d\]:hover, html[data-theme="coffee"] .hover\:bg-\[\#101d38\]:hover { background-color: #35291F; }
+        html[data-theme="coffee"] .hover\:bg-\[\#14223d\]\/50:hover { background-color: rgba(53,41,31,.7); }
+        html[data-theme="coffee"] .border-\[\#182848\], html[data-theme="coffee"] .border-\[\#1e2f52\], html[data-theme="coffee"] .border-\[\#1d325c\] { border-color: #3B2D21; }
+        html[data-theme="coffee"] .border-\[\#233863\] { border-color: #4A3A2B; }
+        html[data-theme="coffee"] .divide-\[\#182848\] > :not([hidden]) ~ :not([hidden]) { border-color: #3B2D21; }
+        html[data-theme="coffee"] .border-gray-600\/40 { border-color: #4A3A2B; }
+        html[data-theme="coffee"] .bg-gray-800 { background-color: #2B2119; }
+        html[data-theme="coffee"] .bg-\[\#0d172d\]:not(tr):not(thead), html[data-theme="coffee"] .bg-\[\#0a1224\]\/90 { box-shadow: 0 10px 28px rgba(0,0,0,.38), inset 0 0 0 1px rgba(212,168,75,.08); }
+        html[data-theme="coffee"] .bg-\[\#101b33\] { box-shadow: 0 14px 34px rgba(0,0,0,.5); }
+        html[data-theme="coffee"] .text-white { color: #F5EFE6; }
+        html[data-theme="coffee"] .text-gray-100, html[data-theme="coffee"] .text-gray-200 { color: #EDE5D8; }
+        html[data-theme="coffee"] .text-gray-300 { color: #CFC4B4; }
+        html[data-theme="coffee"] .text-gray-400 { color: #A89B8C; }
+        html[data-theme="coffee"] .text-gray-500, html[data-theme="coffee"] .text-gray-600 { color: #8A7B6B; }
+        html[data-theme="coffee"] .hover\:text-white:hover { color: #FFFBF2; }
+        html[data-theme="coffee"] [class*="text-blue-3"], html[data-theme="coffee"] [class*="text-blue-4"], html[data-theme="coffee"] [class*="text-indigo-2"], html[data-theme="coffee"] [class*="text-indigo-3"],
+        html[data-theme="coffee"] [class*="text-indigo-4"], html[data-theme="coffee"] [class*="text-cyan-3"], html[data-theme="coffee"] [class*="text-cyan-4"], html[data-theme="coffee"] [class*="text-sky-3"],
+        html[data-theme="coffee"] [class*="text-sky-4"], html[data-theme="coffee"] [class*="text-teal-3"], html[data-theme="coffee"] [class*="text-teal-4"], html[data-theme="coffee"] [class*="text-purple-3"],
+        html[data-theme="coffee"] [class*="text-purple-4"], html[data-theme="coffee"] [class*="text-violet-3"], html[data-theme="coffee"] [class*="text-pink-3"], html[data-theme="coffee"] [class*="text-pink-4"] { color: #E0BB63; }
+        html[data-theme="coffee"] [class*="text-emerald-3"], html[data-theme="coffee"] [class*="text-emerald-4"], html[data-theme="coffee"] [class*="text-green-3"], html[data-theme="coffee"] [class*="text-green-4"] { color: #86C79A; }
+        html[data-theme="coffee"] [class*="text-red-3"], html[data-theme="coffee"] [class*="text-red-4"], html[data-theme="coffee"] [class*="text-rose-3"], html[data-theme="coffee"] [class*="text-rose-4"] { color: #E88A80; }
+        html[data-theme="coffee"] [class*="text-amber-3"], html[data-theme="coffee"] [class*="text-amber-4"], html[data-theme="coffee"] [class*="text-yellow-3"], html[data-theme="coffee"] [class*="text-yellow-4"] { color: #E3B04B; }
+        html[data-theme="coffee"] [class*="text-orange-3"], html[data-theme="coffee"] [class*="text-orange-4"] { color: #E8A06A; }
+        /* blue / purple tints become gold tints */
+        html[data-theme="coffee"] [class*="bg-blue-"][class*="/"], html[data-theme="coffee"] [class*="bg-indigo-"][class*="/"], html[data-theme="coffee"] [class*="bg-cyan-"][class*="/"],
+        html[data-theme="coffee"] [class*="bg-purple-"][class*="/"], html[data-theme="coffee"] [class*="bg-sky-"][class*="/"], html[data-theme="coffee"] [class*="bg-blue-9"], html[data-theme="coffee"] [class*="bg-indigo-9"],
+        html[data-theme="coffee"] [class*="bg-cyan-9"] { background-color: rgba(212,168,75,.14); }
+        html[data-theme="coffee"] [class*="border-blue-"], html[data-theme="coffee"] [class*="border-indigo-"], html[data-theme="coffee"] [class*="border-cyan-"], html[data-theme="coffee"] [class*="border-purple-"], html[data-theme="coffee"] [class*="border-sky-"] { border-color: rgba(212,168,75,.38); }
+        /* main buttons: gold */
+        html[data-theme="coffee"] .bg-blue-600, html[data-theme="coffee"] .bg-blue-700, html[data-theme="coffee"] .bg-indigo-600, html[data-theme="coffee"] .bg-indigo-700, html[data-theme="coffee"] .bg-purple-600,
+        html[data-theme="coffee"] .bg-purple-700, html[data-theme="coffee"] .bg-cyan-600, html[data-theme="coffee"] .bg-sky-600, html[data-theme="coffee"] .bg-gradient-to-r.from-blue-600,
+        html[data-theme="coffee"] .bg-gradient-to-r.from-cyan-600, html[data-theme="coffee"] .bg-gradient-to-br.from-blue-600 { background: var(--ka-gold); color: #1A130D; box-shadow: 0 6px 18px rgba(212,168,75,.28); }
+        html[data-theme="coffee"] .bg-blue-600 *, html[data-theme="coffee"] .bg-indigo-600 *, html[data-theme="coffee"] .bg-purple-600 *, html[data-theme="coffee"] .bg-gradient-to-r.from-blue-600 *, html[data-theme="coffee"] .bg-gradient-to-r.from-cyan-600 * { color: #1A130D; }
+        html[data-theme="coffee"] .text-white.bg-blue-600, html[data-theme="coffee"] .text-white.bg-blue-700, html[data-theme="coffee"] .text-white.bg-indigo-600, html[data-theme="coffee"] .text-white.bg-purple-600,
+        html[data-theme="coffee"] .text-white.from-blue-600, html[data-theme="coffee"] .text-white.from-cyan-600, html[data-theme="coffee"] .text-white.bg-cyan-600 { color: #1A130D; }
+        html[data-theme="coffee"] button.bg-blue-600:hover, html[data-theme="coffee"] button.bg-indigo-600:hover, html[data-theme="coffee"] button.bg-purple-600:hover { filter: brightness(1.07); }
+        /* gold text: titles and key numbers */
+        html[data-theme="coffee"] #page-title, html[data-theme="coffee"] h3.text-white, html[data-theme="coffee"] h3[class*="text-white"], html[data-theme="coffee"] .bg-clip-text,
+        html[data-theme="coffee"] .font-black[class*="text-2xl"]:not([class*="text-red"]):not([class*="text-rose"]):not([class*="text-amber"]):not([class*="text-orange"]),
+        html[data-theme="coffee"] .font-black[class*="text-3xl"]:not([class*="text-red"]):not([class*="text-rose"]):not([class*="text-amber"]):not([class*="text-orange"]),
+        html[data-theme="coffee"] .font-black[class*="text-lg"]:not([class*="text-red"]):not([class*="text-rose"]):not([class*="text-amber"]):not([class*="text-orange"]) {
+            background-image: var(--ka-gold); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+        html[data-theme="coffee"] .nav-item.bg-blue-600\/20 { background: linear-gradient(135deg, rgba(212,168,75,.22), rgba(122,75,39,.3)); color: #EBCB7A; box-shadow: 0 0 16px rgba(212,168,75,.18); }
+        html[data-theme="coffee"] .nav-item:hover { color: #FFFBF2; }
+        html[data-theme="coffee"] .inp, html[data-theme="coffee"] input.bg-\[\#14223d\], html[data-theme="coffee"] select.bg-\[\#14223d\], html[data-theme="coffee"] textarea.bg-\[\#14223d\] {
+            background-color: #241B15; border-color: #3B2D21; color: #F5EFE6; box-shadow: inset 2px 2px 5px rgba(0,0,0,.35); }
+        html[data-theme="coffee"] .inp:focus, html[data-theme="coffee"] input:focus, html[data-theme="coffee"] select:focus, html[data-theme="coffee"] textarea:focus { border-color: #D4A84B; box-shadow: 0 0 0 3px rgba(212,168,75,.2); }
+        html[data-theme="coffee"] .lbl { color: #A89B8C; }
+        html[data-theme="coffee"] .ka-kpi-on { outline-color: #D4A84B; }
+        html[data-theme="coffee"] #dash-chart rect[fill="#3987e5"] { fill: url(#kaGold); }
+        html[data-theme="coffee"] #dash-chart rect[fill="#d95926"] { fill: #8A6A48; }
+        html[data-theme="coffee"] #dash-chart span[style*="#3987e5"] { background: var(--ka-gold) !important; }
+        html[data-theme="coffee"] #dash-chart line { stroke: #3B2D21; }
+        html[data-theme="coffee"] #bell-count, html[data-theme="coffee"] .bg-red-600.rounded-full { color: #fff; }
+
         /* ---------- shared: motion and polish ---------- */
         .bg-\[\#0d172d\], .bg-\[\#0a1224\], .bg-\[\#14223d\], .inp, button, .nav-item { transition: background-color .25s var(--ka-ease), box-shadow .25s var(--ka-ease), transform .2s var(--ka-ease), color .2s, border-color .25s; }
         button:not(:disabled):active { transform: scale(.97); }
@@ -131,6 +207,17 @@
         @keyframes kaPop { from { opacity: 0; transform: scale(.94) translateY(8px); } to { opacity: 1; transform: none; } }
         [id^="modal-"]:not([style*="display: none"]) > div { animation: kaPop .28s var(--ka-ease) both; }
         .ka-card-hover { cursor: pointer; }
+        .bg-\[\#0d172d\].p-4.rounded-2xl:hover { transform: translateY(-2px); }
+        #bell-count:not(.hidden) { animation: kaPulse 2.2s ease-in-out infinite; }
+        @keyframes kaPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.55); } 50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } }
+        #view-login > div.max-w-md { animation: kaPop .55s var(--ka-ease) both; }
+        button.bg-blue-600, button.bg-emerald-600, button.bg-purple-600, button.bg-indigo-600, button.bg-orange-600, button.bg-red-600, button.bg-rose-600, button.bg-cyan-600,
+        button[class*="from-blue-600"], button[class*="from-cyan-600"] { position: relative; overflow: hidden; }
+        button.bg-blue-600::after, button.bg-emerald-600::after, button.bg-purple-600::after, button.bg-indigo-600::after, button.bg-orange-600::after, button.bg-red-600::after, button.bg-rose-600::after,
+        button.bg-cyan-600::after, button[class*="from-blue-600"]::after, button[class*="from-cyan-600"]::after {
+            content: ''; position: absolute; top: 0; bottom: 0; left: -80%; width: 50%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.38), transparent); transform: skewX(-20deg); transition: left .7s var(--ka-ease); pointer-events: none; }
+        button.bg-blue-600:hover::after, button.bg-emerald-600:hover::after, button.bg-purple-600:hover::after, button.bg-indigo-600:hover::after, button.bg-orange-600:hover::after, button.bg-red-600:hover::after,
+        button.bg-rose-600:hover::after, button.bg-cyan-600:hover::after, button[class*="from-blue-600"]:hover::after, button[class*="from-cyan-600"]:hover::after { left: 130%; }
         .ka-card-hover:hover { transform: translateY(-3px); }
         .ka-kpi-on { outline: 2px solid #3B82F6; outline-offset: 1px; }
         html[data-theme="dark"] .ka-kpi-on { outline-color: #22D3EE; }
@@ -158,6 +245,7 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between text-gray-100 font-sans">
     <div class="ka-blobs" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="kaGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F6E3A1"/><stop offset="0.5" stop-color="#D9AE4E"/><stop offset="1" stop-color="#A97C26"/></linearGradient></defs></svg>
 
     <!-- VIEW 1: AUTHENTICATION PORTAL -->
     <div id="view-login" class="flex-grow flex items-center justify-center p-4 relative">
@@ -2436,7 +2524,28 @@
         // ============================================================
         function setText(id, value) {
             const el = document.getElementById(id);
-            if (el) el.innerText = value;
+            if (!el) return;
+            const text = String(value);
+            if (/^(kpi-|dash-|tk-n-)/.test(id) && /\d/.test(text) && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) countUp(el, text);
+            else el.innerText = value;
+        }
+        // numbers on the dashboard count up from zero (a short, soft effect)
+        function countUp(el, text) {
+            if (el.innerText === text) return;
+            const parts = text.split(/(\d[\d,]*(?:\.\d+)?)/), nums = parts.map((p, i) => i % 2 ? parseFloat(p.replace(/,/g, '')) : 0);
+            const t0 = performance.now(), D = 700; el._cu = t0;
+            const show = (k) => parts.map((p, i) => {
+                if (i % 2 === 0) return p;
+                const dec = p.includes('.') ? p.split('.')[1].length : 0, v = nums[i] * k;
+                return p.includes(',') ? v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : v.toFixed(dec);
+            }).join('');
+            const frame = (now) => {
+                if (el._cu !== t0) return;
+                const k = Math.min(1, (now - t0) / D);
+                if (k >= 1) { el.innerText = text; return; }
+                el.innerText = show(1 - Math.pow(1 - k, 3)); requestAnimationFrame(frame);
+            };
+            requestAnimationFrame(frame);
         }
 
         async function loadOverview() {
@@ -3107,7 +3216,7 @@
         // ============================================================
         // VERSIONS + DATABASE SETUP CHECK
         // ============================================================
-        const PAGE_VERSION = 'v7 - 2026-11-05 - new look, maintenance, logo, PDF invoices';
+        const PAGE_VERSION = 'v7.1 - 2026-11-05 - Coffee and Gold style, effects';
 
         async function checkVersions() {
             let serverVersion = 'unknown (old server.js?)';
@@ -4355,13 +4464,14 @@
         // ============================================================
         // THEME (light / dark), logo, sharing helpers
         // ============================================================
-        function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+        const THEMES = ['light', 'dark', 'coffee'], THEME_NAMES = { light: 'Light', dark: 'Dark', coffee: 'Coffee & Gold' }, THEME_ICONS = { light: 'fa-moon', dark: 'fa-mug-hot', coffee: 'fa-sun' };
+        function currentTheme() { const t = document.documentElement.getAttribute('data-theme'); return THEMES.includes(t) ? t : 'light'; }
         function paintThemeIcons() {
-            const dark = currentTheme() === 'dark';
-            document.querySelectorAll('.theme-icon-el').forEach(i => { i.className = 'fa-solid theme-icon-el ' + (dark ? 'fa-sun' : 'fa-moon'); });
+            const cur = currentTheme(), next = THEMES[(THEMES.indexOf(cur) + 1) % THEMES.length];
+            document.querySelectorAll('.theme-icon-el').forEach(i => { i.className = 'fa-solid theme-icon-el ' + THEME_ICONS[cur]; if (i.parentElement) i.parentElement.title = `Style: ${THEME_NAMES[cur]} (tap for ${THEME_NAMES[next]})`; });
         }
         function toggleTheme() {
-            const t = currentTheme() === 'dark' ? 'light' : 'dark';
+            const t = THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length];
             document.documentElement.setAttribute('data-theme', t);
             try { localStorage.setItem('keyarch_theme', t); } catch (e) { }
             paintThemeIcons();
