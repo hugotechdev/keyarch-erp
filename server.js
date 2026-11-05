@@ -10,6 +10,10 @@ const helmet = require('helmet');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Railway puts a proxy in front of the app. Without this line every visitor looks like
+// the same person, so the login limit (10 tries) would be shared by ALL users.
+app.set('trust proxy', 1);
+
 app.use(helmet({ contentSecurityPolicy: false }));
 
 if (!process.env.JWT_SECRET) {
