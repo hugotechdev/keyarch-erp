@@ -7,11 +7,147 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/style.css">
+    <script>
+        (function () { var t = 'light'; try { t = localStorage.getItem('keyarch_theme') || 'light'; } catch (e) { } document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light'); })();
+    </script>
     <style>
         .inp { width:100%; padding:0.7rem 0.75rem; border-radius:0.75rem; background:#14223d; border:1px solid #233863; color:#fff; font-size:0.75rem; outline:none; }
         .inp:focus { border-color:#3b82f6; }
         .inp option { background:#14223d; }
         .lbl { display:block; font-size:11px; font-weight:600; color:#9ca3af; margin-bottom:0.25rem; }
+        /* ===== KEY ARCH theme: Light (default) + Dark, soft UI, used with a switch ===== */
+        :root { --ka-ease: cubic-bezier(.22,.8,.3,1); }
+        html { scroll-behavior: smooth; }
+        body { transition: background-color .3s var(--ka-ease), color .3s var(--ka-ease); }
+
+        /* background shapes (circles) */
+        .ka-blobs { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+        .ka-blobs i { position: absolute; border-radius: 9999px; filter: blur(2px); animation: kaFloat 18s ease-in-out infinite alternate; }
+        .ka-blobs i:nth-child(1) { width: 420px; height: 420px; top: -140px; right: -100px; }
+        .ka-blobs i:nth-child(2) { width: 360px; height: 360px; bottom: 8%; left: -140px; animation-duration: 22s; }
+        .ka-blobs i:nth-child(3) { width: 300px; height: 300px; bottom: -110px; right: 6%; animation-duration: 26s; }
+        .ka-blobs i:nth-child(4) { width: 160px; height: 160px; top: 38%; right: 12%; animation-duration: 15s; }
+        @keyframes kaFloat { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(24px,-30px,0) scale(1.07); } }
+
+        /* ---------- LIGHT ---------- */
+        html[data-theme="light"] body { background: linear-gradient(155deg, #EAF0FB 0%, #E7ECF8 48%, #EEE9FB 100%); color: #1E293B; }
+        html[data-theme="light"] .ka-blobs i:nth-child(1) { background: #C4B5FD; opacity: .45; }
+        html[data-theme="light"] .ka-blobs i:nth-child(2) { background: #7DD3FC; opacity: .38; }
+        html[data-theme="light"] .ka-blobs i:nth-child(3) { background: #99F6E4; opacity: .45; }
+        html[data-theme="light"] .ka-blobs i:nth-child(4) { background: #FBCFE8; opacity: .5; }
+        html[data-theme="light"] { color-scheme: light; }
+        html[data-theme="light"] input, html[data-theme="light"] select, html[data-theme="light"] textarea { color-scheme: light; color: #1E293B; }
+        html[data-theme="light"] select option { background: #F4F6FB; color: #1E293B; }
+        html[data-theme="light"] input::placeholder, html[data-theme="light"] textarea::placeholder { color: #94A3B8; }
+        html[data-theme="light"] ::-webkit-scrollbar-track { background: #E3E8F2; }
+        html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #C3CCE0; }
+
+        /* surfaces */
+        html[data-theme="light"] .bg-\[\#0a1224\], html[data-theme="light"] .bg-\[\#0d172d\], html[data-theme="light"] .bg-\[\#0e1930\] { background-color: #EFF2F9; }
+        html[data-theme="light"] .bg-\[\#0a1224\]\/90 { background-color: rgba(239,242,249,.82); }
+        html[data-theme="light"] .bg-\[\#0d172d\]\/50 { background-color: rgba(239,242,249,.5); }
+        html[data-theme="light"] .bg-\[\#101b33\], html[data-theme="light"] .bg-\[\#101d38\] { background-color: #F6F8FC; }
+        html[data-theme="light"] .bg-\[\#14223d\] { background-color: #E4E9F3; }
+        html[data-theme="light"] .bg-\[\#14223d\]\/60, html[data-theme="light"] .bg-\[\#14223d\]\/40 { background-color: rgba(228,233,243,.7); }
+        html[data-theme="light"] .bg-\[\#1e2f52\] { background-color: #D9E0EE; }
+        html[data-theme="light"] .hover\:bg-\[\#1e2f52\]:hover, html[data-theme="light"] .hover\:bg-\[\#14223d\]:hover, html[data-theme="light"] .hover\:bg-\[\#101d38\]:hover { background-color: #DDE4F2; }
+        html[data-theme="light"] .hover\:bg-\[\#14223d\]\/50:hover { background-color: rgba(221,228,242,.7); }
+        html[data-theme="light"] .border-\[\#182848\], html[data-theme="light"] .border-\[\#1e2f52\], html[data-theme="light"] .border-\[\#1d325c\] { border-color: #DAE0EE; }
+        html[data-theme="light"] .border-\[\#233863\] { border-color: #CFD7E8; }
+        html[data-theme="light"] .divide-\[\#182848\] > :not([hidden]) ~ :not([hidden]) { border-color: #DAE0EE; }
+        html[data-theme="light"] .border-gray-600\/40 { border-color: #CBD5E1; }
+        html[data-theme="light"] .bg-gray-800 { background-color: #E2E8F0; }
+        html[data-theme="light"] .bg-black\/80, html[data-theme="light"] .bg-black\/90 { background-color: rgba(30,41,59,.55); }
+        html[data-theme="light"] .bg-black\/60 { background-color: rgba(30,41,59,.4); }
+
+        /* text */
+        html[data-theme="light"] .text-white { color: #1E293B; }
+        html[data-theme="light"] .text-gray-100, html[data-theme="light"] .text-gray-200 { color: #1E293B; }
+        html[data-theme="light"] .text-gray-300 { color: #334155; }
+        html[data-theme="light"] .text-gray-400 { color: #5B6B82; }
+        html[data-theme="light"] .text-gray-500, html[data-theme="light"] .text-gray-600 { color: #64748B; }
+        html[data-theme="light"] .hover\:text-white:hover { color: #0F172A; }
+        html[data-theme="light"] [class*="text-blue-3"], html[data-theme="light"] [class*="text-blue-4"] { color: #1D4ED8; }
+        html[data-theme="light"] [class*="text-indigo-2"], html[data-theme="light"] [class*="text-indigo-3"], html[data-theme="light"] [class*="text-indigo-4"] { color: #4338CA; }
+        html[data-theme="light"] [class*="text-cyan-3"], html[data-theme="light"] [class*="text-cyan-4"], html[data-theme="light"] [class*="text-sky-3"], html[data-theme="light"] [class*="text-sky-4"] { color: #0E7490; }
+        html[data-theme="light"] [class*="text-teal-3"], html[data-theme="light"] [class*="text-teal-4"] { color: #0F766E; }
+        html[data-theme="light"] [class*="text-emerald-2"], html[data-theme="light"] [class*="text-emerald-3"], html[data-theme="light"] [class*="text-emerald-4"], html[data-theme="light"] [class*="text-green-3"], html[data-theme="light"] [class*="text-green-4"] { color: #047857; }
+        html[data-theme="light"] [class*="text-red-2"], html[data-theme="light"] [class*="text-red-3"], html[data-theme="light"] [class*="text-red-4"], html[data-theme="light"] [class*="text-rose-2"], html[data-theme="light"] [class*="text-rose-3"], html[data-theme="light"] [class*="text-rose-4"] { color: #B91C1C; }
+        html[data-theme="light"] [class*="text-amber-2"], html[data-theme="light"] [class*="text-amber-3"], html[data-theme="light"] [class*="text-amber-4"], html[data-theme="light"] [class*="text-yellow-3"], html[data-theme="light"] [class*="text-yellow-4"] { color: #B45309; }
+        html[data-theme="light"] [class*="text-orange-3"], html[data-theme="light"] [class*="text-orange-4"] { color: #C2410C; }
+        html[data-theme="light"] [class*="text-purple-3"], html[data-theme="light"] [class*="text-purple-4"], html[data-theme="light"] [class*="text-violet-3"], html[data-theme="light"] [class*="text-pink-3"], html[data-theme="light"] [class*="text-pink-4"] { color: #7E22CE; }
+        /* white text stays white on solid colours and on dark bars */
+        html[data-theme="light"] .text-white[class*="bg-blue-"], html[data-theme="light"] .text-white[class*="bg-emerald-"], html[data-theme="light"] .text-white[class*="bg-red-"],
+        html[data-theme="light"] .text-white[class*="bg-rose-"], html[data-theme="light"] .text-white[class*="bg-cyan-"], html[data-theme="light"] .text-white[class*="bg-indigo-"],
+        html[data-theme="light"] .text-white[class*="bg-purple-"], html[data-theme="light"] .text-white[class*="bg-orange-"], html[data-theme="light"] .text-white[class*="bg-amber-"],
+        html[data-theme="light"] .text-white[class*="bg-green-"], html[data-theme="light"] .text-white[class*="bg-teal-"], html[data-theme="light"] .text-white[class*="bg-pink-"],
+        html[data-theme="light"] .text-white[class*="from-"], html[data-theme="light"] .text-white[class*="bg-slate-9"],
+        html[data-theme="light"] [class*="bg-blue-6"] .text-white, html[data-theme="light"] [class*="bg-emerald-6"] .text-white, html[data-theme="light"] [class*="bg-red-6"] .text-white,
+        html[data-theme="light"] [class*="bg-rose-6"] .text-white, html[data-theme="light"] [class*="bg-cyan-6"] .text-white, html[data-theme="light"] [class*="bg-indigo-6"] .text-white,
+        html[data-theme="light"] [class*="bg-purple-6"] .text-white, html[data-theme="light"] [class*="bg-orange-6"] .text-white, html[data-theme="light"] .bg-slate-900 .text-white,
+        html[data-theme="light"] [class*="from-"] .text-white { color: #fff; }
+        html[data-theme="light"] .hover\:text-white[class*="bg-blue-"]:hover, html[data-theme="light"] [class*="bg-blue-6"]:hover, html[data-theme="light"] [class*="bg-emerald-6"]:hover { color: #fff; }
+
+        /* soft (neumorphic) cards and fields, used with restraint */
+        html[data-theme="light"] .bg-\[\#0d172d\], html[data-theme="light"] .bg-\[\#0a1224\] { box-shadow: 7px 7px 16px rgba(163,177,205,.38), -7px -7px 16px rgba(255,255,255,.9); }
+        html[data-theme="light"] .bg-\[\#0a1224\]\/90 { box-shadow: 0 4px 18px rgba(163,177,205,.3); }
+        html[data-theme="light"] aside.bg-\[\#0a1224\] { box-shadow: 8px 0 24px rgba(163,177,205,.3); background-color: #EFF2F9; }
+        html[data-theme="dark"] aside.bg-\[\#0a1224\] { background-color: #0A1228; backdrop-filter: none; -webkit-backdrop-filter: none; }
+        html[data-theme="light"] .bg-\[\#101b33\] { box-shadow: 0 12px 30px rgba(120,135,170,.35); }
+        html[data-theme="light"] .bg-\[\#14223d\]:not(input):not(select):not(textarea):not(thead):not(.inp):not(tr) { box-shadow: 3px 3px 7px rgba(163,177,205,.35), -3px -3px 7px rgba(255,255,255,.85); }
+        html[data-theme="light"] input.bg-\[\#14223d\], html[data-theme="light"] select.bg-\[\#14223d\], html[data-theme="light"] textarea.bg-\[\#14223d\], html[data-theme="light"] .inp {
+            background: #E7ECF5; border-color: #D5DCEB; color: #1E293B; box-shadow: inset 2px 2px 5px rgba(163,177,205,.4), inset -2px -2px 5px rgba(255,255,255,.9); }
+        html[data-theme="light"] .inp option { background: #F4F6FB; }
+        html[data-theme="light"] .inp:focus, html[data-theme="light"] input:focus, html[data-theme="light"] select:focus, html[data-theme="light"] textarea:focus { border-color: #2563EB; box-shadow: inset 2px 2px 5px rgba(163,177,205,.4), 0 0 0 3px rgba(37,99,235,.18); }
+        html[data-theme="light"] .lbl { color: #5B6B82; }
+        html[data-theme="light"] table .bg-\[\#14223d\], html[data-theme="light"] thead { box-shadow: none; }
+        html[data-theme="light"] .bg-white { box-shadow: 0 20px 50px rgba(30,41,59,.28); }
+        html[data-theme="light"] .nav-item.bg-blue-600\/20 { background: linear-gradient(135deg,#DBE7FF,#E7DEFF); color: #1D4ED8; box-shadow: inset 2px 2px 5px rgba(163,177,205,.4), inset -2px -2px 5px rgba(255,255,255,.9); }
+
+        /* ---------- DARK ---------- */
+        html[data-theme="dark"] body { background: radial-gradient(1200px 700px at 85% -10%, #1b1f4a 0%, transparent 60%), linear-gradient(160deg, #0A1226 0%, #0B1630 55%, #0E1233 100%); }
+        html[data-theme="dark"] .ka-blobs i:nth-child(1) { background: #7C3AED; opacity: .26; }
+        html[data-theme="dark"] .ka-blobs i:nth-child(2) { background: #0891B2; opacity: .24; }
+        html[data-theme="dark"] .ka-blobs i:nth-child(3) { background: #10B981; opacity: .17; }
+        html[data-theme="dark"] .ka-blobs i:nth-child(4) { background: #2563EB; opacity: .2; }
+        html[data-theme="dark"] .bg-\[\#0d172d\], html[data-theme="dark"] .bg-\[\#0a1224\] { background-color: rgba(18,28,52,.82); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+        html[data-theme="dark"] .bg-\[\#0a1224\]\/90 { background-color: rgba(10,18,36,.78); }
+        html[data-theme="dark"] .bg-\[\#0d172d\]:not(tr):not(thead) { box-shadow: 0 10px 28px rgba(0,0,0,.28), inset 0 0 0 1px rgba(34,211,238,.05); }
+        html[data-theme="dark"] .border-\[\#182848\] { border-color: #22335a; }
+        html[data-theme="dark"] .nav-item.bg-blue-600\/20 { background: linear-gradient(135deg, rgba(34,211,238,.16), rgba(99,102,241,.2)); color: #67E8F9; box-shadow: 0 0 16px rgba(34,211,238,.18); }
+        html[data-theme="dark"] button.bg-blue-600, html[data-theme="dark"] .bg-gradient-to-r.from-blue-600 { box-shadow: 0 6px 18px rgba(37,99,235,.35); }
+        html[data-theme="dark"] .inp:focus, html[data-theme="dark"] input:focus { box-shadow: 0 0 0 3px rgba(34,211,238,.18); border-color: #22D3EE; }
+
+        /* ---------- shared: motion and polish ---------- */
+        .bg-\[\#0d172d\], .bg-\[\#0a1224\], .bg-\[\#14223d\], .inp, button, .nav-item { transition: background-color .25s var(--ka-ease), box-shadow .25s var(--ka-ease), transform .2s var(--ka-ease), color .2s, border-color .25s; }
+        button:not(:disabled):active { transform: scale(.97); }
+        .app-page:not(.hidden) { animation: kaPage .45s var(--ka-ease) both; }
+        .app-page:not(.hidden) > * { animation: kaUp .5s var(--ka-ease) both; }
+        .app-page:not(.hidden) > *:nth-child(2) { animation-delay: .05s; } .app-page:not(.hidden) > *:nth-child(3) { animation-delay: .1s; }
+        .app-page:not(.hidden) > *:nth-child(4) { animation-delay: .15s; } .app-page:not(.hidden) > *:nth-child(5) { animation-delay: .2s; }
+        .app-page:not(.hidden) > *:nth-child(n+6) { animation-delay: .25s; }
+        @keyframes kaPage { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes kaUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+        @keyframes kaPop { from { opacity: 0; transform: scale(.94) translateY(8px); } to { opacity: 1; transform: none; } }
+        [id^="modal-"]:not([style*="display: none"]) > div { animation: kaPop .28s var(--ka-ease) both; }
+        .ka-card-hover { cursor: pointer; }
+        .ka-card-hover:hover { transform: translateY(-3px); }
+        .ka-kpi-on { outline: 2px solid #3B82F6; outline-offset: 1px; }
+        html[data-theme="dark"] .ka-kpi-on { outline-color: #22D3EE; }
+        #sidebar { transition: transform .28s var(--ka-ease); }
+        .ka-logo { object-fit: contain; border-radius: 10px; background: #fff; }
+        @media (max-width: 1023px) {
+            #sidebar { width: min(18rem, 86vw); }
+            button, select, .inp, input { min-height: 40px; }
+            main { padding-left: .75rem; padding-right: .75rem; }
+            .overflow-x-auto > table { min-width: 640px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+        }
+        @media print { .ka-blobs { display: none !important; } }
+
+        html[data-theme="light"] .bg-clip-text { background-image: linear-gradient(90deg, #1D4ED8, #6D28D9, #0891B2); }
         @media print {
             body.print-one * { visibility: hidden; }
             body.print-one .print-target, body.print-one .print-target * { visibility: visible; }
@@ -20,10 +156,12 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between bg-[#060c18] text-gray-100 font-sans">
+<body class="min-h-screen flex flex-col justify-between text-gray-100 font-sans">
+    <div class="ka-blobs" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 
     <!-- VIEW 1: AUTHENTICATION PORTAL -->
-    <div id="view-login" class="flex-grow flex items-center justify-center p-4">
+    <div id="view-login" class="flex-grow flex items-center justify-center p-4 relative">
+        <button type="button" onclick="toggleTheme()" title="Light / Dark" aria-label="Switch light or dark mode" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-[#14223d] text-gray-300 hover:text-white flex items-center justify-center z-10"><i class="fa-solid fa-moon theme-icon-el"></i></button>
         <div class="bg-[#0a1224] border border-[#182848] w-full max-w-md rounded-2xl p-8 shadow-2xl space-y-6">
             <div class="text-center space-y-1">
                 <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
@@ -52,7 +190,7 @@
                     <label class="block text-xs font-semibold text-gray-300 mb-1">Password</label>
                     <div class="relative"><input type="password" id="login-password" class="w-full p-3 pr-11 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
                         <button type="button" onclick="togglePw('login-password', this)" class="absolute right-3 top-3 text-gray-400 hover:text-white" title="Show / hide password"><i class="fa-solid fa-eye"></i></button></div>
-                    <div class="text-right mt-1"><a href="https://wa.me/255785799530?text=Nimesahau%20password%20ya%20KEY%20ARCH%20ERP" target="_blank" rel="noopener" class="text-[11px] text-cyan-300 hover:underline">Forgot password?</a></div>
+                    <div class="text-right mt-1"><button type="button" onclick="openForgot()" class="text-[11px] text-cyan-300 hover:underline">Forgot password?</button></div>
                 </div>
                 <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg transition">
                     Sign In &rarr;
@@ -80,6 +218,16 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-300 mb-1">Phone Number *</label>
                     <input type="tel" id="p-reg-phone" placeholder="+255 700 000 000" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Company logo (optional)</label>
+                    <div class="flex items-center gap-3">
+                        <img id="reg-logo-preview" class="ka-logo hidden w-12 h-12" alt="">
+                        <label class="px-3 py-2 rounded-xl bg-[#14223d] border border-[#233863] text-xs font-bold text-gray-300 cursor-pointer hover:text-white"><i class="fa-solid fa-image"></i> Choose picture
+                            <input type="file" id="reg-logo-file" accept="image/png,image/jpeg" class="hidden" onchange="pickLogo(this, 'reg')"></label>
+                        <button type="button" id="reg-logo-clear" onclick="clearLogo('reg')" class="hidden text-[11px] text-red-300 hover:underline">Remove</button>
+                    </div>
+                    <p class="text-[10px] text-gray-500 mt-1">PNG or JPG. It is printed on your invoices and receipts. You can change it later in Settings.</p>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-300 mb-1">Password *</label>
@@ -123,11 +271,15 @@
 
         <!-- SIDEBAR -->
         <aside id="sidebar" class="fixed inset-y-0 left-0 w-60 bg-[#0a1224] border-r border-[#182848] z-40 flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-200">
-            <div class="px-5 py-5 border-b border-[#182848]">
-                <h1 class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
-                    KEY ARCH <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 align-middle">ERP</span>
-                </h1>
-                <p id="sidebar-company" class="text-[11px] text-gray-500 mt-1 truncate">Hugo Tech</p>
+            <div class="px-5 py-4 border-b border-[#182848] flex items-center gap-3 relative">
+                <img id="sidebar-logo" class="ka-logo hidden w-11 h-11 shrink-0" alt="">
+                <div class="min-w-0 pr-9 lg:pr-0">
+                    <h1 class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
+                        KEY ARCH <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 align-middle">ERP</span>
+                    </h1>
+                    <p id="sidebar-company" class="text-[11px] text-gray-500 mt-1 truncate">Hugo Tech</p>
+                </div>
+                <button type="button" onclick="closeSidebar()" aria-label="Close menu" title="Close menu" class="lg:hidden absolute top-3 right-3 w-9 h-9 rounded-full bg-[#14223d] text-gray-300 hover:text-white flex items-center justify-center"><i class="fa-solid fa-xmark text-base"></i></button>
             </div>
             <nav class="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar">
                 <button id="nav-platform" data-page="platform" onclick="showPage('platform'); loadPlatform()" class="hidden nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-shield-halved w-4 text-center"></i> Platform Admin</button>
@@ -180,6 +332,9 @@
                         <button onclick="closeMenus(); openTicketModal()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench w-4 text-orange-400"></i> Ticket</button>
                     </div>
                 </div>
+
+                <!-- LIGHT / DARK -->
+                <button id="theme-toggle" onclick="toggleTheme()" title="Light / Dark" aria-label="Switch light or dark mode" class="w-9 h-9 rounded-xl bg-[#14223d] text-gray-300 hover:text-white flex items-center justify-center"><i class="fa-solid fa-moon theme-icon-el"></i></button>
 
                 <!-- BELL -->
                 <div class="relative" data-menu>
@@ -563,12 +718,29 @@
                 <!-- ============ PAGE: MAINTENANCE ============ -->
                 <section id="page-maintenance" class="app-page hidden space-y-4">
                     <div class="flex flex-wrap justify-between items-center gap-2">
-                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Maintenance Tickets</h3>
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Maintenance</h3>
                         <div class="flex flex-wrap gap-2">
-                            <select id="tkt-filter" onchange="renderTickets()" class="inp !w-auto !py-2"><option value="active">Open & In progress</option><option value="">All</option><option value="RESOLVED">Resolved</option><option value="CANCELLED">Cancelled</option></select>
+                            <button onclick="openMaintReport()" class="can-money bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-chart-column"></i> Maintenance report</button>
                             <button onclick="openTicketModal()" class="can-tickets bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-screwdriver-wrench"></i> + Ticket</button>
                         </div>
                     </div>
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <button type="button" data-tk="ALL" onclick="setTktStatus('ALL')" class="tk-kpi ka-card-hover text-left bg-[#0d172d] border border-[#182848] rounded-2xl p-4"><div class="text-[10px] uppercase font-bold text-gray-400"><i class="fa-solid fa-layer-group"></i> Total tickets</div><div id="tk-n-ALL" class="text-2xl font-black text-white mt-1">0</div></button>
+                        <button type="button" data-tk="OPEN" onclick="setTktStatus('OPEN')" class="tk-kpi ka-card-hover text-left bg-[#0d172d] border border-[#182848] rounded-2xl p-4"><div class="text-[10px] uppercase font-bold text-red-300"><i class="fa-solid fa-circle-exclamation"></i> Open</div><div id="tk-n-OPEN" class="text-2xl font-black text-red-300 mt-1">0</div></button>
+                        <button type="button" data-tk="IN_PROGRESS" onclick="setTktStatus('IN_PROGRESS')" class="tk-kpi ka-card-hover text-left bg-[#0d172d] border border-[#182848] rounded-2xl p-4"><div class="text-[10px] uppercase font-bold text-amber-300"><i class="fa-solid fa-gears"></i> In progress</div><div id="tk-n-IN_PROGRESS" class="text-2xl font-black text-amber-300 mt-1">0</div></button>
+                        <button type="button" data-tk="RESOLVED" onclick="setTktStatus('RESOLVED')" class="tk-kpi ka-card-hover text-left bg-[#0d172d] border border-[#182848] rounded-2xl p-4"><div class="text-[10px] uppercase font-bold text-emerald-300"><i class="fa-solid fa-circle-check"></i> Resolved</div><div id="tk-n-RESOLVED" class="text-2xl font-black text-emerald-300 mt-1">0</div></button>
+                    </div>
+                    <div id="tkt-workload" class="hidden bg-[#0d172d] border border-[#182848] rounded-2xl p-4 space-y-2"></div>
+                    <div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-3 flex flex-wrap gap-2 items-center">
+                        <div class="relative flex-1 min-w-[200px]">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-500 text-xs"></i>
+                            <input id="tkt-search" type="search" oninput="renderTickets()" placeholder="Search apartment, house, unit, technician, problem..." class="inp !pl-9">
+                        </div>
+                        <select id="tkt-prop-f" onchange="renderTickets()" class="inp !w-auto"></select>
+                        <select id="tkt-tech-f" onchange="renderTickets()" class="inp !w-auto"></select>
+                        <button type="button" onclick="clearTktFilters()" class="px-3 py-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-xs font-bold text-gray-300 hover:text-white">Clear</button>
+                    </div>
+                    <div id="tkt-showing" class="text-[11px] text-gray-500"></div>
                     <div class="overflow-x-auto rounded-xl border border-[#182848] bg-[#0d172d]">
                         <table class="w-full text-left text-xs text-gray-300">
                             <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
@@ -604,8 +776,9 @@
                 <section id="page-reports" class="app-page hidden space-y-4">
                     <h3 class="text-sm font-bold text-white uppercase tracking-wider">Reports</h3>
                     <div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-4 space-y-3">
+                        <div><label class="lbl">Choose the subject of the report</label><div id="rp-chips" class="flex flex-wrap gap-2"></div></div>
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                            <div class="md:col-span-2"><label class="lbl">What report do you want?</label><select id="rp-type" onchange="onReportType()" class="inp"></select><div id="rp-desc" class="text-[11px] text-gray-500 mt-1"></div></div>
+                            <div class="md:col-span-2"><label class="lbl">Or pick from all reports</label><select id="rp-type" onchange="onReportType()" class="inp"></select><div id="rp-desc" class="text-[11px] text-gray-500 mt-1"></div></div>
                             <div><label class="lbl">Property</label><select id="rp-prop" class="inp"></select></div>
                             <div><label class="lbl">Quick period</label><select id="rp-preset" onchange="applyPreset()" class="inp"></select></div>
                             <div><label class="lbl">From</label><input id="rp-from" type="date" class="inp"></div>
@@ -638,6 +811,19 @@
                         <h3 class="text-sm font-bold text-white uppercase tracking-wider">Company Details & Financial Year</h3>
                         <p class="text-[11px] text-gray-500">These details are printed on invoices, receipts and reports. The financial year decides the "This / Last financial year" choices in Reports.</p>
                         <form id="form-profile" onsubmit="saveProfile(event)" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="md:col-span-2 flex items-center gap-4 p-3 rounded-xl bg-[#14223d]">
+                                <img id="cp-logo-preview" class="ka-logo hidden w-16 h-16" alt="">
+                                <div id="cp-logo-empty" class="w-16 h-16 rounded-xl border border-dashed border-[#233863] flex items-center justify-center text-gray-500 text-xl"><i class="fa-solid fa-image"></i></div>
+                                <div class="space-y-1">
+                                    <div class="text-xs font-bold text-white">Company logo</div>
+                                    <div class="text-[11px] text-gray-500">Shown on the menu, invoices, receipts and PDF reports. PNG or JPG.</div>
+                                    <div class="flex gap-2 items-center">
+                                        <label class="can-admin px-3 py-1.5 rounded-lg bg-blue-600/30 border border-blue-500/40 text-[11px] font-bold text-blue-300 cursor-pointer hover:bg-blue-600 hover:text-white"><i class="fa-solid fa-upload"></i> Upload
+                                            <input type="file" id="cp-logo-file" accept="image/png,image/jpeg" class="hidden" onchange="pickLogo(this, 'cp')"></label>
+                                        <button type="button" id="cp-logo-clear" onclick="clearLogo('cp')" class="can-admin hidden text-[11px] text-red-300 hover:underline">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
                             <div><label class="lbl">Company name *</label><input id="cp-name" class="inp" required></div>
                             <div><label class="lbl">Phone</label><input id="cp-phone" class="inp"></div>
                             <div><label class="lbl">Email</label><input id="cp-email" type="email" class="inp"></div>
@@ -955,7 +1141,37 @@
         </div>
     </div>
 
-        <!-- MODAL: EDIT PROPERTY -->
+        <!-- MODAL: FORGOT PASSWORD -->
+    <div id="modal-forgot" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-sm rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-forgot')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-1"><i class="fa-solid fa-key text-cyan-400"></i> Forgot Password</h3>
+            <p class="text-[11px] text-gray-400 mb-4">Type your email. We will send you a link to choose a new password.</p>
+            <form onsubmit="submitForgot(event)" class="space-y-3">
+                <input id="fg-email" type="email" placeholder="you@gmail.com" class="inp" required>
+                <div id="fg-msg" class="hidden text-xs rounded-xl p-3"></div>
+                <button id="fg-btn" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl text-white font-bold text-xs">Send Reset Link</button>
+                <div class="text-center text-[11px] text-gray-500">No email access? <a href="https://wa.me/255785799530?text=Nimesahau%20password%20ya%20KEY%20ARCH%20ERP" target="_blank" rel="noopener" class="text-emerald-300 hover:underline">WhatsApp HUGO TECH</a></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: SET NEW PASSWORD (opened from the email link) -->
+    <div id="modal-reset" style="display: none;" class="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-sm rounded-2xl p-6 relative shadow-2xl">
+            <h3 class="font-bold text-lg text-white mb-1"><i class="fa-solid fa-lock text-emerald-400"></i> New Password</h3>
+            <p class="text-[11px] text-gray-400 mb-4">Choose a new password (at least 6 characters).</p>
+            <form onsubmit="submitReset(event)" class="space-y-3">
+                <div class="relative"><input id="rs-pass" type="password" placeholder="New password" class="inp !pr-10" required minlength="6">
+                    <button type="button" onclick="togglePw('rs-pass', this)" class="absolute right-3 top-2.5 text-gray-400 hover:text-white"><i class="fa-solid fa-eye"></i></button></div>
+                <input id="rs-pass2" type="password" placeholder="Repeat new password" class="inp" required minlength="6">
+                <div id="rs-msg" class="hidden text-xs rounded-xl p-3"></div>
+                <button class="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl text-white font-bold text-xs">Save New Password</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: EDIT PROPERTY -->
     <div id="modal-property-edit" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
             <button onclick="closeModal('modal-property-edit')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
@@ -1073,7 +1289,9 @@
                 <h3 class="text-sm font-bold"><i class="fa-solid fa-file-invoice-dollar text-emerald-400"></i> Invoice</h3>
                 <div class="flex gap-2 items-center">
                     <button id="ip-pay-btn" onclick="payFromPreview()" class="hidden px-3 py-1.5 bg-purple-500 text-white text-xs font-bold rounded-lg hover:bg-purple-600"><i class="fa-solid fa-hand-holding-dollar"></i> Record Payment</button>
-                    <button onclick="printArea('invoice-printable-area')" class="px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600"><i class="fa-solid fa-print"></i> Print / Save PDF</button>
+                    <button onclick="downloadInvoicePdf()" class="px-3 py-1.5 bg-rose-500 text-white text-xs font-bold rounded-lg hover:bg-rose-600"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                    <button onclick="shareInvoiceWA()" class="px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700"><i class="fa-brands fa-whatsapp"></i> Share</button>
+                    <button onclick="printArea('invoice-printable-area')" class="px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600"><i class="fa-solid fa-print"></i> Print</button>
                     <button onclick="closeModal('modal-invoice-print')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-times text-lg"></i></button>
                 </div>
             </div>
@@ -1087,8 +1305,9 @@
             <div class="px-5 py-3 bg-slate-900 text-white flex flex-wrap justify-between items-center gap-2 no-print">
                 <h3 class="text-sm font-bold"><i class="fa-solid fa-receipt text-emerald-400"></i> Receipt</h3>
                 <div class="flex gap-2 items-center">
-                    <a id="rc-wa" target="_blank" rel="noopener" class="hidden px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700"><i class="fa-brands fa-whatsapp"></i> Send</a>
-                    <button onclick="printArea('receipt-printable-area')" class="px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600"><i class="fa-solid fa-print"></i> Print / Save PDF</button>
+                    <button onclick="downloadReceiptPdf()" class="px-3 py-1.5 bg-rose-500 text-white text-xs font-bold rounded-lg hover:bg-rose-600"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                    <button onclick="shareReceiptWA()" class="px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700"><i class="fa-brands fa-whatsapp"></i> Share</button>
+                    <button onclick="printArea('receipt-printable-area')" class="px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600"><i class="fa-solid fa-print"></i> Print</button>
                     <button onclick="closeModal('modal-receipt')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-times text-lg"></i></button>
                 </div>
             </div>
@@ -1511,7 +1730,8 @@
                         admin_full_name: document.getElementById('p-reg-name').value,
                         email: document.getElementById('p-reg-email').value,
                         phone_number: document.getElementById('p-reg-phone').value,
-                        password: document.getElementById('p-reg-password').value
+                        password: document.getElementById('p-reg-password').value,
+                        logo_data: regLogo || undefined
                     })
                 });
                 const data = await res.json();
@@ -1519,7 +1739,7 @@
                     alert('Your company has been registered.\n\nYour account will be activated after your payment is confirmed. For pricing and payment, contact HUGO TECH:\nWhatsApp +255 785 799 530\ninfo@hugotech.co.tz');
                     switchAuthTab('login');
                     document.getElementById('login-email').value = document.getElementById('p-reg-email').value;
-                    document.getElementById('form-portal-register').reset();
+                    document.getElementById('form-portal-register').reset(); clearLogo('reg');
                 } else {
                     alert('Registration Failed: ' + (data.error || 'Server error'));
                 }
@@ -2206,6 +2426,7 @@
             loadTablesData();
             if (!isTech()) loadInvoices();
             loadStaff();
+            loadProfile();
             const pg = currentPage;
             if (pg === 'luku') loadLuku(); if (pg === 'maintenance') loadTickets(); if (pg === 'expenses') loadExpenses();
         }
@@ -2300,6 +2521,11 @@
             if (d.due.week.count > 0) items.push({ icon: 'fa-clock text-amber-400', text: `${d.due.week.count} payment(s) due this week`, act: "openDueList('week')" });
             if (d.leases.expired > 0) items.push({ icon: 'fa-file-circle-exclamation text-red-400', text: `${d.leases.expired} lease(s) expired`, act: "showPage('tenants')" });
             if (d.leases.week > 0) items.push({ icon: 'fa-calendar-xmark text-amber-400', text: `${d.leases.week} lease(s) ending this week`, act: "showPage('tenants')" });
+            if (d.tickets && d.tickets.workload && canManage()) {
+                d.tickets.workload.filter(w => w.unfinished >= WORKLOAD_LIMIT || w.oldest_days >= STALE_DAYS).forEach(w => items.push({
+                    icon: 'fa-user-gear text-red-400', text: `<b>${esc(w.technician)}</b>: ${w.unfinished} unfinished job(s)${w.oldest_days >= STALE_DAYS ? ` · oldest ${w.oldest_days} days` : ''}`, act: `openTechTickets(${Number(w.technician_id)})`
+                }));
+            }
             if (d.tickets && d.tickets.pending > 0) items.push({ icon: 'fa-screwdriver-wrench text-orange-400', text: `${d.tickets.pending} pending ticket(s)`, act: "showPage('maintenance')" });
 
             const countEl = document.getElementById('bell-count');
@@ -2881,7 +3107,7 @@
         // ============================================================
         // VERSIONS + DATABASE SETUP CHECK
         // ============================================================
-        const PAGE_VERSION = 'v6 - 2026-11-05 - receipts, reports, service charges, users';
+        const PAGE_VERSION = 'v7 - 2026-11-05 - new look, maintenance, logo, PDF invoices';
 
         async function checkVersions() {
             let serverVersion = 'unknown (old server.js?)';
@@ -3459,14 +3685,15 @@
         // ---- printable invoice ----
         function companyHeader(c) {
             c = c || {};
-            return `<div><h2 class="text-2xl font-black text-slate-900 tracking-tight">${esc(c.company_name || '')}</h2>
-                <div class="text-[11px] text-slate-500 mt-1 leading-relaxed">${[c.address, c.phone, c.email].filter(Boolean).map(esc).join(' · ')}${c.tin ? `<br>TIN: ${esc(c.tin)}` : ''}</div></div>`;
+            const logo = c.logo_data ? `<img src="${esc(c.logo_data)}" alt="" class="ka-logo w-16 h-16 shrink-0" style="background:transparent">` : '';
+            return `<div class="flex items-start gap-3">${logo}<div><h2 class="text-2xl font-black text-slate-900 tracking-tight">${esc(c.company_name || '')}</h2>
+                <div class="text-[11px] text-slate-500 mt-1 leading-relaxed">${[c.address, c.phone, c.email].filter(Boolean).map(esc).join(' · ')}${c.tin ? `<br>TIN: ${esc(c.tin)}` : ''}</div></div></div>`;
         }
         async function showInvoiceModal(invoiceId) {
             const r = await api(`/api/invoices/${invoiceId}/print`);
             if (!r.ok) return alert('Error loading invoice: ' + (r.data.error || 'Server error'));
             const d = r.data, inv = d.invoice, t = d.tenant;
-            lastPreviewInvoice = inv;
+            lastPreviewInvoice = inv; lastInvoiceData = d;
             const idLabels = { NIDA: 'NIDA', PASSPORT: 'Passport', DRIVING_LICENSE: 'Driving License', VOTER_ID: 'Voter ID' };
             const st = inv.balance <= 0 ? 'PAID' : (inv.paid > 0 ? 'PARTIAL' : 'UNPAID');
             const stCls = st === 'PAID' ? 'bg-emerald-100 text-emerald-800' : st === 'PARTIAL' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800';
@@ -3573,7 +3800,7 @@
         async function showReceipt(paymentId) {
             const r = await api(`/api/payments/${paymentId}/receipt`);
             if (!r.ok) return alert(r.data.error || 'Could not load the receipt.');
-            const d = r.data;
+            const d = lastReceiptData = r.data;
             document.getElementById('receipt-printable-area').innerHTML = `
                 <div class="space-y-5">
                 <div class="flex justify-between items-start border-b pb-4 gap-4">
@@ -3601,11 +3828,6 @@
                 <div class="flex justify-between items-end pt-6 text-[11px] text-slate-500"><div>Received by: <b class="text-slate-700">${esc(d.received_by || '')}</b></div><div class="border-t border-slate-400 pt-1 w-40 text-center">Signature / Stamp</div></div>
                 <div class="text-center text-[10px] text-slate-400">Thank you. · Generated by KEY ARCH ERP</div>
                 </div>`;
-            const wa = document.getElementById('rc-wa');
-            if (d.tenant_phone) {
-                wa.href = waUrl(d.tenant_phone, `Habari ${d.tenant_name}, tumepokea malipo yako ya ${money(d.amount_paid)} (Risiti ${d.receipt_number}, ${fmtDate(d.payment_date)}). ${d.balance_after > 0 ? 'Salio: ' + money(d.balance_after) + '. ' : ''}Asante! - ${(d.company && d.company.company_name) || ''}`);
-                wa.classList.remove('hidden');
-            } else wa.classList.add('hidden');
             openModal('modal-receipt');
         }
 
@@ -3716,19 +3938,73 @@
             if (!r.ok) return;
             ticketsData = r.data; renderTickets();
         }
+        const WORKLOAD_LIMIT = 3, STALE_DAYS = 7;            // a technician with 3+ unfinished jobs, or a job older than 7 days, is flagged
+        let tktStatus = 'ACTIVE', pendingTechFilter = null;
+        function daysSince(d) { const t = new Date(d); return isNaN(t) ? 0 : Math.max(0, Math.floor((Date.now() - t.getTime()) / 86400000)); }
+        function setTktStatus(s) { tktStatus = (tktStatus === s && s !== 'ALL') ? 'ACTIVE' : s; renderTickets(); }
+        function clearTktFilters() { tktStatus = 'ACTIVE'; ['tkt-search', 'tkt-prop-f', 'tkt-tech-f'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; }); renderTickets(); }
+        function openTechTickets(id) { pendingTechFilter = String(id); tktStatus = 'ACTIVE'; showPage('maintenance'); if (ticketsData.length) renderTickets(); }
+        function openMaintReport() { showPage('reports'); setTimeout(async () => { await initReports(); document.getElementById('rp-preset').value = '5'; applyPreset(); pickReport('maintenance'); runReport(); }, 50); }
+        function fillTktFilters() {
+            const pSel = document.getElementById('tkt-prop-f'), tSel = document.getElementById('tkt-tech-f'); if (!pSel || !tSel) return;
+            const pv = pSel.value, tv = tSel.value;
+            const props = [...new Map(ticketsData.filter(t => t.property_id).map(t => [String(t.property_id), t.property_name || 'Property'])).entries()];
+            const techs = [...new Map(ticketsData.filter(t => t.assigned_technician_id).map(t => [String(t.assigned_technician_id), t.technician_name || 'Technician'])).entries()];
+            pSel.innerHTML = '<option value="">All houses / apartments</option>' + props.map(([id, n]) => `<option value="${esc(id)}">${esc(n)}</option>`).join('');
+            tSel.innerHTML = '<option value="">All technicians</option><option value="none">Not assigned</option>' + techs.map(([id, n]) => `<option value="${esc(id)}">${esc(n)}</option>`).join('');
+            pSel.value = props.some(x => x[0] === pv) ? pv : '';
+            tSel.value = (tv === 'none' || techs.some(x => x[0] === tv)) ? tv : '';
+            tSel.style.display = canManage() ? '' : 'none';
+        }
+        function renderWorkload() {
+            const box = document.getElementById('tkt-workload'); if (!box) return;
+            if (!canManage()) { box.classList.add('hidden'); return; }
+            const by = {};
+            ticketsData.filter(t => t.assigned_technician_id).forEach(t => {
+                const k = String(t.assigned_technician_id); const w = by[k] || (by[k] = { id: k, name: t.technician_name || 'Technician', open: 0, oldest: 0, done: 0 });
+                if (['OPEN', 'IN_PROGRESS'].includes(t.status)) { w.open++; w.oldest = Math.max(w.oldest, daysSince(t.created_at)); } else if (t.status === 'RESOLVED') w.done++;
+            });
+            const list = Object.values(by).sort((a, b) => b.open - a.open);
+            if (!list.length) { box.classList.add('hidden'); return; }
+            box.classList.remove('hidden');
+            box.innerHTML = `<div class="text-[11px] font-bold text-gray-400 uppercase tracking-wider"><i class="fa-solid fa-user-gear"></i> Technicians: unfinished jobs</div>
+                <div class="flex flex-wrap gap-2">${list.map(w => {
+                    const warn = w.open >= WORKLOAD_LIMIT || w.oldest >= STALE_DAYS;
+                    return `<button type="button" onclick="document.getElementById('tkt-tech-f').value='${esc(w.id)}'; tktStatus='ACTIVE'; renderTickets()" class="px-3 py-2 rounded-xl border text-xs text-left ${warn ? 'bg-red-600/15 border-red-500/50 text-red-300' : 'bg-[#14223d] border-[#233863] text-gray-300'}">
+                        <div class="font-bold">${warn ? '<i class="fa-solid fa-triangle-exclamation"></i> ' : ''}${esc(w.name)}</div>
+                        <div class="text-[10px] opacity-80">${w.open} unfinished${w.open ? ` · oldest ${w.oldest} day(s)` : ''} · ${w.done} resolved</div></button>`;
+                }).join('')}</div>`;
+        }
         function renderTickets() {
             const tb = document.getElementById('table-tickets-body'); if (!tb) return;
-            const f = document.getElementById('tkt-filter')?.value;
-            const rows = ticketsData.filter(t => f === 'active' ? ['OPEN', 'IN_PROGRESS'].includes(t.status) : (!f || t.status === f));
-            tb.innerHTML = rows.length === 0 ? '<tr><td colspan="7" class="p-4 text-center text-gray-500">No tickets here.</td></tr>' : rows.map(t => `
-                <tr class="hover:bg-[#14223d]/50"><td class="p-3 font-bold text-white">${esc(t.title)}<div class="text-[10px] text-gray-500 font-normal">${fmtDate(t.created_at)}${t.description ? ' · ' + esc(String(t.description).slice(0, 60)) : ''}</div></td>
+            fillTktFilters();
+            if (pendingTechFilter) { document.getElementById('tkt-tech-f').value = pendingTechFilter; pendingTechFilter = null; }
+            const n = s => ticketsData.filter(t => t.status === s).length;
+            setText('tk-n-ALL', ticketsData.length); setText('tk-n-OPEN', n('OPEN')); setText('tk-n-IN_PROGRESS', n('IN_PROGRESS')); setText('tk-n-RESOLVED', n('RESOLVED'));
+            document.querySelectorAll('.tk-kpi').forEach(b => b.classList.toggle('ka-kpi-on', b.dataset.tk === tktStatus));
+            const q = (document.getElementById('tkt-search').value || '').trim().toLowerCase();
+            const pf = document.getElementById('tkt-prop-f').value, tf = document.getElementById('tkt-tech-f').value;
+            const rows = ticketsData.filter(t => {
+                if (tktStatus === 'ACTIVE' ? !['OPEN', 'IN_PROGRESS'].includes(t.status) : (tktStatus !== 'ALL' && t.status !== tktStatus)) return false;
+                if (pf && String(t.property_id) !== pf) return false;
+                if (tf === 'none' ? t.assigned_technician_id : (tf && String(t.assigned_technician_id) !== tf)) return false;
+                if (q && ![t.title, t.description, t.property_name, t.unit_number, t.technician_name, t.notes, t.priority].some(v => String(v || '').toLowerCase().includes(q))) return false;
+                return true;
+            });
+            const names = { ACTIVE: 'Showing unfinished tickets (open and in progress)', ALL: 'Showing all tickets', OPEN: 'Showing open tickets', IN_PROGRESS: 'Showing tickets in progress', RESOLVED: 'Showing resolved tickets' };
+            setText('tkt-showing', `${names[tktStatus]} · ${rows.length} found`);
+            renderWorkload();
+            tb.innerHTML = rows.length === 0 ? '<tr><td colspan="7" class="p-4 text-center text-gray-500">No tickets here.</td></tr>' : rows.map(t => {
+                const unfinished = ['OPEN', 'IN_PROGRESS'].includes(t.status), age = daysSince(t.created_at);
+                return `<tr class="hover:bg-[#14223d]/50"><td class="p-3 font-bold text-white">${esc(t.title)}<div class="text-[10px] text-gray-500 font-normal">${fmtDate(t.created_at)}${unfinished ? ` · <span class="${age >= STALE_DAYS ? 'text-red-400 font-bold' : ''}">${age} day(s) open</span>` : (t.resolved_at ? ' · resolved ' + fmtDate(t.resolved_at) : '')}${t.description ? ' · ' + esc(String(t.description).slice(0, 60)) : ''}</div></td>
                     <td class="p-3">${esc(t.property_name || '-')}${t.unit_number ? ` <span class="text-gray-400">(${esc(t.unit_number)})</span>` : ''}</td>
                     <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] border ${PRIO_CLS[t.priority] || ''}">${esc(t.priority)}</span></td>
                     <td class="p-3 text-gray-400">${esc(t.technician_name || 'Unassigned')}</td>
                     <td class="p-3 whitespace-nowrap">${Number(t.actual_cost) > 0 ? money(t.actual_cost) : (Number(t.estimated_cost) > 0 ? '~' + money(t.estimated_cost) : '-')}</td>
                     <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] border ${TSTAT_CLS[t.status] || ''}">${esc(String(t.status).replace('_', ' '))}</span></td>
                     <td class="p-3 whitespace-nowrap"><button onclick="openTicketModal(${Number(t.ticket_id)})" class="px-2.5 py-1 bg-amber-600/30 text-amber-300 border border-amber-500/50 rounded font-bold hover:bg-amber-600 hover:text-white">${isTech() ? 'Update' : 'Open'}</button>
-                    ${isAdminRole() ? ` <button onclick="deleteTicket(${Number(t.ticket_id)})" class="w-7 h-7 rounded-lg bg-red-600/20 text-red-300 border border-red-500/40"><i class="fa-solid fa-trash-can text-[10px]"></i></button>` : ''}</td></tr>`).join('');
+                    ${isAdminRole() ? ` <button onclick="deleteTicket(${Number(t.ticket_id)})" class="w-7 h-7 rounded-lg bg-red-600/20 text-red-300 border border-red-500/40"><i class="fa-solid fa-trash-can text-[10px]"></i></button>` : ''}</td></tr>`;
+            }).join('');
         }
         async function openTicketModal(id) {
             if (!requireFeature('tickets')) return;
@@ -3843,15 +4119,31 @@
             if (!reportTypes.length) {
                 const r = await api('/api/reports/types'); if (!r.ok) return;
                 reportTypes = r.data;
-                document.getElementById('rp-type').innerHTML = reportTypes.map(t => `<option value="${t.key}">${esc(t.label)}${t.locked ? '  (PRO)' : ''}</option>`).join('');
+                document.getElementById('rp-type').innerHTML = reportTypes.map(t => `<option value="${t.key}">${esc(REPORT_NAMES[t.key] || t.label)}${t.locked ? '  (PRO)' : ''}</option>`).join('');
+                buildReportChips();
             }
             document.getElementById('rp-prop').innerHTML = propOptions('All properties');
             await loadProfile();
             buildPresets(); onReportType();
             const f = document.getElementById('rp-from'); if (!f.value) applyPreset();
         }
+        const REPORT_NAMES = { summary: 'Mapato na matumizi (Income & expenses)', outstanding: 'Madeni (Debts / unpaid)', service: 'Service charge', maintenance: 'Matengenezo (Maintenance)', property_income: 'Mapato ya nyumba (Property income)', profit: 'Faida kwa nyumba (Profit by property)' };
+        const REPORT_CHIPS = [['service', 'fa-hand-holding-dollar', 'Service charge'], ['outstanding', 'fa-file-circle-exclamation', 'Madeni'], ['maintenance', 'fa-screwdriver-wrench', 'Matengenezo'], ['property_income', 'fa-building', 'Mapato ya nyumba'], ['summary', 'fa-scale-balanced', 'Mapato na matumizi']];
+        function buildReportChips() {
+            const box = document.getElementById('rp-chips'); if (!box) return;
+            box.innerHTML = REPORT_CHIPS.filter(c => reportTypes.some(t => t.key === c[0])).map(c => {
+                const locked = (reportTypes.find(t => t.key === c[0]) || {}).locked;
+                return `<button type="button" data-rp="${c[0]}" onclick="pickReport('${c[0]}')" class="rp-chip px-3 py-2 rounded-xl border border-[#233863] bg-[#14223d] text-xs font-bold text-gray-300 hover:text-white"><i class="fa-solid ${c[1]}"></i> ${c[2]}${locked ? ' <span class="text-[9px] px-1 rounded bg-indigo-600/40 text-indigo-200">PRO</span>' : ''}</button>`;
+            }).join('');
+        }
+        function pickReport(key) {
+            const sel = document.getElementById('rp-type'); if (!sel) return;
+            sel.value = key; onReportType();
+        }
         function onReportType() {
-            const t = reportTypes.find(x => x.key === document.getElementById('rp-type').value);
+            const cur = document.getElementById('rp-type').value;
+            document.querySelectorAll('.rp-chip').forEach(b => b.classList.toggle('ka-kpi-on', b.dataset.rp === cur));
+            const t = reportTypes.find(x => x.key === cur);
             document.getElementById('rp-desc').innerText = t ? (t.description || '') + (t.locked ? ' — Pro plan only.' : '') : '';
         }
         function fyStartMonth() { return (companyProfile && Number(companyProfile.fy_start_month)) || 1; }
@@ -3921,7 +4213,8 @@
         // ============================================================
         async function loadProfile() {
             const r = await api('/api/company/profile'); if (!r.ok) return;
-            companyProfile = r.data;
+            companyProfile = r.data; applyLogo();
+            if (cpLogoPending === undefined) showLogoPreview('cp', r.data.logo_data || null);
             const set = (i, v) => { const el = document.getElementById(i); if (el) el.value = v || ''; };
             set('cp-name', r.data.company_name); set('cp-phone', r.data.phone); set('cp-email', r.data.email); set('cp-tin', r.data.tin); set('cp-address', r.data.address); set('cp-pay', r.data.payment_instructions);
             const fy = document.getElementById('cp-fy');
@@ -3932,8 +4225,9 @@
             e.preventDefault();
             const r = await api('/api/company/profile', 'PUT', { company_name: document.getElementById('cp-name').value, phone: document.getElementById('cp-phone').value, email: document.getElementById('cp-email').value,
                 tin: document.getElementById('cp-tin').value, address: document.getElementById('cp-address').value, payment_instructions: document.getElementById('cp-pay').value,
-                fy_start_month: parseInt(document.getElementById('cp-fy').value), luku_low_threshold: parseInt(document.getElementById('cp-luku').value) || 0 });
-            if (r.ok) { alert('Saved.'); await loadProfile(); fyLine(); loadMe(); } else alert(r.data.error || 'Failed');
+                fy_start_month: parseInt(document.getElementById('cp-fy').value), luku_low_threshold: parseInt(document.getElementById('cp-luku').value) || 0,
+                ...(cpLogoPending !== undefined ? { logo_data: cpLogoPending } : {}) });
+            if (r.ok) { alert('Saved.'); cpLogoPending = undefined; await loadProfile(); fyLine(); loadMe(); } else alert(r.data.error || 'Failed');
         }
         let usersData = [];
         const ROLE_LABEL = { COMPANY_ADMIN: 'Admin', PROPERTY_MANAGER: 'Manager', ACCOUNTANT: 'Accountant', TECHNICIAN: 'Technician', VIEWER: 'Viewer' };
@@ -4025,10 +4319,136 @@
                 <details class="text-[11px] text-gray-400 mt-1"><summary class="cursor-pointer">Show numbers</summary><table class="mt-1"><thead><tr class="text-gray-500"><th class="text-left pr-3">Month</th><th class="text-right pr-3">Collected</th><th class="text-right">Expenses</th></tr></thead><tbody>${table}</tbody></table></details>`;
         }
 
+        // ---- forgot / reset password ----
+        function showMsg(id, ok, text) { const el = document.getElementById(id); el.className = 'text-xs rounded-xl p-3 ' + (ok ? 'bg-emerald-900/30 border border-emerald-500/40 text-emerald-200' : 'bg-red-900/30 border border-red-500/40 text-red-200'); el.innerText = text; }
+        function openForgot() { document.getElementById('fg-msg').className = 'hidden'; document.getElementById('fg-email').value = document.getElementById('login-email').value || ''; document.getElementById('fg-btn').disabled = false; openModal('modal-forgot'); }
+        async function submitForgot(e) {
+            e.preventDefault();
+            const btn = document.getElementById('fg-btn'); btn.disabled = true; btn.innerText = 'Sending...';
+            try {
+                const res = await nativeFetch('/api/auth/forgot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: document.getElementById('fg-email').value }) });
+                const d = await res.json();
+                showMsg('fg-msg', res.ok, res.ok ? d.message : (d.error || 'Failed'));
+                if (!res.ok) btn.disabled = false;
+            } catch (err) { showMsg('fg-msg', false, 'No connection. Please try again.'); btn.disabled = false; }
+            btn.innerText = 'Send Reset Link';
+        }
+        const RESET_TOKEN = new URLSearchParams(location.search).get('reset');
+        document.addEventListener('DOMContentLoaded', () => { if (RESET_TOKEN) { localStorage.removeItem('keyarch_token'); localStorage.removeItem('keyarch_user'); document.getElementById('view-login').style.display = 'flex'; document.getElementById('view-app').style.display = 'none'; openModal('modal-reset'); } });
+        async function submitReset(e) {
+            e.preventDefault();
+            const a = document.getElementById('rs-pass').value, b = document.getElementById('rs-pass2').value;
+            if (a !== b) return showMsg('rs-msg', false, 'The two passwords are not the same.');
+            const res = await nativeFetch('/api/auth/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: RESET_TOKEN, password: a }) });
+            const d = await res.json();
+            if (!res.ok) return showMsg('rs-msg', false, d.error || 'Failed');
+            showMsg('rs-msg', true, d.message);
+            setTimeout(() => { history.replaceState(null, '', location.pathname); closeModal('modal-reset'); switchAuthTab('login'); }, 1800);
+        }
+
         function logout() {
             localStorage.removeItem('keyarch_token');
             localStorage.removeItem('keyarch_user');
             window.location.reload();
+        }
+
+        // ============================================================
+        // THEME (light / dark), logo, sharing helpers
+        // ============================================================
+        function currentTheme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+        function paintThemeIcons() {
+            const dark = currentTheme() === 'dark';
+            document.querySelectorAll('.theme-icon-el').forEach(i => { i.className = 'fa-solid theme-icon-el ' + (dark ? 'fa-sun' : 'fa-moon'); });
+        }
+        function toggleTheme() {
+            const t = currentTheme() === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+            try { localStorage.setItem('keyarch_theme', t); } catch (e) { }
+            paintThemeIcons();
+        }
+        document.addEventListener('DOMContentLoaded', paintThemeIcons);
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSidebar(); });
+
+        // ---- company logo: shrink in the browser, send as a small PNG/JPG ----
+        let regLogo = null, cpLogoPending;          // cpLogoPending: undefined = not changed, null = removed, text = new picture
+        function shrinkImage(file, maxSide) {
+            return new Promise((resolve, reject) => {
+                const fr = new FileReader();
+                fr.onerror = () => reject(new Error('Could not read the picture.'));
+                fr.onload = () => {
+                    const img = new Image();
+                    img.onerror = () => reject(new Error('This picture cannot be opened. Use a PNG or JPG.'));
+                    img.onload = () => {
+                        const k = Math.min(1, maxSide / Math.max(img.width, img.height));
+                        const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+                        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                        resolve(file.type === 'image/png' ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.88));
+                    };
+                    img.src = fr.result;
+                };
+                fr.readAsDataURL(file);
+            });
+        }
+        async function pickLogo(input, where) {
+            const f = input.files[0]; if (!f) return;
+            if (!/^image\/(png|jpeg)$/.test(f.type)) { input.value = ''; return alert('Please choose a PNG or JPG picture.'); }
+            try {
+                let data = await shrinkImage(f, 400);
+                if (data.length > 450000) data = await shrinkImage(f, 220);
+                if (data.length > 550000) { input.value = ''; return alert('This picture is too big. Please use a smaller one.'); }
+                if (where === 'reg') regLogo = data; else cpLogoPending = data;
+                showLogoPreview(where, data);
+            } catch (e) { alert(e.message); }
+            input.value = '';
+        }
+        function clearLogo(where) {
+            if (where === 'reg') regLogo = null; else cpLogoPending = null;
+            showLogoPreview(where, null);
+        }
+        function showLogoPreview(where, data) {
+            const img = document.getElementById(where + '-logo-preview'), clr = document.getElementById(where + '-logo-clear'), empty = document.getElementById(where + '-logo-empty');
+            if (img) { if (data) { img.src = data; img.classList.remove('hidden'); } else { img.removeAttribute('src'); img.classList.add('hidden'); } }
+            if (clr) clr.classList.toggle('hidden', !data);
+            if (empty) empty.classList.toggle('hidden', !!data);
+        }
+        function applyLogo() {
+            const logo = companyProfile && companyProfile.logo_data;
+            const el = document.getElementById('sidebar-logo'); if (!el) return;
+            if (logo) { el.src = logo; el.classList.remove('hidden'); } else { el.removeAttribute('src'); el.classList.add('hidden'); }
+        }
+
+        // ---- invoice / receipt: PDF download and WhatsApp share ----
+        let lastInvoiceData = null, lastReceiptData = null;
+        function downloadInvoicePdf() { if (lastInvoiceData) downloadFile(`/api/invoices/${lastInvoiceData.invoice.invoice_id}/pdf`, `${lastInvoiceData.invoice.invoice_number}.pdf`); }
+        function downloadReceiptPdf() { if (lastReceiptData) downloadFile(`/api/payments/${lastReceiptData.payment_id}/receipt-pdf`, `${lastReceiptData.receipt_number}.pdf`); }
+        async function shareFileWA(pdfUrl, filename, text, phone) {
+            const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+            const popup = touch ? null : window.open('about:blank', '_blank');   // opened now so the browser does not block it later
+            try {
+                const res = await fetch(pdfUrl, { headers: { 'Authorization': `Bearer ${localStorage.getItem('keyarch_token')}` } });
+                if (!res.ok) { let d = {}; try { d = await res.json(); } catch (e) { } throw new Error(d.error || 'Could not make the PDF.'); }
+                const blob = await res.blob();
+                const file = new File([blob], filename, { type: 'application/pdf' });
+                if (touch && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try { await navigator.share({ files: [file], text, title: filename }); } catch (e) { if (e.name !== 'AbortError') throw e; }
+                    return;
+                }
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click();
+                setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+                const link = waUrl(phone, text) || `https://wa.me/?text=${encodeURIComponent(text)}`;
+                if (popup) popup.location = link; else window.open(link, '_blank');
+                if (!touch) alert('The PDF was downloaded. In WhatsApp, attach it with the paper-clip button and send.');
+            } catch (e) { if (popup) popup.close(); alert(e.message || 'Could not share.'); }
+        }
+        function shareInvoiceWA() {
+            const d = lastInvoiceData; if (!d) return; const inv = d.invoice;
+            const text = `Habari ${d.tenant.name}, hii ni invoice ${inv.invoice_number} (${d.property_name}, ${d.unit_number}). Jumla: ${money(inv.total)}. Imelipwa: ${money(inv.paid)}. ${inv.balance > 0 ? 'Salio: ' + money(inv.balance) + '. Tarehe ya mwisho: ' + fmtDate(inv.due_date) + '. ' : 'Imelipwa yote. '}- ${(d.company && d.company.company_name) || ''}`;
+            shareFileWA(`/api/invoices/${inv.invoice_id}/pdf`, `${inv.invoice_number}.pdf`, text, d.tenant.phone);
+        }
+        function shareReceiptWA() {
+            const d = lastReceiptData; if (!d) return;
+            const text = `Habari ${d.tenant_name}, tumepokea malipo yako ya ${money(d.amount_paid)} (Risiti ${d.receipt_number}, ${fmtDate(d.payment_date)}). ${d.balance_after > 0 ? 'Salio: ' + money(d.balance_after) + '. ' : ''}Asante! - ${(d.company && d.company.company_name) || ''}`;
+            shareFileWA(`/api/payments/${d.payment_id}/receipt-pdf`, `${d.receipt_number}.pdf`, text, d.tenant_phone);
         }
 
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
