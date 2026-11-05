@@ -24,7 +24,10 @@ const pool = new Pool({
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname)));
+// Only these two files are public. Every other file in the project
+// (server.js, database.sql, package.json ...) stays private.
+app.get('/style.css', (req, res) => res.sendFile(path.join(__dirname, 'style.css')));
+app.get('/index.html', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -105,6 +108,28 @@ async function logLeaseEvent(client, companyId, leaseId, tenantId, type, descrip
     } catch (err) {
         console.error('Lease event warning:', err.message);
         try { await client.query('ROLLBACK TO SAVEPOINT lease_event'); } catch (e) { /* ignore */ }
+    }
+}
+
+// The payments table only accepts CASH / MOBILE_MONEY / BANK_TRANSFER / CHEQUE
+function normalizePaymentMethod(m) {
+    const t = String(m || '').toLowerCase();
+    if (t.includes('mobile') || t.includes('mpesa') || t.includes('m-pesa')) return 'MOBILE_MONEY';
+    if (t.includes('bank') || t.includes('transfer')) return 'BANK_TRANSFER';
+    if (t.includes('cheque') || t.includes('check')) return 'CHEQUE';
+    return 'CASH';
+}
+
+// Keeps the old "status" column (ACTIVE / EXPIRED / TERMINATED) in step with lease_state.
+// Safe: if the database refuses the value, the main action still goes ahead.
+async function setLeaseStatus(client, leaseId, companyId, status) {
+    try {
+        await client.query('SAVEPOINT lease_status');
+        await client.query('UPDATE leases SET status = $1 WHERE lease_id = $2 AND company_id = $3', [status, leaseId, companyId]);
+        await client.query('RELEASE SAVEPOINT lease_status');
+    } catch (err) {
+        console.error('Lease status warning:', err.message);
+        try { await client.query('ROLLBACK TO SAVEPOINT lease_status'); } catch (e) { /* ignore */ }
     }
 }
 
@@ -240,7 +265,7 @@ async function checkLimit(user, limitKey, countSql, what) {
 // Every step runs on its own: one problem never stops the others.
 // The Super Admin can also run it from Platform Admin > Run Database Setup.
 // ============================================================
-const SERVER_VERSION = 'v4 - 2026-11-05 - plans, platform admin, setup check';
+const SERVER_VERSION = 'v5 - 2026-11-05 - safer lease and payment rules';
 
 const SETUP_STEPS = [
     { name: "Base columns (leases, users)", sql: `
@@ -363,7 +388,15 @@ const SETUP_STEPS = [
             );
             CREATE INDEX IF NOT EXISTS idx_platform_payments_company ON platform_payments (company_id);
 ` },
-    { name: "Invoice number sequence", sql: `CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000` }
+    { name: "Invoice number sequence", sql: `CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000` },
+    { name: "Lease rule: one CURRENT lease per unit", sql: `
+        DROP INDEX IF EXISTS one_active_lease_per_unit;
+        CREATE UNIQUE INDEX IF NOT EXISTS one_current_lease_per_unit ON leases (unit_id) WHERE lease_state = 'CURRENT'
+    ` },
+    { name: "Tenant ID number is unique per company", sql: `
+        ALTER TABLE tenants DROP CONSTRAINT IF EXISTS tenants_nida_passport_no_key;
+        CREATE UNIQUE INDEX IF NOT EXISTS uniq_tenant_id_per_company ON tenants (company_id, nida_passport_no)
+    ` }
 ];
 
 async function seedMasterAdmin() {
@@ -644,11 +677,22 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
         if (String(unitCheck.rows[0].property_id) !== String(property_id)) throw new Error('This unit does not belong to the selected property.');
         if (unitCheck.rows[0].status === 'OCCUPIED') throw new Error('This unit already has a tenant.');
 
-        const tenantRes = await client.query(
-            'INSERT INTO tenants (company_id, full_name, identity_type, nida_passport_no, phone_number) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [companyId, full_name, ALLOWED_ID_TYPES.includes(identity_type) ? identity_type : 'NIDA', nida_passport_no, phone_number]
+        // same person (same ID number) renting again: reuse the record so the history stays together
+        let tenant;
+        const existingTenant = await client.query(
+            'SELECT * FROM tenants WHERE company_id = $1 AND nida_passport_no = $2 ORDER BY tenant_id ASC LIMIT 1',
+            [companyId, String(nida_passport_no).trim()]
         );
-        const tenant = tenantRes.rows[0];
+        if (existingTenant.rows.length > 0) {
+            tenant = existingTenant.rows[0];
+            await client.query('UPDATE tenants SET phone_number = $1, is_active = true WHERE tenant_id = $2', [phone_number, tenant.tenant_id]);
+        } else {
+            const tenantRes = await client.query(
+                'INSERT INTO tenants (company_id, full_name, identity_type, nida_passport_no, phone_number) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+                [companyId, full_name, ALLOWED_ID_TYPES.includes(identity_type) ? identity_type : 'NIDA', String(nida_passport_no).trim(), phone_number]
+            );
+            tenant = tenantRes.rows[0];
+        }
 
         const leaseEndDate = end_date || new Date(new Date(start_date).setFullYear(new Date(start_date).getFullYear() + 1)).toISOString().split('T')[0];
 
@@ -675,7 +719,7 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
         const autoInvoiceNum = `INV-${currentYear}-${seqRes.rows[0].nextval}`;
 
         // Invoice status stays PAID / PARTIAL / PENDING (extra paid is shown by the numbers)
-        const invStatus = calc.amountDue === 0 ? 'PAID' : (calc.paid > 0 ? 'PARTIAL' : 'PENDING');
+        const invStatus = calc.amountDue === 0 ? 'PAID' : 'PENDING';
         const invRes = await client.query(
             'INSERT INTO invoices (company_id, lease_id, invoice_number, amount_due, due_date, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [companyId, lease.lease_id, autoInvoiceNum, calc.totalToPay, start_date, invStatus]
@@ -686,7 +730,7 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
         if (calc.paid > 0) {
             const payRes = await client.query(
                 'INSERT INTO payments (company_id, invoice_id, amount_paid, payment_date, payment_method) VALUES ($1, $2, $3, NOW(), $4) RETURNING *',
-                [companyId, invoice.invoice_id, calc.paid, 'CASH/TRANSFER']
+                [companyId, invoice.invoice_id, calc.paid, 'CASH']
             );
             payment = payRes.rows[0];
         }
@@ -889,6 +933,7 @@ app.post('/api/leases/:id/renew', authenticateToken, allowRoles(...LEASE_MANAGER
         const durationDays = Math.max(0, Math.round((new Date(newEnd) - new Date(start_date)) / 86400000));
 
         await client.query("UPDATE leases SET lease_state = 'RENEWED', ended_at = NOW(), ended_reason = 'Renewed' WHERE lease_id = $1 AND company_id = $2", [old.lease_id, companyId]);
+        await setLeaseStatus(client, old.lease_id, companyId, 'EXPIRED');
 
         const leaseRes = await client.query(
             `INSERT INTO leases
@@ -904,7 +949,7 @@ app.post('/api/leases/:id/renew', authenticateToken, allowRoles(...LEASE_MANAGER
 
         const seq = await client.query("SELECT nextval('invoice_seq')");
         const invNumber = `INV-${new Date().getFullYear()}-${seq.rows[0].nextval}`;
-        const invStatus = calc.amountDue === 0 ? 'PAID' : (calc.paid > 0 ? 'PARTIAL' : 'PENDING');
+        const invStatus = calc.amountDue === 0 ? 'PAID' : 'PENDING';
         const invoice = (await client.query(
             'INSERT INTO invoices (company_id, lease_id, invoice_number, amount_due, due_date, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [companyId, lease.lease_id, invNumber, calc.totalToPay, start_date, invStatus]
@@ -913,7 +958,7 @@ app.post('/api/leases/:id/renew', authenticateToken, allowRoles(...LEASE_MANAGER
         if (calc.paid > 0) {
             await client.query(
                 'INSERT INTO payments (company_id, invoice_id, amount_paid, payment_date, payment_method) VALUES ($1, $2, $3, NOW(), $4)',
-                [companyId, invoice.invoice_id, calc.paid, 'CASH/TRANSFER']
+                [companyId, invoice.invoice_id, calc.paid, 'CASH']
             );
         }
 
@@ -976,7 +1021,7 @@ app.post('/api/leases/:id/extend', authenticateToken, allowRoles(...LEASE_MANAGE
 
         const seq = await client.query("SELECT nextval('invoice_seq')");
         const invNumber = `INV-${new Date().getFullYear()}-${seq.rows[0].nextval}`;
-        const invStatus = calc.amountDue === 0 ? 'PAID' : (calc.paid > 0 ? 'PARTIAL' : 'PENDING');
+        const invStatus = calc.amountDue === 0 ? 'PAID' : 'PENDING';
         const invoice = (await client.query(
             'INSERT INTO invoices (company_id, lease_id, invoice_number, amount_due, due_date, status) VALUES ($1, $2, $3, $4, CURRENT_DATE, $5) RETURNING *',
             [companyId, lease.lease_id, invNumber, calc.totalToPay, invStatus]
@@ -985,7 +1030,7 @@ app.post('/api/leases/:id/extend', authenticateToken, allowRoles(...LEASE_MANAGE
         if (calc.paid > 0) {
             await client.query(
                 'INSERT INTO payments (company_id, invoice_id, amount_paid, payment_date, payment_method) VALUES ($1, $2, $3, NOW(), $4)',
-                [companyId, invoice.invoice_id, calc.paid, 'CASH/TRANSFER']
+                [companyId, invoice.invoice_id, calc.paid, 'CASH']
             );
         }
 
@@ -1019,6 +1064,7 @@ app.post('/api/leases/:id/end', authenticateToken, allowRoles(...LEASE_MANAGERS)
             [String(req.body.reason || 'Moved out').slice(0, 200), lease.lease_id, companyId]
         );
         await client.query("UPDATE units SET status = 'VACANT' WHERE unit_id = $1 AND company_id = $2", [lease.unit_id, companyId]);
+        await setLeaseStatus(client, lease.lease_id, companyId, 'TERMINATED');
         await client.query(
             `UPDATE tenants SET is_active = EXISTS (SELECT 1 FROM leases WHERE tenant_id = $1 AND company_id = $2 AND lease_state = 'CURRENT')
              WHERE tenant_id = $1 AND company_id = $2`,
@@ -1328,12 +1374,12 @@ app.post('/api/payments/record', authenticateToken, allowRoles('SUPER_ADMIN', 'C
 
         await client.query(
             'INSERT INTO payments (company_id, invoice_id, amount_paid, payment_date, payment_method) VALUES ($1, $2, $3, NOW(), $4)',
-            [companyId, invoice_id, amt, payment_method || 'Cash']
+            [companyId, invoice_id, amt, normalizePaymentMethod(payment_method)]
         );
 
         const sum = await client.query('SELECT COALESCE(SUM(amount_paid), 0) AS paid FROM payments WHERE invoice_id = $1 AND company_id = $2', [invoice_id, companyId]);
         const paidOnInvoice = parseFloat(sum.rows[0].paid);
-        const invStatus = paidOnInvoice >= parseFloat(inv.amount_due) ? 'PAID' : 'PARTIAL';
+        const invStatus = paidOnInvoice >= parseFloat(inv.amount_due) ? 'PAID' : 'PENDING';
         await client.query('UPDATE invoices SET status = $1 WHERE invoice_id = $2 AND company_id = $3', [invStatus, invoice_id, companyId]);
 
         // keep the lease totals in step with the payment
@@ -1471,11 +1517,11 @@ app.get('/api/dashboard/overview', authenticateToken, async (req, res) => {
 
         // optional parts (names of columns in your tables may differ, so they fail safely)
         const ticketRows = await safeRows(
-            "SELECT COUNT(*) AS c FROM work_orders WHERE company_id = $1 AND UPPER(status) NOT IN ('COMPLETED','CLOSED','RESOLVED','DONE','CANCELLED')",
+            "SELECT COUNT(*) AS c FROM work_orders w JOIN units u ON w.unit_id = u.unit_id WHERE u.company_id = $1 AND w.status IN ('OPEN','IN_PROGRESS')",
             [cId]
         );
         const expenseRows = await safeRows(
-            "SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE company_id = $1 AND created_at >= date_trunc('month', CURRENT_DATE)",
+            "SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE company_id = $1 AND expense_date >= date_trunc('month', CURRENT_DATE)",
             [cId]
         );
         const expensesThisMonth = expenseRows ? parseFloat(expenseRows[0].total) : null;
