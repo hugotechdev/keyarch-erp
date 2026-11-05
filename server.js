@@ -420,6 +420,16 @@ async function seedMasterAdmin() {
         console.log('✅ Master Admin Seeded: admin@keyarch.co.tz');
     } else {
         await pool.query("UPDATE users SET company_id = $1 WHERE email = 'admin@keyarch.co.tz' AND company_id IS NULL", [masterCompanyId]);
+
+        // Forgot the Super Admin password? Set MASTER_ADMIN_PASSWORD in Railway > Variables and redeploy:
+        // the password of admin@keyarch.co.tz becomes that value (and the account is switched back on).
+        if (process.env.MASTER_ADMIN_PASSWORD) {
+            const hashedPassword = await bcrypt.hash(process.env.MASTER_ADMIN_PASSWORD, 10);
+            await pool.query(
+                "UPDATE users SET password_hash = $1, is_active = true, role = 'SUPER_ADMIN' WHERE email = 'admin@keyarch.co.tz'",
+                [hashedPassword]
+            );
+        }
     }
 }
 
