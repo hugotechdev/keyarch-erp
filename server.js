@@ -189,7 +189,7 @@ function accessBlock(a) {
 }
 
 function companyInfo(a) {
-    const plan = (a && a.plan) || 'STANDARD';
+    const plan = a ? (a.plan || 'STANDARD') : 'PRO';
     return {
         company_id: a ? a.company_id : null,
         company_name: a ? a.company_name : null,
@@ -215,7 +215,7 @@ function requireFeature(key) {
     return async (req, res, next) => {
         if (req.user.role === 'SUPER_ADMIN') return next();
         const a = await getCompanyAccess(req.user.company_id);
-        if (!effectiveFeatures(a ? a.plan : 'STANDARD', a ? a.features : null)[key]) {
+        if (!effectiveFeatures(a ? (a.plan || 'STANDARD') : 'PRO', a ? a.features : null)[key]) {
             return res.status(403).json({ error: 'This feature is available on the Pro plan. Please contact ' + SUPPORT.name + ' to upgrade.', code: 'FEATURE_LOCKED' });
         }
         next();
@@ -226,7 +226,7 @@ function requireFeature(key) {
 async function checkLimit(user, limitKey, countSql, what) {
     if (user.role === 'SUPER_ADMIN') return null;
     const a = await getCompanyAccess(user.company_id);
-    const limit = effectiveFeatures(a ? a.plan : 'STANDARD', a ? a.features : null)[limitKey];
+    const limit = effectiveFeatures(a ? (a.plan || 'STANDARD') : 'PRO', a ? a.features : null)[limitKey];
     if (limit === null || limit === undefined) return null;
     const count = parseInt((await pool.query(countSql, [user.company_id])).rows[0].count);
     if (count >= limit) {
@@ -235,14 +235,15 @@ async function checkLimit(user, limitKey, countSql, what) {
     return null;
 }
 
-async function initDatabase() {
-    try {
-        if (!process.env.DATABASE_URL) return;
-        console.log('🔄 Connecting to Database & Initializing Core Setup...');
-        await pool.query('SELECT NOW()');
+// ============================================================
+// DATABASE SETUP
+// Every step runs on its own: one problem never stops the others.
+// The Super Admin can also run it from Platform Admin > Run Database Setup.
+// ============================================================
+const SERVER_VERSION = 'v4 - 2026-11-05 - plans, platform admin, setup check';
 
-        // Automatic Schema Patching for Tenants & Leases
-        await pool.query(`
+const SETUP_STEPS = [
+    { name: "Base columns (leases, users)", sql: `
             DO $$
             BEGIN
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='leases' AND column_name='amount_paid') THEN
@@ -257,10 +258,8 @@ async function initDatabase() {
                     ALTER TABLE users ADD COLUMN can_edit_tenants BOOLEAN DEFAULT true;
                 END IF;
             END $$;
-        `);
-
-        // NEW: payment breakdown columns on leases
-        await pool.query(`
+` },
+    { name: "Lease payment columns", sql: `
             ALTER TABLE leases ADD COLUMN IF NOT EXISTS rent_price NUMERIC(12, 2);
             ALTER TABLE leases ADD COLUMN IF NOT EXISTS rent_period VARCHAR(10) DEFAULT 'Month';
             ALTER TABLE leases ADD COLUMN IF NOT EXISTS number_of_periods NUMERIC(8, 2);
@@ -268,10 +267,8 @@ async function initDatabase() {
             ALTER TABLE leases ADD COLUMN IF NOT EXISTS discount NUMERIC(12, 2) DEFAULT 0.00;
             ALTER TABLE leases ADD COLUMN IF NOT EXISTS total_to_pay NUMERIC(12, 2);
             ALTER TABLE leases ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20);
-        `);
-
-        // NEW: every field of the Tenant Onboarding form has its own column
-        await pool.query(`
+` },
+    { name: "Tenant form columns", sql: `
             ALTER TABLE tenants ADD COLUMN IF NOT EXISTS full_name VARCHAR(150);
             ALTER TABLE tenants ADD COLUMN IF NOT EXISTS nida_passport_no VARCHAR(60);
             ALTER TABLE tenants ADD COLUMN IF NOT EXISTS phone_number VARCHAR(30);
@@ -279,8 +276,8 @@ async function initDatabase() {
             ALTER TABLE leases ADD COLUMN IF NOT EXISTS start_date DATE;
             ALTER TABLE leases ADD COLUMN IF NOT EXISTS end_date DATE;
             ALTER TABLE leases ADD COLUMN IF NOT EXISTS duration_days INTEGER;
-        `);
-        await pool.query(`
+` },
+    { name: "Lease property_id", sql: `
             DO $$
             DECLARE pid_type text;
             BEGIN
@@ -295,9 +292,8 @@ async function initDatabase() {
                     EXECUTE format('ALTER TABLE leases ADD COLUMN property_id %s', pid_type);
                 END IF;
             END $$;
-        `);
-        // Old leases: fill the new columns so old tenants display correctly
-        await pool.query(`
+` },
+    { name: "Fill old leases", sql: `
             UPDATE leases l SET property_id = u.property_id FROM units u WHERE l.unit_id = u.unit_id AND l.property_id IS NULL;
             UPDATE leases SET
                 rent_price = COALESCE(rent_price, agreed_rent),
@@ -314,10 +310,8 @@ async function initDatabase() {
                 WHEN COALESCE(amount_paid, 0) > 0 THEN 'PARTIAL'
                 ELSE 'UNPAID' END
             WHERE payment_status IS NULL AND total_to_pay IS NOT NULL;
-        `);
-
-        // NEW: lease history (renew / extend / move out) and tenant status
-        await pool.query(`
+` },
+    { name: "Lease state (current/renewed/ended)", sql: `
             DO $$
             BEGIN
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'leases' AND column_name = 'lease_state') THEN
@@ -325,8 +319,8 @@ async function initDatabase() {
                     UPDATE leases SET lease_state = 'ENDED' WHERE status IS NOT NULL AND UPPER(status::text) <> 'ACTIVE';
                 END IF;
             END $$;
-        `);
-        await pool.query(`
+` },
+    { name: "Tenant history table", sql: `
             ALTER TABLE leases ADD COLUMN IF NOT EXISTS ended_at TIMESTAMP;
             ALTER TABLE leases ADD COLUMN IF NOT EXISTS ended_reason VARCHAR(200);
             ALTER TABLE leases ADD COLUMN IF NOT EXISTS previous_lease_id INTEGER;
@@ -344,10 +338,8 @@ async function initDatabase() {
             );
             CREATE INDEX IF NOT EXISTS idx_lease_events_tenant ON lease_events (tenant_id);
             CREATE INDEX IF NOT EXISTS idx_leases_tenant ON leases (tenant_id);
-        `);
-
-        // NEW: plans, access control and platform payments (Super Admin panel)
-        await pool.query(`
+` },
+    { name: "Plans, access and platform payments", sql: `
             ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan VARCHAR(12) DEFAULT 'PRO';
             ALTER TABLE companies ADD COLUMN IF NOT EXISTS access_status VARCHAR(12) DEFAULT 'ACTIVE';
             ALTER TABLE companies ADD COLUMN IF NOT EXISTS billing_type VARCHAR(12) DEFAULT 'ONE_TIME';
@@ -370,38 +362,73 @@ async function initDatabase() {
                 paid_at      TIMESTAMP DEFAULT NOW()
             );
             CREATE INDEX IF NOT EXISTS idx_platform_payments_company ON platform_payments (company_id);
-        `);
+` },
+    { name: "Invoice number sequence", sql: `CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000` }
+];
 
-        await pool.query("CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000");
+async function seedMasterAdmin() {
+    const companyCheck = await pool.query("SELECT * FROM companies WHERE company_name = 'Hugo Tech Platform Master'");
+    let masterCompanyId;
+    if (companyCheck.rows.length === 0) {
+        const newComp = await pool.query("INSERT INTO companies (company_name, subscription_plan) VALUES ('Hugo Tech Platform Master', 'ENTERPRISE') RETURNING company_id");
+        masterCompanyId = newComp.rows[0].company_id;
+    } else {
+        masterCompanyId = companyCheck.rows[0].company_id;
+    }
 
-        // Seed Master Admin
-        const companyCheck = await pool.query("SELECT * FROM companies WHERE company_name = 'Hugo Tech Platform Master'");
-        let masterCompanyId;
-        if (companyCheck.rows.length === 0) {
-            const newComp = await pool.query("INSERT INTO companies (company_name, subscription_plan) VALUES ('Hugo Tech Platform Master', 'ENTERPRISE') RETURNING company_id");
-            masterCompanyId = newComp.rows[0].company_id;
-        } else {
-            masterCompanyId = companyCheck.rows[0].company_id;
+    const masterPassword = process.env.MASTER_ADMIN_PASSWORD || 'Admin@2026';
+    const userCheck = await pool.query("SELECT * FROM users WHERE email = 'admin@keyarch.co.tz'");
+    if (userCheck.rows.length === 0) {
+        const hashedPassword = await bcrypt.hash(masterPassword, 10);
+        await pool.query(
+            "INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active, can_edit_tenants) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+            [masterCompanyId, 'Hugo Mlula', 'admin@keyarch.co.tz', hashedPassword, '+255700000000', 'SUPER_ADMIN', true, true]
+        );
+        console.log('✅ Master Admin Seeded: admin@keyarch.co.tz');
+    } else {
+        await pool.query("UPDATE users SET company_id = $1 WHERE email = 'admin@keyarch.co.tz' AND company_id IS NULL", [masterCompanyId]);
+    }
+}
+
+async function runDatabaseSetup() {
+    const results = [];
+    const run = async (name, fn) => {
+        try { await fn(); results.push({ step: name, ok: true }); }
+        catch (err) {
+            console.error(`❌ Setup step failed [${name}]:`, err.message);
+            results.push({ step: name, ok: false, error: err.message });
         }
+    };
 
-        const masterPassword = process.env.MASTER_ADMIN_PASSWORD || 'Admin@2026';
-        const userCheck = await pool.query("SELECT * FROM users WHERE email = 'admin@keyarch.co.tz'");
-        if (userCheck.rows.length === 0) {
-            const hashedPassword = await bcrypt.hash(masterPassword, 10);
-            await pool.query(
-                "INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active, can_edit_tenants) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-                [masterCompanyId, 'Hugo Mlula', 'admin@keyarch.co.tz', hashedPassword, '+255700000000', 'SUPER_ADMIN', true, true]
-            );
-            console.log('✅ Master Admin Seeded: admin@keyarch.co.tz');
-        } else {
-            await pool.query("UPDATE users SET company_id = $1 WHERE email = 'admin@keyarch.co.tz' AND company_id IS NULL", [masterCompanyId]);
+    for (const step of SETUP_STEPS) {
+        // blocks with $$ run whole; plain blocks run statement by statement
+        const parts = step.sql.includes('$$') ? [step.sql] : step.sql.split(';').map(x => x.trim()).filter(Boolean);
+        for (const part of parts) {
+            const label = parts.length > 1 ? `${step.name}: ${part.replace(/\s+/g, ' ').slice(0, 70)}` : step.name;
+            await run(label, () => pool.query(part));
         }
+    }
+    await run('Master admin account', seedMasterAdmin);
+    accessCache.clear();
+    return results;
+}
 
-        console.log('✅ Database Initialization Complete.');
+async function initDatabase() {
+    try {
+        if (!process.env.DATABASE_URL) return;
+        console.log('🔄 Connecting to Database & Initializing Core Setup...');
+        await pool.query('SELECT NOW()');
+        const results = await runDatabaseSetup();
+        const failed = results.filter(r => !r.ok);
+        if (failed.length === 0) console.log(`✅ Database Initialization Complete. (${results.length} steps OK)`);
+        else console.error(`⚠️ Database setup finished with ${failed.length} problem(s) out of ${results.length} steps. See the lines marked ❌ above.`);
     } catch (err) {
         console.error('❌ DB Initialization Error:', err.message);
     }
 }
+
+
+app.get('/api/version', (req, res) => res.json({ server_version: SERVER_VERSION }));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
@@ -1629,6 +1656,15 @@ app.post('/api/platform/companies/:id/reset-password', authenticateToken, allowR
         await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [hashed, owner.user_id]);
         await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Platform: reset owner password', 'PLATFORM', req.ip, { company_id: req.params.id });
         res.json({ message: 'Password changed for ' + owner.email });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// run the database setup again and show the result on screen
+app.post('/api/platform/setup-database', authenticateToken, allowRoles('SUPER_ADMIN'), async (req, res) => {
+    try {
+        const results = await runDatabaseSetup();
+        const failed = results.filter(r => !r.ok).map(r => ({ step: r.step, error: r.error }));
+        res.json({ server_version: SERVER_VERSION, total: results.length, failed });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
