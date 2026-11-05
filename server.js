@@ -383,7 +383,7 @@ async function checkLimit(user, limitKey, countSql, what) {
 // Every step runs on its own: one problem never stops the others.
 // The Super Admin can also run it from Platform Admin > Run Database Setup.
 // ============================================================
-const SERVER_VERSION = 'v7.1 - 2026-11-05 - Coffee and Gold style, effects';
+const SERVER_VERSION = 'v7.2 - 2026-11-05 - Coffee and Gold style, mobile background fix';
 
 const SETUP_STEPS = [
     { name: "Base columns (leases, users)", sql: `
