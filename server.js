@@ -54,7 +54,7 @@ async function initDatabase() {
         console.log('🔄 Initializing Database Schema & Multi-Tenant Migrations...');
         await pool.query('SELECT NOW()');
 
-        // 1. CREATE ALL BASE TABLES IF NOT EXIST
+        // 1. CREATE BASE TABLES IF NOT EXIST
         await pool.query(`
             CREATE TABLE IF NOT EXISTS companies (
                 company_id SERIAL PRIMARY KEY,
@@ -91,7 +91,6 @@ async function initDatabase() {
             );
         `);
 
-        // UNIT GROUPS TABLE FOR MULTIPLE GROUPS
         await pool.query(`
             CREATE TABLE IF NOT EXISTS unit_groups (
                 group_id SERIAL PRIMARY KEY,
@@ -231,9 +230,25 @@ async function initDatabase() {
             );
         `);
 
+        // 2. AUTOMATIC TABLE MIGRATION & SAFETY CHECKS (INAHAKIKISHA COMPANY_ID IPO KWENYE TABLES ZOTE ZILIZOKUWEPO CATCHING EXISTING DBs)
+        const tablesToUpdate = ['properties', 'units', 'tenants', 'leases', 'invoices', 'payments', 'expenses', 'work_orders', 'luku_vouchers', 'audit_logs'];
+        for (const tbl of tablesToUpdate) {
+            await pool.query(`
+                DO $$ 
+                BEGIN 
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='${tbl}' AND column_name='company_id'
+                    ) THEN 
+                        ALTER TABLE ${tbl} ADD COLUMN company_id INT REFERENCES companies(company_id) ON DELETE CASCADE;
+                    END IF;
+                END $$;
+            `);
+        }
+
         await pool.query("CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000");
 
-        // 2. SEED MASTER PLATFORM OWNER COMPANY (Hugo Tech)
+        // 3. SEED MASTER PLATFORM OWNER COMPANY (Hugo Tech)
         const companyCheck = await pool.query("SELECT * FROM companies WHERE company_name = 'Hugo Tech Platform Master'");
         let masterCompanyId;
         if (companyCheck.rows.length === 0) {
@@ -243,7 +258,7 @@ async function initDatabase() {
             masterCompanyId = companyCheck.rows[0].company_id;
         }
 
-        // 3. SEED SUPER ADMIN USER
+        // 4. SEED SUPER ADMIN USER
         const masterPassword = process.env.MASTER_ADMIN_PASSWORD || 'Admin@2026';
         const userCheck = await pool.query("SELECT * FROM users WHERE email = 'admin@keyarch.co.tz'");
         if (userCheck.rows.length === 0) {
@@ -253,6 +268,9 @@ async function initDatabase() {
                 [masterCompanyId, 'Hugo Mlula', 'admin@keyarch.co.tz', hashedPassword, '+255700000000', 'SUPER_ADMIN', true]
             );
             console.log('✅ Platform Master Super Admin Seeded: admin@keyarch.co.tz');
+        } else {
+            // Hakikisha user wa zamani pia anapewa master company_id kama ilikuwa null
+            await pool.query("UPDATE users SET company_id = $1 WHERE email = 'admin@keyarch.co.tz' AND company_id IS NULL", [masterCompanyId]);
         }
 
         console.log('✅ Database Schema Initialized & Migrations Completed Successfully.');
