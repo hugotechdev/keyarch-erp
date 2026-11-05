@@ -402,133 +402,149 @@
         </div>
     </div>
 
-    <!-- MODAL 3: TENANT ONBOARDING (WITH SEARCHABLE DROPDOWNS & PAYMENT CALCULATOR) -->
-    <div id="modal-tenant" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-xl rounded-2xl p-6 relative my-8 shadow-2xl">
-            <button onclick="closeModal('modal-tenant')" class="absolute top-4 right-4 text-gray-400 text-xl hover:text-white">&times;</button>
-            <h3 class="font-bold text-lg text-white mb-4 flex items-center gap-2">
-                <i class="fa-solid fa-user-plus text-emerald-400"></i> Tenant Onboarding
-            </h3>
-            <form id="form-tenant-onboard" onsubmit="handleTenantSubmit(event)" class="space-y-4">
+    <!-- MODAL 3: TENANT ONBOARDING (2-COLUMN, FITS ON SCREEN) -->
+    <div id="modal-tenant" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-4xl rounded-2xl flex flex-col max-h-[92vh] shadow-2xl overflow-hidden">
 
-                <!-- 1. PERSONAL DETAILS -->
-                <div class="border-b border-[#182848] pb-3">
-                    <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">1. Personal Details</div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <input type="text" id="tenant-full-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
-                        <input type="text" id="tenant-nida" placeholder="NIDA / Passport *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
-                        <input type="tel" id="tenant-phone" placeholder="Phone Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs sm:col-span-2 focus:border-emerald-500 outline-none" required>
-                    </div>
-                </div>
+            <!-- HEADER (always visible) -->
+            <div class="px-5 py-3.5 border-b border-[#182848] bg-[#0a1224] flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-emerald-400"></i> Tenant Onboarding
+                </h3>
+                <button type="button" onclick="closeModal('modal-tenant')" class="w-8 h-8 rounded-full bg-[#14223d] text-gray-400 hover:text-white hover:bg-red-600 transition flex items-center justify-center text-lg">&times;</button>
+            </div>
 
-                <!-- 2. LEASE & PAYMENT DETAILS -->
-                <div>
-                    <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">2. Lease & Payment Details</div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <form id="form-tenant-onboard" onsubmit="handleTenantSubmit(event)" class="flex flex-col flex-1 min-h-0">
 
-                        <!-- SEARCHABLE PROPERTY DROPDOWN -->
-                        <div class="relative">
-                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Select Property *</label>
-                            <input type="hidden" id="tenant-property-id">
-                            <div id="prop-dropdown-trigger" onclick="toggleDropdown('prop-dropdown-list')" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs cursor-pointer flex justify-between items-center">
-                                <span id="prop-selected-label" class="text-gray-400">-- Select Property --</span>
-                                <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
-                            </div>
-                            <div id="prop-dropdown-list" class="hidden absolute top-full left-0 right-0 mt-1 bg-[#101b33] border border-[#233863] rounded-xl shadow-2xl z-50 p-2 space-y-2">
-                                <div class="relative">
-                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-                                    <input type="text" id="prop-search-input" oninput="filterDropdownOptions('prop-search-input', 'prop-options-container')" placeholder="Search Property..." class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500">
-                                </div>
-                                <div id="prop-options-container" class="max-h-40 overflow-y-auto space-y-1 custom-scrollbar">
-                                    <div class="p-2 text-xs text-gray-500 text-center">Loading properties...</div>
-                                </div>
-                            </div>
-                        </div>
+                <!-- BODY (scrolls inside the box if the screen is small) -->
+                <div class="p-5 overflow-y-auto flex-1 custom-scrollbar">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-5">
 
-                        <!-- SEARCHABLE UNIT DROPDOWN -->
-                        <div class="relative">
-                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Select Unit *</label>
-                            <input type="hidden" id="tenant-unit-id">
-                            <div id="unit-dropdown-trigger" onclick="toggleDropdown('unit-dropdown-list')" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs cursor-pointer flex justify-between items-center">
-                                <span id="unit-selected-label" class="text-gray-400">-- Select Property First --</span>
-                                <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
-                            </div>
-                            <div id="unit-dropdown-list" class="hidden absolute top-full left-0 right-0 mt-1 bg-[#101b33] border border-[#233863] rounded-xl shadow-2xl z-50 p-2 space-y-2">
-                                <div class="relative">
-                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-                                    <input type="text" id="unit-search-input" oninput="filterDropdownOptions('unit-search-input', 'unit-options-container')" placeholder="Search Unit..." class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500">
-                                </div>
-                                <div id="unit-options-container" class="max-h-40 overflow-y-auto space-y-1 custom-scrollbar">
-                                    <div class="p-2 text-xs text-gray-500 text-center">Select property first</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Lease Start *</label>
-                            <input type="date" id="tenant-start-date" onchange="calculateLeasePeriod()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Lease End (Optional)</label>
-                            <input type="date" id="tenant-end-date" onchange="calculateLeasePeriod()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
-                        </div>
-
-                        <!-- DISPLAY LEASE DURATION PERIOD -->
-                        <div class="sm:col-span-2 bg-[#14223d]/60 border border-[#233863] p-2.5 rounded-xl flex justify-between items-center text-xs">
-                            <span class="text-gray-400 font-semibold flex items-center gap-1.5">
-                                <i class="fa-solid fa-calendar-days text-cyan-400"></i> Lease Duration:
-                            </span>
-                            <span id="tenant-period-display" class="font-extrabold text-cyan-300">-- Select Dates --</span>
-                        </div>
-
-                        <!-- RENT PRICE + HOW IT IS CHARGED -->
-                        <div class="sm:col-span-2 grid grid-cols-3 gap-3">
-                            <div class="col-span-2">
-                                <label class="block text-[11px] font-semibold text-gray-400 mb-1">Rent Price (TZS) *</label>
-                                <input type="number" min="0" id="tenant-rent" oninput="calculateAmountDue()" placeholder="150,000" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
-                            </div>
+                        <!-- LEFT: WHO + WHERE + WHEN -->
+                        <div class="space-y-4">
                             <div>
-                                <label class="block text-[11px] font-semibold text-gray-400 mb-1">Charged</label>
-                                <select id="tenant-rent-period" onchange="autoFillPeriods()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs outline-none">
-                                    <option value="Day">Per Day</option>
-                                    <option value="Week">Per Week</option>
-                                    <option value="Month" selected>Per Month</option>
-                                    <option value="Year">Per Year</option>
-                                </select>
+                                <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">1. Tenant</div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <input type="text" id="tenant-full-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
+                                    <input type="text" id="tenant-nida" placeholder="NIDA / Passport *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
+                                    <input type="tel" id="tenant-phone" placeholder="Phone Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs col-span-2 focus:border-emerald-500 outline-none" required>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">2. Unit & Lease Period</div>
+                                <div class="grid grid-cols-2 gap-3">
+
+                                    <!-- SEARCHABLE PROPERTY DROPDOWN -->
+                                    <div class="relative">
+                                        <label class="block text-[11px] font-semibold text-gray-400 mb-1">Property *</label>
+                                        <input type="hidden" id="tenant-property-id">
+                                        <div id="prop-dropdown-trigger" onclick="toggleDropdown('prop-dropdown-list')" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs cursor-pointer flex justify-between items-center gap-2">
+                                            <span id="prop-selected-label" class="text-gray-400 truncate">-- Select --</span>
+                                            <i class="fa-solid fa-chevron-down text-gray-400 text-xs shrink-0"></i>
+                                        </div>
+                                        <div id="prop-dropdown-list" class="hidden absolute top-full left-0 right-0 mt-1 bg-[#101b33] border border-[#233863] rounded-xl shadow-2xl z-50 p-2 space-y-2">
+                                            <div class="relative">
+                                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                                                <input type="text" id="prop-search-input" oninput="filterDropdownOptions('prop-search-input', 'prop-options-container')" placeholder="Search Property..." class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500">
+                                            </div>
+                                            <div id="prop-options-container" class="max-h-40 overflow-y-auto space-y-1 custom-scrollbar">
+                                                <div class="p-2 text-xs text-gray-500 text-center">Loading properties...</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- SEARCHABLE UNIT DROPDOWN -->
+                                    <div class="relative">
+                                        <label class="block text-[11px] font-semibold text-gray-400 mb-1">Unit *</label>
+                                        <input type="hidden" id="tenant-unit-id">
+                                        <div id="unit-dropdown-trigger" onclick="toggleDropdown('unit-dropdown-list')" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs cursor-pointer flex justify-between items-center gap-2">
+                                            <span id="unit-selected-label" class="text-gray-400 truncate">-- Select Property First --</span>
+                                            <i class="fa-solid fa-chevron-down text-gray-400 text-xs shrink-0"></i>
+                                        </div>
+                                        <div id="unit-dropdown-list" class="hidden absolute top-full left-0 right-0 mt-1 bg-[#101b33] border border-[#233863] rounded-xl shadow-2xl z-50 p-2 space-y-2">
+                                            <div class="relative">
+                                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                                                <input type="text" id="unit-search-input" oninput="filterDropdownOptions('unit-search-input', 'unit-options-container')" placeholder="Search Unit..." class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500">
+                                            </div>
+                                            <div id="unit-options-container" class="max-h-40 overflow-y-auto space-y-1 custom-scrollbar">
+                                                <div class="p-2 text-xs text-gray-500 text-center">Select property first</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-gray-400 mb-1">Lease Start *</label>
+                                        <input type="date" id="tenant-start-date" onchange="calculateLeasePeriod()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-gray-400 mb-1">Lease End (Optional)</label>
+                                        <input type="date" id="tenant-end-date" onchange="calculateLeasePeriod()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
+                                    </div>
+
+                                    <!-- DISPLAY LEASE DURATION PERIOD -->
+                                    <div class="col-span-2 bg-[#14223d]/60 border border-[#233863] px-3 py-2.5 rounded-xl flex justify-between items-center gap-2 text-xs">
+                                        <span class="text-gray-400 font-semibold flex items-center gap-1.5 shrink-0">
+                                            <i class="fa-solid fa-calendar-days text-cyan-400"></i> Duration:
+                                        </span>
+                                        <span id="tenant-period-display" class="font-extrabold text-cyan-300 text-right">-- Select Dates --</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- RIGHT: MONEY -->
                         <div>
-                            <label id="tenant-periods-label" class="block text-[11px] font-semibold text-gray-400 mb-1">Number of Months</label>
-                            <input type="number" step="0.01" min="0" id="tenant-periods" oninput="onPeriodsEdited()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Discount (TZS) - Optional</label>
-                            <input type="number" min="0" id="tenant-discount" oninput="calculateAmountDue()" placeholder="0" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
-                        </div>
+                            <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">3. Payment</div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-gray-400 mb-1">Rent Price (TZS) *</label>
+                                    <input type="number" min="0" id="tenant-rent" oninput="calculateAmountDue()" placeholder="150,000" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-gray-400 mb-1">Charged</label>
+                                    <select id="tenant-rent-period" onchange="autoFillPeriods()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs outline-none">
+                                        <option value="Day">Per Day</option>
+                                        <option value="Week">Per Week</option>
+                                        <option value="Month" selected>Per Month</option>
+                                        <option value="Year">Per Year</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label id="tenant-periods-label" class="block text-[11px] font-semibold text-gray-400 mb-1">Number of Months</label>
+                                    <input type="number" step="0.01" min="0" id="tenant-periods" oninput="onPeriodsEdited()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[11px] font-semibold text-gray-400 mb-1">Discount (TZS)</label>
+                                    <input type="number" min="0" id="tenant-discount" oninput="calculateAmountDue()" placeholder="0" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-[11px] font-semibold text-gray-400 mb-1">Amount Paid (TZS)</label>
+                                    <input type="number" min="0" id="tenant-paid" oninput="calculateAmountDue()" placeholder="0" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
+                                </div>
 
-                        <div class="sm:col-span-2">
-                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Amount Paid (TZS) - Optional</label>
-                            <input type="number" min="0" id="tenant-paid" oninput="calculateAmountDue()" placeholder="0" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
-                        </div>
-
-                        <!-- PAYMENT SUMMARY -->
-                        <div id="tenant-summary-box" class="sm:col-span-2 bg-[#14223d] p-3 rounded-xl border border-[#233863] space-y-1.5 text-xs">
-                            <div class="flex justify-between"><span class="text-gray-400">Total Rent</span><span id="sum-total" class="font-bold text-white">TZS 0</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">Discount</span><span id="sum-discount" class="font-bold text-amber-400">- TZS 0</span></div>
-                            <div class="flex justify-between border-t border-[#233863] pt-1.5"><span class="text-gray-300 font-bold">Total To Pay</span><span id="sum-topay" class="font-black text-white">TZS 0</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">Amount Paid</span><span id="sum-paid" class="font-bold text-emerald-400">TZS 0</span></div>
-                            <div id="sum-result" class="flex justify-between items-center border-t border-[#233863] pt-2 mt-1">
-                                <span id="sum-result-label" class="font-bold text-gray-300">Remaining Balance</span>
-                                <span id="sum-result-value" class="text-sm font-black text-gray-400">TZS 0</span>
+                                <!-- PAYMENT SUMMARY -->
+                                <div id="tenant-summary-box" class="col-span-2 bg-[#14223d] p-3 rounded-xl border border-[#233863] space-y-1.5 text-xs">
+                                    <div class="flex justify-between"><span class="text-gray-400">Total Rent</span><span id="sum-total" class="font-bold text-white">TZS 0</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-400">Discount</span><span id="sum-discount" class="font-bold text-amber-400">- TZS 0</span></div>
+                                    <div class="flex justify-between border-t border-[#233863] pt-1.5"><span class="text-gray-300 font-bold">Total To Pay</span><span id="sum-topay" class="font-black text-white">TZS 0</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-400">Amount Paid</span><span id="sum-paid" class="font-bold text-emerald-400">TZS 0</span></div>
+                                    <div id="sum-result" class="flex justify-between items-center border-t border-[#233863] pt-2 mt-1">
+                                        <span id="sum-result-label" class="font-bold text-gray-300">Remaining Balance</span>
+                                        <span id="sum-result-value" class="text-sm font-black text-gray-400">TZS 0</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3.5 rounded-xl text-white font-bold text-xs shadow-lg transition">
-                    Save Tenant & Generate Auto Invoice &rarr;
-                </button>
+                <!-- FOOTER (save button always visible) -->
+                <div class="px-5 py-3 border-t border-[#182848] bg-[#0a1224] shrink-0">
+                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3.5 rounded-xl text-white font-bold text-xs shadow-lg transition">
+                        Save Tenant & Generate Auto Invoice &rarr;
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -859,14 +875,14 @@
             document.getElementById('tenant-property-id').value = propId;
             const label = document.getElementById('prop-selected-label');
             label.innerText = propName;
-            label.className = 'text-white font-bold';
+            label.className = 'text-white font-bold truncate';
 
             document.getElementById('prop-dropdown-list').classList.add('hidden');
 
             document.getElementById('tenant-unit-id').value = '';
             const unitLabel = document.getElementById('unit-selected-label');
             unitLabel.innerText = '-- Select Vacant Unit --';
-            unitLabel.className = 'text-gray-400';
+            unitLabel.className = 'text-gray-400 truncate';
 
             loadPropertyUnits(propId);
         }
@@ -875,7 +891,7 @@
             document.getElementById('tenant-unit-id').value = unitId;
             const label = document.getElementById('unit-selected-label');
             label.innerText = unitText;
-            label.className = 'text-white font-bold';
+            label.className = 'text-white font-bold truncate';
 
             document.getElementById('unit-dropdown-list').classList.add('hidden');
 
@@ -1135,9 +1151,9 @@
                 document.getElementById('tenant-property-id').value = '';
                 document.getElementById('tenant-unit-id').value = '';
                 document.getElementById('prop-selected-label').innerText = '-- Select Property --';
-                document.getElementById('prop-selected-label').className = 'text-gray-400';
+                document.getElementById('prop-selected-label').className = 'text-gray-400 truncate';
                 document.getElementById('unit-selected-label').innerText = '-- Select Property First --';
-                document.getElementById('unit-selected-label').className = 'text-gray-400';
+                document.getElementById('unit-selected-label').className = 'text-gray-400 truncate';
                 document.getElementById('tenant-periods').dataset.manual = '';
 
                 calculateLeasePeriod();
