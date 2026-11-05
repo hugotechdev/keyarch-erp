@@ -402,7 +402,7 @@
         </div>
     </div>
 
-    <!-- MODAL 3: TENANT ONBOARDING (WITH LEASE DURATION CALCULATOR) -->
+    <!-- MODAL 3: TENANT ONBOARDING (WITH SEARCHABLE PROPERTY & UNIT DROPDOWNS & LEASE CALCULATOR) -->
     <div id="modal-tenant" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-xl rounded-2xl p-6 relative my-8 shadow-2xl">
             <button onclick="closeModal('modal-tenant')" class="absolute top-4 right-4 text-gray-400 text-xl hover:text-white">&times;</button>
@@ -425,17 +425,43 @@
                 <div>
                     <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">2. Lease & Financial Details</div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
+                        
+                        <!-- SEARCHABLE PROPERTY DROPDOWN -->
+                        <div class="relative">
                             <label class="block text-[11px] font-semibold text-gray-400 mb-1">Select Property *</label>
-                            <select id="tenant-property-id" onchange="loadPropertyUnits(this.value)" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
-                                <option value="">-- Select Property --</option>
-                            </select>
+                            <input type="hidden" id="tenant-property-id" required>
+                            <div id="prop-dropdown-trigger" onclick="toggleDropdown('prop-dropdown-list')" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs cursor-pointer flex justify-between items-center">
+                                <span id="prop-selected-label" class="text-gray-400">-- Select Property --</span>
+                                <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
+                            </div>
+                            <div id="prop-dropdown-list" class="hidden absolute top-full left-0 right-0 mt-1 bg-[#101b33] border border-[#233863] rounded-xl shadow-2xl z-50 p-2 space-y-2">
+                                <div class="relative">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                                    <input type="text" id="prop-search-input" oninput="filterDropdownOptions('prop-search-input', 'prop-options-container')" placeholder="Search Property..." class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500">
+                                </div>
+                                <div id="prop-options-container" class="max-h-40 overflow-y-auto space-y-1 custom-scrollbar">
+                                    <div class="p-2 text-xs text-gray-500 text-center">Loading properties...</div>
+                                </div>
+                            </div>
                         </div>
-                        <div>
+
+                        <!-- SEARCHABLE UNIT DROPDOWN -->
+                        <div class="relative">
                             <label class="block text-[11px] font-semibold text-gray-400 mb-1">Select Unit *</label>
-                            <select id="tenant-unit-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
-                                <option value="">-- Select Property First --</option>
-                            </select>
+                            <input type="hidden" id="tenant-unit-id" required>
+                            <div id="unit-dropdown-trigger" onclick="toggleDropdown('unit-dropdown-list')" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs cursor-pointer flex justify-between items-center">
+                                <span id="unit-selected-label" class="text-gray-400">-- Select Property First --</span>
+                                <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
+                            </div>
+                            <div id="unit-dropdown-list" class="hidden absolute top-full left-0 right-0 mt-1 bg-[#101b33] border border-[#233863] rounded-xl shadow-2xl z-50 p-2 space-y-2">
+                                <div class="relative">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                                    <input type="text" id="unit-search-input" oninput="filterDropdownOptions('unit-search-input', 'unit-options-container')" placeholder="Search Unit..." class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500">
+                                </div>
+                                <div id="unit-options-container" class="max-h-40 overflow-y-auto space-y-1 custom-scrollbar">
+                                    <div class="p-2 text-xs text-gray-500 text-center">Select property first</div>
+                                </div>
+                            </div>
                         </div>
 
                         <div>
@@ -665,6 +691,21 @@
 
             addGroupCard();
 
+            // Close dropdowns on outside click
+            document.addEventListener('click', (e) => {
+                const propDropdown = document.getElementById('prop-dropdown-list');
+                const propTrigger = document.getElementById('prop-dropdown-trigger');
+                if (propDropdown && propTrigger && !propTrigger.contains(e.target) && !propDropdown.contains(e.target)) {
+                    propDropdown.classList.add('hidden');
+                }
+
+                const unitDropdown = document.getElementById('unit-dropdown-list');
+                const unitTrigger = document.getElementById('unit-dropdown-trigger');
+                if (unitDropdown && unitTrigger && !unitTrigger.contains(e.target) && !unitDropdown.contains(e.target)) {
+                    unitDropdown.classList.add('hidden');
+                }
+            });
+
             document.getElementById('form-login').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const res = await fetch('/api/auth/login', {
@@ -701,652 +742,4 @@
                     alert('Congratulations! Your company has been registered successfully. You can now sign in.');
                     switchAuthTab('login');
                     document.getElementById('login-email').value = document.getElementById('p-reg-email').value;
-                    document.getElementById('form-portal-register').reset();
-                } else {
-                    alert('Registration Failed: ' + (data.error || 'Server error'));
-                }
-            });
-
-            document.getElementById('form-unit').addEventListener('submit', (e) => {
-                e.preventDefault();
-                sendPost('/api/units', { property_id: parseInt(document.getElementById('unit-prop-id').value), unit_number: document.getElementById('unit-no').value, rent_amount: parseFloat(document.getElementById('unit-rent').value) }, 'modal-unit', 'form-unit');
-            });
-
-            document.getElementById('form-invoice').addEventListener('submit', (e) => {
-                e.preventDefault();
-                sendPost('/api/invoices/issue', { lease_id: parseInt(document.getElementById('inv-lease-id').value), amount_due: parseFloat(document.getElementById('inv-amount').value), due_date: document.getElementById('inv-due').value }, 'modal-invoice', 'form-invoice');
-            });
-
-            document.getElementById('form-ticket').addEventListener('submit', (e) => {
-                e.preventDefault();
-                sendPost('/api/tickets/create', { unit_id: parseInt(document.getElementById('tkt-unit-id').value), title: document.getElementById('tkt-title').value, description: document.getElementById('tkt-desc').value, priority: document.getElementById('tkt-priority').value }, 'modal-ticket', 'form-ticket');
-            });
-
-            document.getElementById('form-expense').addEventListener('submit', (e) => {
-                e.preventDefault();
-                sendPost('/api/finance/expenses', { category: document.getElementById('exp-category').value, description: document.getElementById('exp-desc').value, amount: parseFloat(document.getElementById('exp-amount').value) }, 'modal-expense', 'form-expense');
-            });
-
-            document.getElementById('form-register').addEventListener('submit', (e) => {
-                e.preventDefault();
-                sendPost('/api/auth/register-staff', { full_name: document.getElementById('reg-name').value, email: document.getElementById('reg-email').value, password: document.getElementById('reg-password').value, role: document.getElementById('reg-role').value }, 'modal-register', 'form-register');
-            });
-
-            document.getElementById('form-luku').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const token = localStorage.getItem('keyarch_token');
-                const res = await fetch('/api/finance/luku/vend', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ meter_number: document.getElementById('luku-meter').value, tenant_name: document.getElementById('luku-tenant').value, amount: parseFloat(document.getElementById('luku-amount').value) })
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    document.getElementById('form-luku').reset();
-                    closeModal('modal-luku');
-                    document.getElementById('res-token').innerText = data.token_number;
-                    document.getElementById('res-meter').innerText = data.meter_number;
-                    document.getElementById('res-kwh').innerText = data.kwh_units;
-                    document.getElementById('res-amount').innerText = 'TZS ' + parseFloat(data.amount).toLocaleString();
-                    openModal('modal-luku-result');
-                    loadAllData();
-                } else alert('Error: ' + data.error);
-            });
-        });
-
-        // FUNCTION YA HESABU YA MUDA WA MKATABA (LEASE DURATION CALCULATOR)
-        function calculateLeasePeriod() {
-            const startDateVal = document.getElementById('tenant-start-date').value;
-            const endDateVal = document.getElementById('tenant-end-date').value;
-            const displayElement = document.getElementById('tenant-period-display');
-
-            if (!startDateVal || !endDateVal) {
-                displayElement.innerText = '-- Select Both Dates --';
-                displayElement.className = 'font-bold text-gray-400';
-                return;
-            }
-
-            const start = new Date(startDateVal);
-            const end = new Date(endDateVal);
-
-            if (end < start) {
-                displayElement.innerText = 'Tarehe ya kuisha haiwezi kuwa kabla ya kuanza!';
-                displayElement.className = 'font-bold text-rose-400';
-                return;
-            }
-
-            // Piga hesabu ya siku zote (Total Days)
-            const diffTime = Math.abs(end - start);
-            const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            // Hesabu ya Miaka, Miezi na Siku
-            let years = end.getFullYear() - start.getFullYear();
-            let months = end.getMonth() - start.getMonth();
-            let days = end.getDate() - start.getDate();
-
-            if (days < 0) {
-                months -= 1;
-                const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
-                days += prevMonth.getDate();
-            }
-            if (months < 0) {
-                years -= 1;
-                months += 12;
-            }
-
-            let durationText = [];
-            if (years > 0) durationText.push(`${years} ${years === 1 ? 'Year' : 'Years'}`);
-            if (months > 0) durationText.push(`${months} ${months === 1 ? 'Month' : 'Months'}`);
-            if (days > 0) durationText.push(`${days} ${days === 1 ? 'Day' : 'Days'}`);
-
-            if (durationText.length === 0) {
-                durationText.push('1 Day');
-            }
-
-            displayElement.innerText = `${durationText.join(', ')} (${totalDays} Days total)`;
-            displayElement.className = 'font-extrabold text-cyan-300';
-        }
-
-        // AUTO-CALCULATE AMOUNT DUE
-        function calculateAmountDue() {
-            const rent = parseFloat(document.getElementById('tenant-rent').value || 0);
-            const paid = parseFloat(document.getElementById('tenant-paid').value || 0);
-            const due = Math.max(0, rent - paid);
-            document.getElementById('tenant-due-display').innerText = `TZS ${due.toLocaleString()}`;
-        }
-
-        // LOAD PROPERTIES & UNITS DYNAMICALLY
-        async function populateTenantPropertyDropdown() {
-            try {
-                const token = localStorage.getItem('keyarch_token');
-                const res = await fetch('/api/properties', { headers: { 'Authorization': `Bearer ${token}` } });
-                const props = await res.json();
-                const select = document.getElementById('tenant-property-id');
-                select.innerHTML = '<option value="">-- Select Property --</option>';
-                props.forEach(p => {
-                    select.innerHTML += `<option value="${p.property_id}">${p.property_name}</option>`;
-                });
-            } catch (err) { console.error('Error loading properties:', err); }
-        }
-
-        async function loadPropertyUnits(propertyId) {
-            const select = document.getElementById('tenant-unit-id');
-            if (!propertyId) {
-                select.innerHTML = '<option value="">-- Select Property First --</option>';
-                return;
-            }
-            try {
-                const token = localStorage.getItem('keyarch_token');
-                const res = await fetch(`/api/units/by-property/${propertyId}`, { headers: { 'Authorization': `Bearer ${token}` } });
-                const units = await res.json();
-                select.innerHTML = '<option value="">-- Select Vacant Unit --</option>';
-                units.forEach(u => {
-                    select.innerHTML += `<option value="${u.unit_id}">${u.unit_number} (TZS ${parseFloat(u.rent_amount).toLocaleString()})</option>`;
-                });
-            } catch (err) { console.error('Error loading units:', err); }
-        }
-
-        // TENANT SUBMISSION & AUTO INVOICE STAGE 2
-        async function handleTenantSubmit(e) {
-            e.preventDefault();
-            const payload = {
-                full_name: document.getElementById('tenant-full-name').value,
-                nida_passport_no: document.getElementById('tenant-nida').value,
-                phone_number: document.getElementById('tenant-phone').value,
-                property_id: document.getElementById('tenant-property-id').value,
-                unit_id: document.getElementById('tenant-unit-id').value,
-                start_date: document.getElementById('tenant-start-date').value,
-                end_date: document.getElementById('tenant-end-date').value,
-                agreed_rent: document.getElementById('tenant-rent').value,
-                paid_amount: document.getElementById('tenant-paid').value
-            };
-
-            try {
-                const token = localStorage.getItem('keyarch_token');
-                const res = await fetch('/api/tenants/onboard', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error);
-
-                closeModal('modal-tenant');
-                document.getElementById('form-tenant-onboard').reset();
-                calculateAmountDue();
-                calculateLeasePeriod();
-                loadAllData();
-
-                if (data.invoice) {
-                    showInvoiceModal(data.invoice.invoice_id);
-                }
-            } catch (err) {
-                alert('Onboarding Error: ' + err.message);
-            }
-        }
-
-        async function showInvoiceModal(invoiceId) {
-            try {
-                const token = localStorage.getItem('keyarch_token');
-                const res = await fetch(`/api/invoices/${invoiceId}/print`, { headers: { 'Authorization': `Bearer ${token}` } });
-                const inv = await res.json();
-
-                document.getElementById('inv-company-name').innerText = inv.company_name;
-                document.getElementById('inv-number').innerText = inv.invoice_number;
-                document.getElementById('inv-date').innerText = `Date: ${new Date(inv.created_at).toLocaleDateString()}`;
-                document.getElementById('inv-status-badge').innerText = inv.status;
-
-                document.getElementById('inv-tenant-name').innerText = inv.tenant_name;
-                document.getElementById('inv-tenant-phone').innerText = inv.tenant_phone;
-                document.getElementById('inv-tenant-nida').innerText = `NIDA/Pass: ${inv.nida_passport_no}`;
-
-                document.getElementById('inv-property-name').innerText = inv.property_name;
-                document.getElementById('inv-unit-number').innerText = `Unit: ${inv.unit_number}`;
-                document.getElementById('inv-lease-period').innerText = `Period: ${inv.start_date.split('T')[0]} to ${inv.end_date.split('T')[0]}`;
-
-                document.getElementById('inv-table-agreed').innerText = `TZS ${parseFloat(inv.agreed_rent).toLocaleString()}`;
-                document.getElementById('inv-table-paid').innerText = `TZS ${parseFloat(inv.paid_amount).toLocaleString()}`;
-                document.getElementById('inv-table-due').innerText = `TZS ${parseFloat(inv.remaining_due).toLocaleString()}`;
-
-                openModal('modal-invoice-print');
-            } catch (err) {
-                alert('Error loading invoice: ' + err.message);
-            }
-        }
-
-        function filterTenants(query) {
-            const q = query.toLowerCase();
-            const filtered = currentTenantsList.filter(t => 
-                t.full_name.toLowerCase().includes(q) || 
-                t.property_name.toLowerCase().includes(q) ||
-                t.unit_number.toLowerCase().includes(q)
-            );
-            renderTenantsTable(filtered);
-        }
-
-        function renderTenantsTable(tenants) {
-            const tbody = document.getElementById('tenants-table-body');
-            if (!tbody) return;
-
-            const currentUser = JSON.parse(localStorage.getItem('keyarch_user') || '{}');
-            const canEdit = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'COMPANY_ADMIN' || currentUser.can_edit_tenants;
-
-            if (tenants.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">No matching tenants found.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = tenants.map(t => `
-                <tr class="hover:bg-[#14223d]/50 border-b border-[#182848] text-xs">
-                    <td class="p-3 font-bold text-white">${t.full_name}<br><span class="text-gray-400 font-normal">${t.phone_number}</span></td>
-                    <td class="p-3 text-cyan-300 font-semibold">${t.property_name} (${t.unit_number})</td>
-                    <td class="p-3 font-bold text-gray-200">TZS ${parseFloat(t.agreed_rent).toLocaleString()}</td>
-                    <td class="p-3 font-bold text-emerald-400">TZS ${parseFloat(t.amount_paid).toLocaleString()}</td>
-                    <td class="p-3 font-bold text-rose-400">TZS ${parseFloat(t.amount_due).toLocaleString()}</td>
-                    <td class="p-3 text-gray-400">${new Date(t.end_date).toLocaleDateString()}</td>
-                    <td class="p-3">
-                        ${canEdit ? `<button onclick="editTenantPrompt(${t.tenant_id})" class="px-2.5 py-1 bg-amber-600/30 text-amber-300 border border-amber-500/50 font-bold rounded hover:bg-amber-600 hover:text-white transition">Edit</button>` : `<span class="text-gray-500 italic">View Only</span>`}
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function addGroupCard() {
-            groupCounter++;
-            const container = document.getElementById('groups-container');
-            const cardId = `group-card-${groupCounter}`;
-
-            const cardHTML = `
-                <div id="${cardId}" class="group-card bg-[#0e1930] border border-[#1d325c] rounded-2xl p-4 space-y-3 relative" data-group-id="${groupCounter}">
-                    <div class="flex justify-between items-center border-b border-[#182848] pb-2">
-                        <h4 class="text-xs font-bold text-white uppercase tracking-wider group-title">${selectedPropertyType} Group ${groupCounter}</h4>
-                        ${groupCounter > 1 ? `<button type="button" onclick="removeGroupCard('${cardId}')" class="text-red-400 hover:text-red-300 text-xs flex items-center gap-1"><i class="fa-solid fa-trash-can"></i> Remove Group</button>` : ''}
-                    </div>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Group Name *</label>
-                            <input type="text" class="grp-name w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="Group ${groupCounter}" required>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Units in Group *</label>
-                            <input type="number" class="grp-units w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="1" min="1" required>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-[11px] font-semibold text-gray-300 mb-1">Bedrooms</label>
-                                <input type="number" class="grp-bedrooms w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="1" min="0">
-                            </div>
-                            <div>
-                                <label class="block text-[11px] font-semibold text-gray-300 mb-1">Bathrooms</label>
-                                <input type="number" class="grp-bathrooms w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="1" min="0">
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Rent Timeline *</label>
-                            <div class="grid grid-cols-4 gap-1.5 grp-timeline-btn-group">
-                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Per Day" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Per Day</button>
-                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Per Week" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Per Week</button>
-                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Per Month" class="badge-btn active-badge py-2 text-[10px] font-bold rounded-xl bg-blue-600 text-white border border-blue-500">Per Month</button>
-                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Per Year" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Per Year</button>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Currency *</label>
-                            <div class="grid grid-cols-4 gap-1.5 grp-currency-btn-group">
-                                <button type="button" onclick="selectBadgeInCard(this)" data-val="USD" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">USD</button>
-                                <button type="button" onclick="selectBadgeInCard(this)" data-val="TSH" class="badge-btn active-badge py-2 text-[10px] font-bold rounded-xl bg-blue-600 text-white border border-blue-500">TSH</button>
-                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Euro" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Euro</button>
-                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Pound" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Pound</button>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Rent Amount *</label>
-                            <input type="number" class="grp-rent-amount w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" placeholder="0" required>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Payment Method *</label>
-                            <div class="grid grid-cols-3 gap-2 grp-payment-btn-group">
-                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Mobile Money" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Mobile Money</button>
-                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Bank" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Bank</button>
-                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Cash" class="badge-btn active-badge py-2 text-[10px] font-bold rounded-xl bg-blue-600 text-white border border-blue-500">Cash</button>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Furnishing Status</label>
-                            <div class="grid grid-cols-2 gap-2 grp-furnishing-btn-group">
-                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Unfurnished" class="badge-btn active-badge py-2.5 text-xs font-bold rounded-xl bg-blue-600 text-white border border-blue-500 flex items-center justify-center gap-1.5"><i class="fa-solid fa-house"></i> Unfurnished</button>
-                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Furnished" class="badge-btn py-2.5 text-xs font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863] flex items-center justify-center gap-1.5"><i class="fa-solid fa-couch"></i> Furnished</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', cardHTML);
-        }
-
-        function removeGroupCard(cardId) {
-            const card = document.getElementById(cardId);
-            if (card) card.remove();
-        }
-
-        function selectType(type) {
-            selectedPropertyType = type;
-            document.querySelectorAll('#wiz-prop-type-group .type-btn').forEach(btn => {
-                btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-500');
-                btn.classList.add('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
-            });
-            event.currentTarget.classList.remove('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
-            event.currentTarget.classList.add('bg-blue-600', 'text-white', 'border-blue-500');
-            
-            document.querySelectorAll('.group-title').forEach((title, idx) => {
-                title.innerText = `${type} Group ${idx + 1}`;
-            });
-        }
-
-        function selectBadgeInCard(element) {
-            const parentGroup = element.parentElement;
-            parentGroup.querySelectorAll('.badge-btn').forEach(btn => {
-                btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-500', 'active-badge');
-                btn.classList.add('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
-            });
-            element.classList.remove('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
-            element.classList.add('bg-blue-600', 'text-white', 'border-blue-500', 'active-badge');
-        }
-
-        async function collectAndSubmitWizard(e) {
-            e.preventDefault();
-
-            const groupCards = document.querySelectorAll('.group-card');
-            const collectedGroups = [];
-            let calculatedTotalUnits = 0;
-
-            groupCards.forEach(card => {
-                const name = card.querySelector('.grp-name').value;
-                const units = parseInt(card.querySelector('.grp-units').value) || 1;
-                const bedrooms = parseInt(card.querySelector('.grp-bedrooms').value) || 0;
-                const bathrooms = parseInt(card.querySelector('.grp-bathrooms').value) || 0;
-                const rentAmount = parseFloat(card.querySelector('.grp-rent-amount').value) || 0;
-
-                const timeline = card.querySelector('.grp-timeline-btn-group .active-badge')?.getAttribute('data-val') || 'Per Month';
-                const currency = card.querySelector('.grp-currency-btn-group .active-badge')?.getAttribute('data-val') || 'TSH';
-                const payment = card.querySelector('.grp-payment-btn-group .active-badge')?.getAttribute('data-val') || 'Cash';
-                const furnishing = card.querySelector('.grp-furnishing-btn-group .active-badge')?.getAttribute('data-val') || 'Unfurnished';
-
-                calculatedTotalUnits += units;
-
-                collectedGroups.push({
-                    group_name: name,
-                    units_in_group: units,
-                    bedrooms: bedrooms,
-                    bathrooms: bathrooms,
-                    rent_timeline: timeline,
-                    currency: currency,
-                    rent_amount: rentAmount,
-                    payment_method: payment,
-                    furnishing_status: furnishing
-                });
-            });
-
-            const payload = {
-                property_name: document.getElementById('wiz-prop-name').value,
-                address: document.getElementById('wiz-address').value,
-                property_type: selectedPropertyType,
-                number_of_units: calculatedTotalUnits,
-                groups: collectedGroups
-            };
-
-            const token = localStorage.getItem('keyarch_token');
-            const res = await fetch('/api/properties/wizard', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                alert(`Property "${payload.property_name}" and all ${calculatedTotalUnits} units saved successfully!`);
-                closeModal('modal-property-wizard');
-                document.getElementById('form-property-wizard').reset();
-                document.getElementById('groups-container').innerHTML = '';
-                groupCounter = 0;
-                addGroupCard();
-                loadAllData();
-            } else {
-                const data = await res.json();
-                alert('Failed: ' + (data.error || 'Server error'));
-            }
-        }
-
-        function switchAuthTab(type) {
-            const loginForm = document.getElementById('form-login');
-            const regForm = document.getElementById('form-portal-register');
-            const tabLogin = document.getElementById('tab-auth-login');
-            const tabReg = document.getElementById('tab-auth-register');
-
-            if (type === 'login') {
-                loginForm.classList.remove('hidden');
-                regForm.classList.add('hidden');
-                tabLogin.classList.add('bg-blue-600', 'text-white');
-                tabLogin.classList.remove('text-gray-400');
-                tabReg.classList.remove('bg-blue-600', 'text-white');
-                tabReg.classList.add('text-gray-400');
-            } else {
-                loginForm.classList.add('hidden');
-                regForm.classList.remove('hidden');
-                tabReg.classList.add('bg-blue-600', 'text-white');
-                tabReg.classList.remove('text-gray-400');
-                tabLogin.classList.remove('bg-blue-600', 'text-white');
-                tabLogin.classList.add('text-gray-400');
-            }
-        }
-
-        async function sendPost(url, bodyData, modalId, formId) {
-            const token = localStorage.getItem('keyarch_token');
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(bodyData)
-            });
-            if (res.ok) {
-                if(formId) document.getElementById(formId).reset();
-                closeModal(modalId);
-                loadAllData();
-                alert('Action completed successfully.');
-            } else {
-                const data = await res.json();
-                alert('Failed: ' + (data.error || 'Server error'));
-            }
-        }
-
-        function copyLukuToken() {
-            navigator.clipboard.writeText(document.getElementById('res-token').innerText);
-            alert('Token copied!');
-        }
-
-        function showAppView() {
-            document.getElementById('view-login').style.display = 'none';
-            document.getElementById('view-app').style.display = 'flex';
-            
-            const user = JSON.parse(localStorage.getItem('keyarch_user') || '{}');
-            document.getElementById('user-role-badge').innerText = user.role || 'COMPANY_ADMIN';
-            document.getElementById('user-company-display').innerText = user.company_name || 'Hugo Tech';
-            document.getElementById('user-name-display').innerText = '• ' + (user.full_name || '');
-
-            if (user.role === 'SUPER_ADMIN' || user.role === 'COMPANY_ADMIN') {
-                document.getElementById('btn-admin-register').style.display = 'inline-block';
-            } else {
-                document.getElementById('btn-admin-register').style.display = 'none';
-            }
-
-            loadAllData();
-        }
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(el => {
-                el.classList.remove('border-b-2', 'border-blue-500', 'text-blue-400');
-                el.classList.add('text-gray-400');
-            });
-
-            document.getElementById(tabId).classList.remove('hidden');
-            const activeBtn = document.getElementById('btn-' + tabId);
-            if(activeBtn) {
-                activeBtn.classList.add('border-b-2', 'border-blue-500', 'text-blue-400');
-                activeBtn.classList.remove('text-gray-400');
-            }
-        }
-
-        function loadAllData() {
-            loadDashboardMetrics();
-            loadReminders();
-            loadDropdowns();
-            populateTenantPropertyDropdown();
-            loadTablesData();
-        }
-
-        async function loadDashboardMetrics() {
-            const token = localStorage.getItem('keyarch_token');
-            const res = await fetch('/api/dashboard/metrics', { headers: { 'Authorization': `Bearer ${token}` } });
-            if (res.ok) {
-                const data = await res.json();
-                document.getElementById('stat-properties').innerText = data.totalProperties || 0;
-                document.getElementById('stat-units').innerText = data.totalUnits || 0;
-                document.getElementById('stat-occupancy').innerText = (data.occupancyRate || 0) + '%';
-                document.getElementById('stat-tenants').innerText = data.activeTenants || 0;
-                document.getElementById('stat-tickets').innerText = data.pendingTickets || 0;
-                document.getElementById('stat-income').innerText = 'TZS ' + (data.monthlyIncome || 0).toLocaleString();
-                document.getElementById('stat-profit').innerText = 'TZS ' + (data.netProfit || 0).toLocaleString();
-            }
-        }
-
-        async function loadReminders() {
-            const token = localStorage.getItem('keyarch_token');
-            const res = await fetch('/api/dashboard/reminders', { headers: { 'Authorization': `Bearer ${token}` } });
-            if (res.ok) {
-                const data = await res.json();
-                document.getElementById('rem-expired').innerText = data.expired || 0;
-                document.getElementById('rem-week').innerText = data.dueThisWeek || 0;
-                document.getElementById('rem-month').innerText = data.dueThisMonth || 0;
-            }
-        }
-
-        async function loadDropdowns() {
-            const token = localStorage.getItem('keyarch_token');
-            const headers = { 'Authorization': `Bearer ${token}` };
-            
-            const propSelect = document.getElementById('unit-prop-id');
-            if (propSelect) {
-                const propRes = await fetch('/api/properties', { headers });
-                if (propRes.ok) {
-                    const props = await propRes.json();
-                    propSelect.innerHTML = props.map(p => `<option value="${p.property_id}">${p.property_name}</option>`).join('');
-                }
-            }
-            
-            const unitRes = await fetch('/api/units', { headers });
-            if (unitRes.ok) {
-                const units = await unitRes.json();
-                const tktUnitSelect = document.getElementById('tkt-unit-id');
-                if (tktUnitSelect) {
-                    tktUnitSelect.innerHTML = units.map(u => `<option value="${u.unit_id}">${u.property_name} - ${u.unit_number}</option>`).join('');
-                }
-            }
-
-            const leaseSelect = document.getElementById('inv-lease-id');
-            if (leaseSelect) {
-                const leaseRes = await fetch('/api/leases', { headers });
-                if (leaseRes.ok) {
-                    const leases = await leaseRes.json();
-                    const activeLeases = leases.filter(l => l.status === 'ACTIVE');
-                    leaseSelect.innerHTML = activeLeases.map(l => `<option value="${l.lease_id}">${l.tenant_name} (${l.unit_number})</option>`).join('');
-                }
-            }
-        }
-
-        async function loadTablesData() {
-            const token = localStorage.getItem('keyarch_token');
-            const headers = { 'Authorization': `Bearer ${token}` };
-
-            // LOAD PROPERTIES
-            const propRes = await fetch('/api/properties', { headers });
-            if(propRes.ok) {
-                const props = await propRes.json();
-                const tbody = document.getElementById('table-properties-body');
-                if(props.length > 0) {
-                    tbody.innerHTML = props.map(p => `
-                        <tr class="hover:bg-[#14223d]/50">
-                            <td class="p-3 font-mono text-gray-400">#${p.property_id}</td>
-                            <td class="p-3 font-bold text-white">${p.property_name}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-blue-900/40 text-blue-300 border border-blue-500/30">${p.category}</span></td>
-                            <td class="p-3 text-gray-400">${p.address}</td>
-                            <td class="p-3 font-bold text-cyan-400">${p.total_units_count || 0}</td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-500">No properties registered under your company yet.</td></tr>`;
-                }
-            }
-
-            // LOAD TENANTS
-            const tenRes = await fetch('/api/tenants', { headers });
-            if(tenRes.ok) {
-                currentTenantsList = await tenRes.json();
-                renderTenantsTable(currentTenantsList);
-            }
-
-            // LOAD INVOICES
-            const invRes = await fetch('/api/invoices', { headers });
-            if(invRes.ok) {
-                const invoices = await invRes.json();
-                const tbody = document.getElementById('table-invoices-body');
-                if(invoices.length > 0) {
-                    tbody.innerHTML = invoices.map(i => `
-                        <tr class="hover:bg-[#14223d]/50 border-b border-[#182848]">
-                            <td class="p-3 font-mono font-bold text-purple-400">${i.invoice_number}</td>
-                            <td class="p-3 font-bold text-white">${i.tenant_name}</td>
-                            <td class="p-3 font-bold text-emerald-400">TZS ${parseFloat(i.amount_due).toLocaleString()}</td>
-                            <td class="p-3 text-gray-400">${new Date(i.due_date).toLocaleDateString()}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] ${i.status === 'PAID' ? 'bg-emerald-900/40 text-emerald-300 border border-emerald-500/30' : 'bg-amber-900/40 text-amber-300 border border-amber-500/30'}">${i.status}</span></td>
-                            <td class="p-3">
-                                <button onclick="showInvoiceModal(${i.invoice_id})" class="px-2.5 py-1 bg-cyan-600/30 text-cyan-300 border border-cyan-500/50 rounded font-bold hover:bg-cyan-600 hover:text-white transition flex items-center gap-1"><i class="fa-solid fa-print"></i> Print</button>
-                            </td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No invoices issued yet.</td></tr>`;
-                }
-            }
-
-            // LOAD TICKETS
-            const tktRes = await fetch('/api/tickets', { headers });
-            if(tktRes.ok) {
-                const tickets = await tktRes.json();
-                const tbody = document.getElementById('table-tickets-body');
-                if(tickets.length > 0) {
-                    tbody.innerHTML = tickets.map(t => `
-                        <tr class="hover:bg-[#14223d]/50">
-                            <td class="p-3 font-mono text-gray-400">#${t.ticket_id}</td>
-                            <td class="p-3 font-bold text-white">${t.title}</td>
-                            <td class="p-3">Unit ${t.unit_number || 'N/A'}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-orange-900/40 text-orange-300 border border-orange-500/30">${t.priority}</span></td>
-                            <td class="p-3 text-gray-400">${t.technician_name || 'Unassigned'}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-blue-900/40 text-blue-300 border border-blue-500/30">${t.status}</span></td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No work orders recorded yet.</td></tr>`;
-                }
-            }
-        }
-
-        function logout() {
-            localStorage.removeItem('keyarch_token');
-            localStorage.removeItem('keyarch_user');
-            window.location.reload();
-        }
-
-        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-    </script>
-</body>
-</html>
+                    document.getElementById('form
