@@ -1041,6 +1041,7 @@
                         <option value="Cash">Cash</option>
                         <option value="Mobile Money">Mobile Money</option>
                         <option value="Bank">Bank</option>
+                        <option value="Cheque">Cheque</option>
                     </select>
                 </div>
                 <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Payment</button>
@@ -1745,7 +1746,6 @@
                 document.getElementById('inv-company-name').innerText = inv.company_name;
                 document.getElementById('inv-number').innerText = inv.invoice_number;
                 document.getElementById('inv-date').innerText = `Date: ${new Date(inv.created_at).toLocaleDateString()}`;
-                document.getElementById('inv-status-badge').innerText = inv.status;
 
                 document.getElementById('inv-tenant-name').innerText = inv.tenant_name;
                 document.getElementById('inv-tenant-phone').innerText = inv.tenant_phone;
@@ -1764,6 +1764,12 @@
                 const totalToPay = Number(inv.total_to_pay ?? (totalRent - discount));
                 const paid = Number(inv.paid_amount ?? 0);
                 const balance = totalToPay - paid;
+
+                const statusTxt = balance <= 0 ? 'PAID' : (paid > 0 ? 'PARTIAL' : 'UNPAID');
+                const badge = document.getElementById('inv-status-badge');
+                badge.innerText = statusTxt;
+                badge.className = 'px-3 py-1 rounded-full text-xs font-extrabold uppercase ' +
+                    (statusTxt === 'PAID' ? 'bg-emerald-100 text-emerald-800' : (statusTxt === 'PARTIAL' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'));
 
                 let rentDescription = 'Rent';
                 if (inv.rent_price && inv.number_of_periods && inv.rent_period) {
@@ -2988,7 +2994,7 @@
         // ============================================================
         // VERSIONS + DATABASE SETUP CHECK
         // ============================================================
-        const PAGE_VERSION = 'v4 - 2026-11-05 - plans, platform admin, setup check';
+        const PAGE_VERSION = 'v5 - 2026-11-05 - safer lease and payment rules';
 
         async function checkVersions() {
             let serverVersion = 'unknown (old server.js?)';
