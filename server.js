@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -382,7 +383,7 @@ async function checkLimit(user, limitKey, countSql, what) {
 // Every step runs on its own: one problem never stops the others.
 // The Super Admin can also run it from Platform Admin > Run Database Setup.
 // ============================================================
-const SERVER_VERSION = 'v6 - 2026-11-05 - receipts, reports, service charges, users';
+const SERVER_VERSION = 'v7 - 2026-11-05 - new look, maintenance, logo, PDF invoices';
 
 const SETUP_STEPS = [
     { name: "Base columns (leases, users)", sql: `
@@ -524,6 +525,20 @@ const SETUP_STEPS = [
         ALTER TABLE companies ADD COLUMN IF NOT EXISTS fy_start_month INTEGER DEFAULT 1;
         ALTER TABLE companies ADD COLUMN IF NOT EXISTS payment_instructions TEXT;
         ALTER TABLE companies ADD COLUMN IF NOT EXISTS luku_low_threshold INTEGER DEFAULT 5
+    ` },
+    { name: "Company logo", sql: `
+        ALTER TABLE companies ADD COLUMN IF NOT EXISTS logo_data TEXT
+    ` },
+    { name: "Password reset links", sql: `
+        CREATE TABLE IF NOT EXISTS password_resets (
+            reset_id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            token_hash TEXT NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            used_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_password_resets_hash ON password_resets (token_hash)
     ` },
     { name: "Allow VIEWER role", sql: `
         DO $$
@@ -815,6 +830,82 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     } catch (err) {
         console.error('Login Error:', err);
         res.status(500).json({ error: 'Server error during login: ' + err.message });
+    }
+});
+
+
+// ============================================================
+// FORGOT PASSWORD: a reset link is sent to the user's email
+// Needs these Railway variables (Gmail example):
+//   SMTP_HOST=smtp.gmail.com   SMTP_PORT=465   SMTP_USER=youraddress@gmail.com
+//   SMTP_PASS=<Gmail "App password">   SMTP_FROM="KEY ARCH ERP <youraddress@gmail.com>"
+//   APP_URL=https://your-app.up.railway.app   (optional, the link of your system)
+// ============================================================
+const forgotLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, max: 5,
+    message: { error: 'Too many requests. Please try again after 15 minutes.' }
+});
+
+function mailConfigured() { return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS); }
+
+async function sendMail(to, subject, text, html) {
+    const nodemailer = loadOptional('nodemailer');
+    const port = parseInt(process.env.SMTP_PORT) || 465;
+    const transport = nodemailer.createTransport({
+        host: process.env.SMTP_HOST, port, secure: port === 465,
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    });
+    await transport.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to, subject, text, html });
+}
+
+app.post('/api/auth/forgot', forgotLimiter, async (req, res) => {
+    // same answer whether or not the email exists, so nobody can test which emails are registered
+    const generic = { message: 'If this email is registered, a password reset link has been sent. Check your inbox (and Spam). The link works for 1 hour.' };
+    try {
+        const email = String((req.body || {}).email || '').trim().toLowerCase();
+        if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
+        const u = (await pool.query('SELECT user_id, full_name, email, is_active FROM users WHERE LOWER(email) = $1', [email])).rows[0];
+        if (!u || !u.is_active) return res.json(generic);
+        if (!mailConfigured()) {
+            console.error('Forgot password: email is not set up. Add SMTP_HOST, SMTP_USER and SMTP_PASS in Railway Variables.');
+            return res.status(503).json({ error: 'Email sending is not set up yet. Please contact HUGO TECH on WhatsApp +255 785 799 530 to reset your password.' });
+        }
+        const token = crypto.randomBytes(32).toString('hex');
+        const hash = crypto.createHash('sha256').update(token).digest('hex');
+        await pool.query('UPDATE password_resets SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL', [u.user_id]);
+        await pool.query("INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES ($1, $2, NOW() + interval '1 hour')", [u.user_id, hash]);
+        const host = String(req.headers.host || '');
+        const proto = String(req.headers['x-forwarded-proto'] || (/^localhost|^127\./.test(host) ? 'http' : 'https')).split(',')[0];
+        const base = (process.env.APP_URL || `${proto}://${host}`).replace(/\/+$/, '');
+        const link = `${base}/?reset=${token}`;
+        const text = `Habari ${u.full_name},\n\nTumepokea ombi la kubadilisha password ya KEY ARCH ERP.\nBonyeza link hii kuweka password mpya (inafanya kazi kwa saa 1):\n${link}\n\nUsipoomba wewe, puuza ujumbe huu - password yako haitabadilika.\n\n---\nHello ${u.full_name},\nWe received a request to reset your KEY ARCH ERP password. Open this link to choose a new one (valid for 1 hour):\n${link}\nIf you did not ask for this, ignore this email.\n\nHUGO TECH`;
+        const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#222"><h2 style="color:#1d4ed8">KEY ARCH ERP</h2><p>Habari <b>${String(u.full_name).replace(/[<>&"]/g, '')}</b>,</p><p>Tumepokea ombi la kubadilisha password yako. Bonyeza kitufe hapa chini kuweka password mpya (inafanya kazi kwa <b>saa 1</b>).</p><p style="text-align:center;margin:24px 0"><a href="${link}" style="background:#2563eb;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Weka Password Mpya</a></p><p style="font-size:12px;color:#666">Kama kitufe hakifanyi kazi, nakili link hii kwenye browser:<br>${link}</p><p style="font-size:12px;color:#666">Usipoomba wewe, puuza ujumbe huu - password yako haitabadilika.</p><hr><p style="font-size:12px;color:#666">Hello, we received a request to reset your password. If it was not you, ignore this email.<br>HUGO TECH</p></div>`;
+        await sendMail(u.email, 'KEY ARCH ERP - Password Reset / Weka Password Mpya', text, html);
+        await createAuditLog(pool, null, u.user_id, 'Password reset requested', 'AUTH', req.ip, {});
+        res.json(generic);
+    } catch (err) {
+        console.error('Forgot password error:', err.message);
+        res.status(500).json({ error: err.code === 'MISSING_PACKAGE' ? 'Email sending is not installed on the server yet (add nodemailer). Contact HUGO TECH.' : 'The email could not be sent. Please try again later or contact HUGO TECH.' });
+    }
+});
+
+app.post('/api/auth/reset', forgotLimiter, async (req, res) => {
+    try {
+        const { token, password } = req.body || {};
+        if (!token || !/^[a-f0-9]{64}$/.test(String(token))) return res.status(400).json({ error: 'This reset link is not valid.' });
+        if (!password || String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+        const hash = crypto.createHash('sha256').update(String(token)).digest('hex');
+        const row = (await pool.query('SELECT reset_id, user_id FROM password_resets WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()', [hash])).rows[0];
+        if (!row) return res.status(400).json({ error: 'This reset link has expired or was already used. Please ask for a new one.' });
+        const newHash = await bcrypt.hash(String(password), 10);
+        await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [newHash, row.user_id]);
+        await pool.query('UPDATE password_resets SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL', [row.user_id]);
+        clearUserCache(row.user_id);
+        await createAuditLog(pool, null, row.user_id, 'Password reset completed', 'AUTH', req.ip, {});
+        res.json({ message: 'Your password has been changed. You can sign in now.' });
+    } catch (err) {
+        console.error('Reset password error:', err.message);
+        res.status(500).json({ error: 'Could not reset the password. Please try again.' });
     }
 });
 
@@ -1466,6 +1557,8 @@ app.post('/api/auth/register-company', registerLimiter, async (req, res) => {
         return res.status(400).json({ error: 'Please fill in all required fields.' });
     }
     if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    let logo;
+    try { logo = cleanLogo(req.body.logo_data); } catch (e) { return res.status(400).json({ error: e.message }); }
 
     const cleanEmail = String(email).trim().toLowerCase();
     let client;
@@ -1481,6 +1574,7 @@ app.post('/api/auth/register-company', registerLimiter, async (req, res) => {
             [String(company_name).trim()]
         );
         const companyId = comp.rows[0].company_id;
+        if (logo) await client.query('UPDATE companies SET logo_data = $1 WHERE company_id = $2', [logo, companyId]);
 
         const hashed = await bcrypt.hash(String(password), 10);
         await client.query(
@@ -1974,16 +2068,30 @@ app.get('/api/payments', authenticateToken, allowRoles(...R_VIEW_MONEY), wrapAsy
     res.json(rows);
 }));
 
-const COMPANY_PROFILE_SQL = `SELECT company_name, address, phone, email, tin, payment_instructions FROM companies WHERE company_id = $1`;
+const COMPANY_PROFILE_SQL = `SELECT company_name, address, phone, email, tin, payment_instructions, logo_data FROM companies WHERE company_id = $1`;
+
+// A logo is sent by the browser as a small PNG/JPEG data URL. Anything else is refused.
+function cleanLogo(v) {
+    if (v === undefined) return undefined;          // not sent: leave as it is
+    if (v === null || v === '') return null;        // removed
+    const str = String(v);
+    if (!/^data:image\/(png|jpeg|jpg);base64,[A-Za-z0-9+\/=]+$/.test(str)) { const e = new Error('The logo must be a PNG or JPG picture.'); e.status = 400; throw e; }
+    if (str.length > 600000) { const e = new Error('The logo is too big. Use a smaller picture.'); e.status = 400; throw e; }
+    return str;
+}
+function logoBuffer(dataUrl) {
+    if (!dataUrl) return null;
+    const m = /^data:image\/(?:png|jpeg|jpg);base64,(.+)$/.exec(String(dataUrl));
+    return m ? Buffer.from(m[1], 'base64') : null;
+}
 
 // THE RECEIPT OF ONE PAYMENT
-app.get('/api/payments/:id/receipt', authenticateToken, allowRoles(...R_VIEW_MONEY), wrapAsync(async (req, res) => {
-    const cId = req.user.company_id;
+async function getReceiptData(cId, payId) {
     let pay = (await pool.query(
         `SELECT py.*, u2.full_name AS received_by FROM payments py LEFT JOIN users u2 ON u2.user_id = py.recorded_by
-         WHERE py.payment_id = $1 AND py.company_id = $2`, [req.params.id, cId]
+         WHERE py.payment_id = $1 AND py.company_id = $2`, [payId, cId]
     )).rows[0];
-    if (!pay) return res.status(404).json({ error: 'Payment not found.' });
+    if (!pay) { const e = new Error('Payment not found.'); e.status = 404; throw e; }
 
     // old payments (made before receipts existed) get their number now
     if (!pay.receipt_number) {
@@ -2005,19 +2113,22 @@ app.get('/api/payments/:id/receipt', authenticateToken, allowRoles(...R_VIEW_MON
     )).rows[0].s);
     const company = (await pool.query(COMPANY_PROFILE_SQL, [cId])).rows[0];
     const total = parseFloat(inv.amount_due);
-    res.json({
+    return {
         receipt_number: pay.receipt_number, payment_id: pay.payment_id, payment_date: pay.payment_date,
         amount_paid: parseFloat(pay.amount_paid), amount_words: amountInWords(pay.amount_paid) + ' shillings only',
         method: pay.method_detail || pay.payment_method, reference: pay.reference_no, notes: pay.notes, received_by: pay.received_by,
         invoice: { invoice_id: inv.invoice_id, invoice_number: inv.invoice_number, invoice_type: inv.invoice_type, description: inv.description, total },
         paid_to_date: paidToDate, balance_after: Math.max(0, Math.round((total - paidToDate) * 100) / 100), extra_paid: Math.max(0, Math.round((paidToDate - total) * 100) / 100),
         tenant_name: inv.tenant_name, tenant_phone: inv.tenant_phone, unit_number: inv.unit_number, property_name: inv.property_name, company
-    });
-}));
+    };
+}
+app.get('/api/payments/:id/receipt', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
+    try { res.json(await getReceiptData(req.user.company_id, req.params.id)); }
+    catch (err) { if (!err.status) console.error('Receipt error:', err); res.status(err.status || 500).json({ error: err.message }); }
+});
 
 // FULL INVOICE FOR PRINTING (built from the invoice's own details)
-app.get('/api/invoices/:id/print', authenticateToken, allowRoles(...R_VIEW_MONEY), wrapAsync(async (req, res) => {
-    const cId = req.user.company_id;
+async function getInvoicePrintData(cId, invId) {
     const row = (await pool.query(
         `SELECT inv.*, l.start_date AS lease_start, l.end_date AS lease_end, l.rent_price, l.rent_period, l.number_of_periods, l.total_rent AS lease_total_rent,
                 COALESCE(l.discount, 0) AS lease_discount, COALESCE(l.total_to_pay, l.agreed_rent) AS lease_to_pay,
@@ -2028,9 +2139,9 @@ app.get('/api/invoices/:id/print', authenticateToken, allowRoles(...R_VIEW_MONEY
          JOIN tenants t ON l.tenant_id = t.tenant_id
          JOIN units u ON l.unit_id = u.unit_id
          JOIN properties p ON u.property_id = p.property_id
-         WHERE inv.invoice_id = $1 AND inv.company_id = $2`, [req.params.id, cId]
+         WHERE inv.invoice_id = $1 AND inv.company_id = $2`, [invId, cId]
     )).rows[0];
-    if (!row) return res.status(404).json({ error: 'Invoice not found.' });
+    if (!row) { const e = new Error('Invoice not found.'); e.status = 404; throw e; }
 
     const payments = (await pool.query(
         `SELECT payment_id, receipt_number, amount_paid, payment_date, payment_method, method_detail, reference_no
@@ -2048,7 +2159,7 @@ app.get('/api/invoices/:id/print', authenticateToken, allowRoles(...R_VIEW_MONEY
             : 'Rent charges';
     }
     const company = (await pool.query(COMPANY_PROFILE_SQL, [cId])).rows[0];
-    res.json({
+    return {
         invoice: {
             invoice_id: row.invoice_id, invoice_number: row.invoice_number, invoice_type: row.invoice_type || 'RENT', status: row.status,
             issue_date: row.issue_date || String(row.created_at).slice(0, 10), due_date: row.due_date, period_start: row.period_start, period_end: row.period_end,
@@ -2059,8 +2170,139 @@ app.get('/api/invoices/:id/print', authenticateToken, allowRoles(...R_VIEW_MONEY
         tenant: { name: row.tenant_name, phone: row.tenant_phone, id_type: row.identity_type, id_number: row.nida_passport_no },
         unit_number: row.unit_number, property_name: row.property_name, property_address: row.property_address,
         company
+    };
+}
+app.get('/api/invoices/:id/print', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
+    try { res.json(await getInvoicePrintData(req.user.company_id, req.params.id)); }
+    catch (err) { if (!err.status) console.error('Invoice print error:', err); res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// ---- PDF of one invoice / one receipt (logo + company details on top) ----
+function pdfHeader(doc, company, title, numberLine) {
+    const left = doc.page.margins.left, usable = doc.page.width - left - doc.page.margins.right;
+    let textX = left;
+    const logo = logoBuffer(company && company.logo_data);
+    if (logo) { try { doc.image(logo, left, 40, { fit: [70, 70] }); textX = left + 82; } catch (e) { /* bad picture: skip it */ } }
+    doc.fillColor('#111').font('Helvetica-Bold').fontSize(16).text((company && company.company_name) || '', textX, 42, { width: usable - 190 });
+    doc.font('Helvetica').fontSize(9).fillColor('#555');
+    [company && company.address, company && company.phone, company && company.email, company && company.tin ? 'TIN: ' + company.tin : ''].filter(Boolean)
+        .forEach(l => doc.text(String(l), textX, doc.y, { width: usable - 190 }));
+    doc.fillColor('#1F3A5F').font('Helvetica-Bold').fontSize(22).text(title, left, 42, { width: usable, align: 'right' });
+    doc.fillColor('#333').font('Helvetica').fontSize(10).text(numberLine, left, 70, { width: usable, align: 'right' });
+    doc.y = Math.max(doc.y, 125);
+    doc.moveTo(left, doc.y).lineTo(left + usable, doc.y).strokeColor('#1F3A5F').lineWidth(1.5).stroke();
+    doc.moveDown(0.8);
+}
+function pdfKV(doc, x, y, label, value, w) {
+    doc.fillColor('#777').font('Helvetica').fontSize(8).text(label.toUpperCase(), x, y, { width: w });
+    doc.fillColor('#111').font('Helvetica-Bold').fontSize(10).text(String(value === undefined || value === null || value === '' ? '-' : value), x, doc.y, { width: w });
+}
+function writeInvoicePdf(res, filename, d) {
+    const PDFDocument = loadOptional('pdfkit');
+    const doc = new PDFDocument({ size: 'A4', margin: 40 });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    doc.pipe(res);
+    const left = doc.page.margins.left, usable = doc.page.width - left - doc.page.margins.right;
+    const inv = d.invoice;
+    pdfHeader(doc, d.company, 'INVOICE', inv.invoice_number);
+    let y = doc.y;
+    const colW = usable / 3 - 8;
+    pdfKV(doc, left, y, 'Billed to', d.tenant.name, colW);
+    doc.fillColor('#555').font('Helvetica').fontSize(9).text(d.tenant.phone || '', left, doc.y, { width: colW });
+    pdfKV(doc, left + colW + 12, y, 'Property / unit', `${d.property_name} - ${d.unit_number}`, colW);
+    pdfKV(doc, left + 2 * (colW + 12), y, 'Issue date', niceDate(inv.issue_date), colW);
+    doc.fillColor('#777').font('Helvetica').fontSize(8).text('DUE DATE', left + 2 * (colW + 12), doc.y + 4, { width: colW });
+    doc.fillColor('#111').font('Helvetica-Bold').fontSize(10).text(inv.due_date ? niceDate(inv.due_date) : '-', left + 2 * (colW + 12), doc.y, { width: colW });
+    doc.y = Math.max(doc.y, y + 70) + 6;
+
+    // lines table
+    y = doc.y;
+    doc.save().rect(left, y, usable, 20).fill('#1F3A5F').restore();
+    doc.fillColor('#fff').font('Helvetica-Bold').fontSize(9).text('Description', left + 6, y + 6).text('Amount (TZS)', left, y + 6, { width: usable - 6, align: 'right' });
+    y += 24;
+    (d.lines || []).forEach(l => {
+        const h = doc.heightOfString(l.description || '', { width: usable - 140 });
+        doc.fillColor('#111').font('Helvetica').fontSize(10).text(l.description || '', left + 6, y, { width: usable - 140 });
+        doc.text(fmtMoney(l.amount), left, y, { width: usable - 6, align: 'right' });
+        y += Math.max(h, 14) + 8;
     });
-}));
+    doc.moveTo(left, y).lineTo(left + usable, y).strokeColor('#ccc').lineWidth(0.5).stroke();
+    y += 8;
+    const totalRow = (label, val, bold, color) => {
+        doc.fillColor(color || '#111').font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(bold ? 11 : 10)
+           .text(label, left + usable - 260, y, { width: 150 }).text(fmtMoney(val), left + usable - 110, y, { width: 104, align: 'right' });
+        y += bold ? 20 : 16;
+    };
+    if (inv.discount > 0) { totalRow('Subtotal', inv.subtotal); totalRow('Discount', -inv.discount); }
+    totalRow('Total', inv.total, true);
+    totalRow('Paid', inv.paid, false, '#166534');
+    totalRow('Balance due', inv.balance, true, inv.balance > 0 ? '#B91C1C' : '#166534');
+    doc.y = y + 8;
+
+    if (d.payments && d.payments.length) {
+        doc.fillColor('#111').font('Helvetica-Bold').fontSize(10).text('Payments received', left, doc.y);
+        doc.moveDown(0.3);
+        d.payments.forEach(p => doc.font('Helvetica').fontSize(9).fillColor('#333')
+            .text(`${niceDate(String(p.payment_date).slice(0, 10))}   ${p.receipt_number || ''}   ${p.method_detail || p.payment_method || ''}   TZS ${fmtMoney(p.amount_paid)}`, left, doc.y));
+        doc.moveDown(0.6);
+    }
+    if (d.company && d.company.payment_instructions) {
+        doc.fillColor('#111').font('Helvetica-Bold').fontSize(10).text('How to pay', left, doc.y);
+        doc.font('Helvetica').fontSize(9).fillColor('#333').text(String(d.company.payment_instructions), left, doc.y, { width: usable });
+        doc.moveDown(0.6);
+    }
+    if (inv.notes) { doc.font('Helvetica').fontSize(9).fillColor('#555').text('Notes: ' + inv.notes, left, doc.y, { width: usable }); }
+    doc.fillColor('#999').font('Helvetica').fontSize(8).text('Thank you for your business.   |   KEY ARCH ERP', left, doc.page.height - 60, { width: usable, align: 'center', lineBreak: false });
+    doc.end();
+}
+function writeReceiptPdf(res, filename, d) {
+    const PDFDocument = loadOptional('pdfkit');
+    const doc = new PDFDocument({ size: 'A4', margin: 40 });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    doc.pipe(res);
+    const left = doc.page.margins.left, usable = doc.page.width - left - doc.page.margins.right;
+    pdfHeader(doc, d.company, 'RECEIPT', d.receipt_number);
+    let y = doc.y;
+    const colW = usable / 2 - 8;
+    pdfKV(doc, left, y, 'Received from', d.tenant_name, colW);
+    pdfKV(doc, left + colW + 16, y, 'Date', niceDate(String(d.payment_date).slice(0, 10)), colW);
+    doc.y = y + 44; y = doc.y;
+    pdfKV(doc, left, y, 'Property / unit', `${d.property_name} - ${d.unit_number}`, colW);
+    pdfKV(doc, left + colW + 16, y, 'Payment method', d.method + (d.reference ? ' (' + d.reference + ')' : ''), colW);
+    doc.y = y + 44; y = doc.y;
+    pdfKV(doc, left, y, 'For invoice', `${d.invoice.invoice_number}${d.invoice.description ? ' - ' + d.invoice.description : ''}`, usable);
+    doc.y += 14; y = doc.y;
+    doc.save().roundedRect(left, y, usable, 54, 6).fill('#EEF3FA').restore();
+    doc.fillColor('#555').font('Helvetica').fontSize(9).text('AMOUNT RECEIVED', left + 14, y + 10);
+    doc.fillColor('#1F3A5F').font('Helvetica-Bold').fontSize(20).text('TZS ' + fmtMoney(d.amount_paid), left + 14, y + 24);
+    doc.y = y + 66;
+    doc.fillColor('#555').font('Helvetica').fontSize(9).text(d.amount_words || '', left, doc.y, { width: usable });
+    doc.moveDown(0.8);
+    y = doc.y;
+    const row = (l, v, color) => { doc.fillColor('#333').font('Helvetica').fontSize(10).text(l, left, y, { width: 200 });
+        doc.fillColor(color || '#111').font('Helvetica-Bold').text('TZS ' + fmtMoney(v), left, y, { width: usable, align: 'right' }); y += 18; };
+    row('Invoice total', d.invoice.total); row('Paid to date', d.paid_to_date, '#166534');
+    row('Balance remaining', d.balance_after, d.balance_after > 0 ? '#B91C1C' : '#166534');
+    if (d.extra_paid > 0) row('Extra paid (credit)', d.extra_paid);
+    doc.y = y + 10;
+    if (d.received_by) doc.fillColor('#555').font('Helvetica').fontSize(9).text('Received by: ' + d.received_by, left, doc.y);
+    doc.fillColor('#999').font('Helvetica').fontSize(8).text('This receipt confirms the payment above.   |   KEY ARCH ERP', left, doc.page.height - 60, { width: usable, align: 'center', lineBreak: false });
+    doc.end();
+}
+function pdfFail(res, err) {
+    if (!err.status) console.error('PDF error:', err);
+    if (!res.headersSent) res.status(err.status || (err.code === 'MISSING_PACKAGE' ? 501 : 500)).json({ error: err.message, code: err.code }); else res.end();
+}
+app.get('/api/invoices/:id/pdf', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
+    try { const d = await getInvoicePrintData(req.user.company_id, req.params.id); writeInvoicePdf(res, `${d.invoice.invoice_number}.pdf`, d); }
+    catch (err) { pdfFail(res, err); }
+});
+app.get('/api/payments/:id/receipt-pdf', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
+    try { const d = await getReceiptData(req.user.company_id, req.params.id); writeReceiptPdf(res, `${d.receipt_number}.pdf`, d); }
+    catch (err) { pdfFail(res, err); }
+});
 
 // ============================================================
 // DASHBOARD OVERVIEW (one call for the whole dashboard)
@@ -2166,6 +2408,12 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
         }).sort((a, b) => b.score - a.score);
 
         // optional parts (names of columns in your tables may differ, so they fail safely)
+        const workloadRows = await safeRows(
+            `SELECT tech.user_id, tech.full_name, COUNT(*) AS n, MAX(CURRENT_DATE - w.created_at::date) AS oldest
+             FROM work_orders w JOIN users tech ON tech.user_id = w.assigned_technician_id
+             WHERE tech.company_id = $1 AND w.status IN ('OPEN','IN_PROGRESS')
+             GROUP BY tech.user_id, tech.full_name ORDER BY n DESC`, [cId]
+        );
         const ticketRows = await safeRows(
             "SELECT COUNT(*) AS c FROM work_orders w LEFT JOIN units u ON w.unit_id = u.unit_id WHERE COALESCE(w.company_id, u.company_id) = $1 AND w.status IN ('OPEN','IN_PROGRESS')",
             [cId]
@@ -2228,7 +2476,7 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
             leases: { expired: parseInt(leaseRow.expired), week: parseInt(leaseRow.week), month: parseInt(leaseRow.month) },
             properties,
             debtors,
-            tickets: { pending: ticketRows ? parseInt(ticketRows[0].c) : null }
+            tickets: { pending: ticketRows ? parseInt(ticketRows[0].c) : null, workload: (workloadRows || []).map(r => ({ technician_id: r.user_id, technician: r.full_name, unfinished: parseInt(r.n), oldest_days: parseInt(r.oldest) || 0 })) }
         });
     } catch (err) {
         console.error('Overview Error:', err);
@@ -2242,7 +2490,7 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
 app.get('/api/company/profile', authenticateToken, wrapAsync(async (req, res) => {
     const r = await pool.query(
         `SELECT company_name, address, phone, email, tin, payment_instructions, COALESCE(fy_start_month, 1) AS fy_start_month,
-                COALESCE(luku_low_threshold, 5) AS luku_low_threshold
+                COALESCE(luku_low_threshold, 5) AS luku_low_threshold, logo_data
          FROM companies WHERE company_id = $1`, [req.user.company_id]
     );
     res.json(r.rows[0] || {});
@@ -2250,6 +2498,8 @@ app.get('/api/company/profile', authenticateToken, wrapAsync(async (req, res) =>
 
 app.put('/api/company/profile', authenticateToken, allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
     const { company_name, address, phone, email, tin, payment_instructions } = req.body;
+    let logo;
+    try { logo = cleanLogo(req.body.logo_data); } catch (e) { return res.status(400).json({ error: e.message }); }
     const fy = parseInt(req.body.fy_start_month);
     const low = parseInt(req.body.luku_low_threshold);
     if (!company_name || !String(company_name).trim()) return res.status(400).json({ error: 'Company name is required.' });
@@ -2261,6 +2511,7 @@ app.put('/api/company/profile', authenticateToken, allowRoles(...R_ADMIN), wrapA
         [String(company_name).trim(), address || null, phone || null, email || null, tin || null, payment_instructions || null,
          fy, low >= 0 ? low : 5, req.user.company_id]
     );
+    if (logo !== undefined) await pool.query('UPDATE companies SET logo_data = $1 WHERE company_id = $2', [logo, req.user.company_id]);
     clearAccessCache(req.user.company_id);
     await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Updated company profile', 'SETTINGS', req.ip, {});
     res.json({ message: 'Company details saved.' });
@@ -3055,6 +3306,73 @@ const REPORTS = {
                 ],
                 rows,
                 summary: [{ label: 'Income', value: sum(rows, 'income'), type: 'money' }, { label: 'Expenses', value: sum(rows, 'expenses'), type: 'money' }, { label: 'Profit', value: sum(rows, 'profit'), type: 'money' }]
+            };
+        }
+    },
+
+    property_income: {
+        label: 'Property income', description: 'Money collected by each property: rent, service charge and other', pro: null,
+        async run(c) {
+            const q = qb(c.cId), a = q.p(c.from), b = q.p(c.to), pr = c.propertyId ? q.p(c.propertyId) : null;
+            const rows = (await pool.query(
+                `SELECT COALESCE(p.property_name, p.title) AS property,
+                        COALESCE(SUM(CASE WHEN inv.invoice_type = 'RENT' THEN py.amount_paid END), 0) AS rent,
+                        COALESCE(SUM(CASE WHEN inv.invoice_type = 'SERVICE' THEN py.amount_paid END), 0) AS service,
+                        COALESCE(SUM(CASE WHEN inv.invoice_type NOT IN ('RENT','SERVICE') THEN py.amount_paid END), 0) AS other,
+                        COALESCE(SUM(py.amount_paid), 0) AS total, COUNT(py.payment_id) AS payments
+                 FROM properties p
+                 LEFT JOIN units u ON u.property_id = p.property_id
+                 LEFT JOIN leases l ON l.unit_id = u.unit_id
+                 LEFT JOIN invoices inv ON inv.lease_id = l.lease_id
+                 LEFT JOIN payments py ON py.invoice_id = inv.invoice_id AND py.company_id = $1 AND py.payment_date::date BETWEEN ${a} AND ${b}
+                 WHERE p.company_id = $1 ${pr ? `AND p.property_id = ${pr}` : ''}
+                 GROUP BY p.property_id, p.property_name, p.title ORDER BY total DESC, property`, q.params
+            )).rows.map(r => ({ ...r, payments: parseInt(r.payments) }));
+            return {
+                columns: [
+                    { key: 'property', label: 'Property', type: 'text' }, { key: 'rent', label: 'Rent', type: 'money', total: true },
+                    { key: 'service', label: 'Service charge', type: 'money', total: true }, { key: 'other', label: 'Other', type: 'money', total: true },
+                    { key: 'total', label: 'Total collected', type: 'money', total: true }, { key: 'payments', label: 'Payments', type: 'int', total: true }
+                ],
+                rows,
+                summary: [{ label: 'Total collected', value: sum(rows, 'total'), type: 'money' }, { label: 'Rent', value: sum(rows, 'rent'), type: 'money' },
+                          { label: 'Service charge', value: sum(rows, 'service'), type: 'money' }, { label: 'Other', value: sum(rows, 'other'), type: 'money' }]
+            };
+        }
+    },
+
+    maintenance: {
+        label: 'Maintenance', description: 'Repair tickets of the period: status, technician and cost', pro: 'tickets',
+        async run(c) {
+            const q = qb(c.cId), a = q.p(c.from), b = q.p(c.to), pr = c.propertyId ? q.p(c.propertyId) : null;
+            const raw = (await pool.query(
+                `SELECT to_char(w.created_at, 'YYYY-MM-DD') AS date, w.title, COALESCE(p.property_name, p.title, '') AS property, COALESCE(u.unit_number, '') AS unit,
+                        COALESCE(tech.full_name, 'Not assigned') AS technician, w.priority, w.status,
+                        COALESCE(w.estimated_cost, 0) AS estimated, COALESCE(w.actual_cost, 0) AS cost,
+                        (COALESCE(w.resolved_at, NOW())::date - w.created_at::date) AS days
+                 FROM work_orders w
+                 LEFT JOIN units u ON u.unit_id = w.unit_id
+                 LEFT JOIN properties p ON p.property_id = COALESCE(w.property_id, u.property_id)
+                 LEFT JOIN users tech ON tech.user_id = w.assigned_technician_id
+                 WHERE COALESCE(w.company_id, u.company_id) = $1 AND w.created_at::date BETWEEN ${a} AND ${b} ${pr ? `AND p.property_id = ${pr}` : ''}
+                 ORDER BY w.status, w.created_at DESC`, q.params
+            )).rows;
+            const label = { OPEN: 'Open', IN_PROGRESS: 'In progress', RESOLVED: 'Resolved', CANCELLED: 'Cancelled' };
+            const rows = raw.map(r => ({ ...r, status: label[r.status] || r.status, days: parseInt(r.days) || 0 }));
+            const cnt = s => rows.filter(r => r.status === s).length;
+            const byTech = {};
+            rows.filter(r => r.status === 'Open' || r.status === 'In progress').forEach(r => { byTech[r.technician] = (byTech[r.technician] || 0) + 1; });
+            return {
+                columns: [
+                    { key: 'date', label: 'Date', type: 'date' }, { key: 'title', label: 'Problem', type: 'text', wide: true }, { key: 'property', label: 'Property', type: 'text' },
+                    { key: 'unit', label: 'Unit', type: 'text' }, { key: 'technician', label: 'Technician', type: 'text' }, { key: 'priority', label: 'Priority', type: 'text' },
+                    { key: 'status', label: 'Status', type: 'text' }, { key: 'days', label: 'Days', type: 'int' }, { key: 'estimated', label: 'Estimated', type: 'money', total: true },
+                    { key: 'cost', label: 'Actual cost', type: 'money', total: true }
+                ],
+                rows,
+                summary: [{ label: 'Tickets', value: rows.length, type: 'int' }, { label: 'Open', value: cnt('Open'), type: 'int' }, { label: 'In progress', value: cnt('In progress'), type: 'int' },
+                          { label: 'Resolved', value: cnt('Resolved'), type: 'int' }, { label: 'Total cost', value: sum(rows, 'cost'), type: 'money' }]
+                    .concat(Object.keys(byTech).map(k => ({ label: 'Unfinished - ' + k, value: byTech[k], type: 'int' })))
             };
         }
     },
