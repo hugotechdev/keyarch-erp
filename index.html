@@ -306,25 +306,57 @@
                 <!-- ============ PAGE: TENANTS ============ -->
                 <section id="page-tenants" class="app-page hidden space-y-4">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Active Leases & Tenant History</h3>
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Tenants & Leases</h3>
                         <div class="flex gap-2 w-full md:w-auto">
                             <div class="relative flex-1 md:w-72">
                                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-                                <input type="text" id="tenant-search" oninput="filterTenants(this.value)" placeholder="Search tenant, property, unit..." class="w-full pl-9 pr-3 py-2 bg-[#14223d] border border-[#233863] rounded-xl text-xs text-white outline-none focus:border-blue-500">
+                                <input type="text" id="tenant-search" oninput="filterTenants(this.value)" placeholder="Search name, phone, ID, unit..." class="w-full pl-9 pr-3 py-2 bg-[#14223d] border border-[#233863] rounded-xl text-xs text-white outline-none focus:border-blue-500">
                             </div>
                             <button onclick="openModal('modal-tenant')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl whitespace-nowrap"><i class="fa-solid fa-user-plus"></i> + Tenant</button>
                         </div>
                     </div>
+
+                    <!-- OVERVIEW -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        <button onclick="setTenantFilter('current')" class="text-left p-4 bg-[#0d172d] border-l-4 border-emerald-500 rounded-2xl hover:bg-[#101d38] transition">
+                            <div class="text-[10px] text-gray-400 uppercase font-semibold">Current Tenants</div>
+                            <div id="ten-kpi-active" class="text-2xl font-black text-emerald-400 mt-1">0</div>
+                        </button>
+                        <button onclick="setTenantFilter('owing')" class="text-left p-4 bg-[#0d172d] border-l-4 border-rose-500 rounded-2xl hover:bg-[#101d38] transition">
+                            <div class="text-[10px] text-gray-400 uppercase font-semibold">Owing Money</div>
+                            <div class="flex items-end justify-between mt-1"><div id="ten-kpi-owing" class="text-2xl font-black text-rose-400">0</div><div id="ten-kpi-owing-amt" class="text-xs font-bold text-rose-300">TZS 0</div></div>
+                        </button>
+                        <button onclick="setTenantFilter('ending')" class="text-left p-4 bg-[#0d172d] border-l-4 border-amber-500 rounded-2xl hover:bg-[#101d38] transition">
+                            <div class="text-[10px] text-gray-400 uppercase font-semibold">Ending In 30 Days</div>
+                            <div id="ten-kpi-ending" class="text-2xl font-black text-amber-400 mt-1">0</div>
+                        </button>
+                        <button onclick="setTenantFilter('expired')" class="text-left p-4 bg-[#0d172d] border-l-4 border-red-500 rounded-2xl hover:bg-[#101d38] transition">
+                            <div class="text-[10px] text-gray-400 uppercase font-semibold">Contract Finished</div>
+                            <div class="flex items-end justify-between mt-1"><div id="ten-kpi-expired" class="text-2xl font-black text-red-400">0</div><div class="text-[10px] text-red-300">needs renew / move out</div></div>
+                        </button>
+                    </div>
+
+                    <!-- FILTER CHIPS -->
+                    <div id="tenant-filter-chips" class="flex flex-wrap gap-2 text-[11px] font-bold">
+                        <button data-filter="current" onclick="setTenantFilter('current')" class="tf-chip px-3 py-1.5 rounded-full border border-[#233863] text-gray-400">Current</button>
+                        <button data-filter="owing" onclick="setTenantFilter('owing')" class="tf-chip px-3 py-1.5 rounded-full border border-[#233863] text-gray-400">Owing</button>
+                        <button data-filter="ending" onclick="setTenantFilter('ending')" class="tf-chip px-3 py-1.5 rounded-full border border-[#233863] text-gray-400">Ending Soon</button>
+                        <button data-filter="expired" onclick="setTenantFilter('expired')" class="tf-chip px-3 py-1.5 rounded-full border border-[#233863] text-gray-400">Contract Finished</button>
+                        <button data-filter="past" onclick="setTenantFilter('past')" class="tf-chip px-3 py-1.5 rounded-full border border-[#233863] text-gray-400">Past Tenants</button>
+                        <button data-filter="all" onclick="setTenantFilter('all')" class="tf-chip px-3 py-1.5 rounded-full border border-[#233863] text-gray-400">All</button>
+                    </div>
+
                     <div class="overflow-x-auto rounded-xl border border-[#182848] bg-[#0d172d]">
                         <table class="w-full text-left text-xs text-gray-300">
                             <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
                                 <tr>
-                                    <th class="p-3">Tenant Details</th><th class="p-3">Property / Unit</th><th class="p-3">Total To Pay</th>
-                                    <th class="p-3">Amount Paid</th><th class="p-3">Balance</th><th class="p-3">End Date</th><th class="p-3">Actions</th>
+                                    <th class="p-3">Tenant</th><th class="p-3">Property / Unit</th><th class="p-3">Lease Period</th>
+                                    <th class="p-3">Total To Pay</th><th class="p-3">Paid</th><th class="p-3">Balance Owed</th>
+                                    <th class="p-3">Status</th><th class="p-3">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="tenants-table-body" class="divide-y divide-[#182848]">
-                                <tr><td colspan="7" class="p-4 text-center text-gray-500">No active tenants loaded yet.</td></tr>
+                                <tr><td colspan="8" class="p-4 text-center text-gray-500">No tenants loaded yet.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -920,6 +952,105 @@
         </div>
     </div>
 
+    <!-- MODAL: TENANT DETAILS + HISTORY -->
+    <div id="modal-tenant-detail" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-3xl rounded-2xl flex flex-col max-h-[92vh] shadow-2xl overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-[#182848] bg-[#0a1224] flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-white flex items-center gap-2"><i class="fa-solid fa-id-card text-emerald-400"></i> Tenant Details & History</h3>
+                <button onclick="closeModal('modal-tenant-detail')" class="w-8 h-8 rounded-full bg-[#14223d] text-gray-400 hover:text-white hover:bg-red-600 transition flex items-center justify-center text-lg">&times;</button>
+            </div>
+            <div id="td-body" class="p-5 overflow-y-auto flex-1 space-y-5 custom-scrollbar"></div>
+        </div>
+    </div>
+
+    <!-- MODAL: EDIT TENANT -->
+    <div id="modal-tenant-edit" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-tenant-edit')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4 flex items-center gap-2"><i class="fa-solid fa-pen text-amber-400"></i> Edit Tenant</h3>
+            <form id="form-tenant-edit" onsubmit="submitEditTenant(event)" class="space-y-3">
+                <input type="hidden" id="te-tenant-id"><input type="hidden" id="te-lease-id">
+                <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Full Name *</label>
+                    <input type="text" id="te-name" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required></div>
+                <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Phone Number *</label>
+                    <input type="tel" id="te-phone" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">ID Type</label>
+                        <select id="te-id-type" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                            <option value="NIDA">NIDA</option><option value="PASSPORT">Passport</option>
+                            <option value="DRIVING_LICENSE">Driving License</option><option value="VOTER_ID">Voter ID</option>
+                        </select></div>
+                    <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">ID Number *</label>
+                        <input type="text" id="te-id-no" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required></div>
+                </div>
+                <div id="te-end-wrap"><label class="block text-[11px] font-semibold text-gray-400 mb-1">Lease End Date</label>
+                    <input type="date" id="te-end" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <p class="text-[10px] text-gray-500 mt-1">To charge for more time, use "Extend Stay" or "Renew Contract" instead.</p></div>
+                <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: RENEW CONTRACT / EXTEND STAY -->
+    <div id="modal-lease-action" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-lg rounded-2xl flex flex-col max-h-[92vh] shadow-2xl overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-[#182848] bg-[#0a1224] flex justify-between items-center shrink-0">
+                <div>
+                    <h3 id="la-title" class="font-bold text-white">Renew Contract</h3>
+                    <p id="la-subtitle" class="text-[11px] text-gray-400"></p>
+                </div>
+                <button onclick="closeModal('modal-lease-action')" class="w-8 h-8 rounded-full bg-[#14223d] text-gray-400 hover:text-white hover:bg-red-600 transition flex items-center justify-center text-lg">&times;</button>
+            </div>
+            <form id="form-lease-action" onsubmit="submitLeaseAction(event)" class="flex flex-col flex-1 min-h-0">
+                <div class="p-5 overflow-y-auto flex-1 custom-scrollbar">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label id="la-start-label" class="block text-[11px] font-semibold text-gray-400 mb-1">New Lease Start *</label>
+                            <input type="date" id="la-start" onchange="onLeaseActionDates()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs outline-none disabled:opacity-60" required>
+                        </div>
+                        <div>
+                            <label id="la-end-label" class="block text-[11px] font-semibold text-gray-400 mb-1">New Lease End</label>
+                            <input type="date" id="la-end" onchange="onLeaseActionDates()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Rent Price (TZS) *</label>
+                            <input type="text" inputmode="decimal" autocomplete="off" id="la-rent" oninput="calcLeaseAction()" class="money-input w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Charged</label>
+                            <select id="la-period" onchange="onLeaseActionDates()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs outline-none disabled:opacity-60">
+                                <option value="Day">Per Day</option><option value="Week">Per Week</option>
+                                <option value="Month" selected>Per Month</option><option value="Year">Per Year</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label id="la-periods-label" class="block text-[11px] font-semibold text-gray-400 mb-1">Number of Months</label>
+                            <input type="number" step="0.01" min="0" id="la-periods" oninput="document.getElementById('la-periods').dataset.manual='1'; calcLeaseAction()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Discount (TZS)</label>
+                            <input type="text" inputmode="decimal" autocomplete="off" id="la-discount" oninput="calcLeaseAction()" placeholder="0" class="money-input w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs outline-none">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Amount Paid Now (TZS)</label>
+                            <input type="text" inputmode="decimal" autocomplete="off" id="la-paid" oninput="calcLeaseAction()" placeholder="0" class="money-input w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs outline-none">
+                        </div>
+                        <div class="col-span-2 bg-[#14223d] p-3 rounded-xl border border-[#233863] space-y-1.5 text-xs">
+                            <div class="flex justify-between"><span id="la-sum-total-label" class="text-gray-400">Total Rent</span><span id="la-sum-total" class="font-bold text-white">TZS 0</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Discount</span><span id="la-sum-discount" class="font-bold text-amber-400">- TZS 0</span></div>
+                            <div class="flex justify-between border-t border-[#233863] pt-1.5"><span class="text-gray-300 font-bold">Total To Pay</span><span id="la-sum-topay" class="font-black text-white">TZS 0</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Amount Paid</span><span id="la-sum-paid" class="font-bold text-emerald-400">TZS 0</span></div>
+                            <div class="flex justify-between items-center border-t border-[#233863] pt-2 mt-1"><span id="la-sum-label" class="font-bold text-gray-300">Remaining Balance</span><span id="la-sum-value" class="text-sm font-black text-gray-400">TZS 0</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="px-5 py-3 border-t border-[#182848] bg-[#0a1224] shrink-0">
+                    <button id="la-submit" type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3.5 rounded-xl text-white font-bold text-xs shadow-lg transition">Renew & Create Invoice &rarr;</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
         let selectedPropertyType = 'Apartment';
         let groupCounter = 0;
@@ -1462,59 +1593,7 @@
             }
         }
 
-        function filterTenants(query) {
-            const q = query.toLowerCase();
-            const filtered = currentTenantsList.filter(t =>
-                String(t.full_name || '').toLowerCase().includes(q) ||
-                String(t.property_name || '').toLowerCase().includes(q) ||
-                String(t.unit_number || '').toLowerCase().includes(q)
-            );
-            renderTenantsTable(filtered);
-        }
-
-        function editTenantPrompt(tenantId) {
-            alert('Edit tenant #' + tenantId + ' is not available yet.');
-        }
-
-        function renderTenantsTable(tenants) {
-            const tbody = document.getElementById('tenants-table-body');
-            if (!tbody) return;
-
-            const currentUser = JSON.parse(localStorage.getItem('keyarch_user') || '{}');
-            const canEdit = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'COMPANY_ADMIN' || currentUser.can_edit_tenants;
-
-            if (tenants.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">No matching tenants found.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = tenants.map(t => {
-                const toPay = Number(t.total_to_pay ?? t.agreed_rent ?? 0);
-                const paid = Number(t.amount_paid ?? 0);
-                const balance = Number(t.amount_due ?? (toPay - paid));
-                const extra = paid - toPay;
-
-                let balanceCell;
-                if (extra > 0) balanceCell = `<span class="text-sky-400">Extra paid ${money(extra)}</span>`;
-                else if (balance > 0) balanceCell = `<span class="text-rose-400">${money(balance)}</span>`;
-                else balanceCell = `<span class="text-emerald-400">Fully paid</span>`;
-
-                return `
-                <tr class="hover:bg-[#14223d]/50 border-b border-[#182848] text-xs">
-                    <td class="p-3 font-bold text-white">${esc(t.full_name)}<br><span class="text-gray-400 font-normal">${esc(t.phone_number)}</span></td>
-                    <td class="p-3 text-cyan-300 font-semibold">${esc(t.property_name)} (${esc(t.unit_number)})</td>
-                    <td class="p-3 font-bold text-gray-200">${money(toPay)}</td>
-                    <td class="p-3 font-bold text-emerald-400">${money(paid)}</td>
-                    <td class="p-3 font-bold">${balanceCell}</td>
-                    <td class="p-3 text-gray-400">${fmtDate(t.end_date)}</td>
-                    <td class="p-3">
-                        ${canEdit ? `<button onclick="editTenantPrompt(${Number(t.tenant_id)})" class="px-2.5 py-1 bg-amber-600/30 text-amber-300 border border-amber-500/50 font-bold rounded hover:bg-amber-600 hover:text-white transition">Edit</button>` : `<span class="text-gray-500 italic">View Only</span>`}
-                    </td>
-                </tr>`;
-            }).join('');
-        }
-
-        function addGroupCard() {
+                                function addGroupCard() {
             groupCounter++;
             const container = document.getElementById('groups-container');
             const cardId = `group-card-${groupCounter}`;
@@ -1754,7 +1833,7 @@
                 const leaseRes = await fetch('/api/leases', { headers });
                 if (leaseRes.ok) {
                     const leases = await leaseRes.json();
-                    const activeLeases = leases.filter(l => l.status === 'ACTIVE');
+                    const activeLeases = leases.filter(l => l.lease_state === 'CURRENT');
                     leaseSelect.innerHTML = activeLeases.map(l => `<option value="${esc(l.lease_id)}">${esc(l.tenant_name)} (${esc(l.unit_number)})</option>`).join('');
                 }
             }
@@ -1788,7 +1867,8 @@
             const tenRes = await fetch('/api/tenants', { headers });
             if (tenRes.ok) {
                 currentTenantsList = await tenRes.json();
-                renderTenantsTable(currentTenantsList);
+                renderTenantOverview();
+                applyTenantFilters();
             }
 
             // LOAD INVOICES (with paid / balance)
@@ -1871,6 +1951,8 @@
             showPage('tenants');
             const box = document.getElementById('tenant-search');
             if (box) box.value = value;
+            tenantFilter = 'all';
+            syncFilterChips();
             filterTenants(value);
         }
 
@@ -2159,6 +2241,430 @@
                             <td class="p-3 ${s.is_active ? 'text-emerald-400' : 'text-rose-400'}">${s.is_active ? 'Active' : 'Suspended'}</td>
                         </tr>`).join('');
             } catch (err) { console.error('Staff error:', err); }
+        }
+
+        // ============================================================
+        // TENANTS: overview, filters, history, edit, renew, extend, move out
+        // ============================================================
+        let tenantFilter = 'current';
+        let tenantSearchText = '';
+        let activeLeaseAction = null;
+
+        function currentUserInfo() { return JSON.parse(localStorage.getItem('keyarch_user') || '{}'); }
+        function canManageLeases() { return ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'].includes(currentUserInfo().role); }
+        function canEditTenantInfo() { const u = currentUserInfo(); return u.role === 'SUPER_ADMIN' || u.role === 'COMPANY_ADMIN' || !!u.can_edit_tenants; }
+        function canDeleteTenants() { return ['SUPER_ADMIN', 'COMPANY_ADMIN'].includes(currentUserInfo().role); }
+
+        function dateOnly(v) { return v ? String(v).split('T')[0] : ''; }
+        function toDateInput(d) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+        function addPeriodsToDate(dateStr, period, n) {
+            const d = new Date(dateStr + 'T00:00:00');
+            if (period === 'Day') d.setDate(d.getDate() + Math.round(n));
+            else if (period === 'Week') d.setDate(d.getDate() + Math.round(n * 7));
+            else if (period === 'Year') { const w = Math.floor(n); d.setFullYear(d.getFullYear() + w); d.setDate(d.getDate() + Math.round((n - w) * 365)); }
+            else { const w = Math.floor(n); d.setMonth(d.getMonth() + w); d.setDate(d.getDate() + Math.round((n - w) * 30)); }
+            return toDateInput(d);
+        }
+
+        // Past / Contract finished / Ending soon / Active
+        function tenantStatus(t) {
+            if (t.lease_state !== 'CURRENT') return 'past';
+            if (t.days_left === null || t.days_left === undefined) return 'active';
+            const d = Number(t.days_left);
+            if (d < 0) return 'expired';
+            if (d <= 30) return 'ending';
+            return 'active';
+        }
+
+        function setTenantFilter(f) {
+            tenantFilter = f;
+            syncFilterChips();
+            if (document.getElementById('page-tenants').classList.contains('hidden')) showPage('tenants');
+            applyTenantFilters();
+        }
+        function syncFilterChips() {
+            document.querySelectorAll('.tf-chip').forEach(chip => {
+                const on = chip.dataset.filter === tenantFilter;
+                chip.classList.toggle('bg-blue-600', on);
+                chip.classList.toggle('text-white', on);
+                chip.classList.toggle('border-blue-500', on);
+                chip.classList.toggle('text-gray-400', !on);
+            });
+        }
+        function filterTenants(query) {
+            tenantSearchText = String(query || '').toLowerCase().trim();
+            applyTenantFilters();
+        }
+
+        function renderTenantOverview() {
+            const list = currentTenantsList;
+            const current = list.filter(t => t.lease_state === 'CURRENT');
+            const owing = list.filter(t => Number(t.balance_owed) > 0);
+            setText('ten-kpi-active', current.length);
+            setText('ten-kpi-owing', owing.length);
+            setText('ten-kpi-owing-amt', money(owing.reduce((s, t) => s + Number(t.balance_owed), 0)));
+            setText('ten-kpi-ending', list.filter(t => tenantStatus(t) === 'ending').length);
+            setText('ten-kpi-expired', list.filter(t => tenantStatus(t) === 'expired').length);
+            syncFilterChips();
+        }
+
+        function applyTenantFilters() {
+            const q = tenantSearchText;
+            const rows = currentTenantsList.filter(t => {
+                const st = tenantStatus(t);
+                const passFilter =
+                    tenantFilter === 'all' ? true :
+                    tenantFilter === 'current' ? st !== 'past' :
+                    tenantFilter === 'owing' ? Number(t.balance_owed) > 0 :
+                    st === tenantFilter;
+                if (!passFilter) return false;
+                if (!q) return true;
+                return [t.full_name, t.phone_number, t.nida_passport_no, t.property_name, t.unit_number]
+                    .some(v => String(v || '').toLowerCase().includes(q));
+            });
+            renderTenantsTable(rows);
+        }
+
+        function statusBadge(st, t) {
+            const d = Number(t.days_left);
+            if (st === 'past') return '<span class="px-2 py-0.5 rounded text-[10px] bg-gray-800 text-gray-300 border border-gray-600/40">Moved Out</span>';
+            if (st === 'expired') return `<span class="px-2 py-0.5 rounded text-[10px] bg-red-900/40 text-red-300 border border-red-500/30">Finished ${Math.abs(d)}d ago</span>`;
+            if (st === 'ending') return `<span class="px-2 py-0.5 rounded text-[10px] bg-amber-900/40 text-amber-300 border border-amber-500/30">${d === 0 ? 'Ends today' : d + ' days left'}</span>`;
+            return '<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-900/40 text-emerald-300 border border-emerald-500/30">Active</span>';
+        }
+
+        function renderTenantsTable(tenants) {
+            const tbody = document.getElementById('tenants-table-body');
+            if (!tbody) return;
+            if (tenants.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-500">No tenants found in this view.</td></tr>';
+                return;
+            }
+            const manage = canManageLeases();
+
+            tbody.innerHTML = tenants.map(t => {
+                const st = tenantStatus(t);
+                const owed = Number(t.balance_owed);
+                const toPay = Number(t.total_to_pay), paid = Number(t.amount_paid);
+                const extra = paid - toPay;
+                const quick = !manage || st === 'past' ? '' :
+                    (st === 'expired' || st === 'ending'
+                        ? `<button onclick="openLeaseAction('renew', ${Number(t.tenant_id)})" class="px-2 py-1 bg-emerald-600/30 text-emerald-300 border border-emerald-500/50 rounded font-bold hover:bg-emerald-600 hover:text-white transition">Renew</button>`
+                        : `<button onclick="openLeaseAction('extend', ${Number(t.tenant_id)})" class="px-2 py-1 bg-cyan-600/30 text-cyan-300 border border-cyan-500/50 rounded font-bold hover:bg-cyan-600 hover:text-white transition">Extend</button>`);
+                return `
+                <tr class="hover:bg-[#14223d]/50">
+                    <td class="p-3 font-bold text-white">${esc(t.full_name)}<div class="text-[10px] text-gray-500 font-normal">${esc(t.phone_number)}${Number(t.lease_count) > 1 ? ' · ' + Number(t.lease_count) + ' leases' : ''}</div></td>
+                    <td class="p-3 text-cyan-300 font-semibold">${esc(t.property_name)} <span class="text-gray-400">(${esc(t.unit_number)})</span></td>
+                    <td class="p-3 text-gray-300 whitespace-nowrap">${fmtDate(t.start_date)} <span class="text-gray-600">→</span> ${fmtDate(t.end_date)}</td>
+                    <td class="p-3 font-bold text-gray-200">${money(toPay)}</td>
+                    <td class="p-3 font-bold text-emerald-400">${money(paid)}${extra > 0 ? `<div class="text-[10px] text-sky-400 font-normal">Extra ${money(extra)}</div>` : ''}</td>
+                    <td class="p-3 font-bold ${owed > 0 ? 'text-rose-400' : 'text-gray-500'}">${owed > 0 ? money(owed) : '-'}</td>
+                    <td class="p-3">${statusBadge(st, t)}</td>
+                    <td class="p-3 whitespace-nowrap space-x-1">
+                        <button onclick="openTenantDetail(${Number(t.tenant_id)})" class="px-2 py-1 bg-[#1e2f52] text-gray-200 border border-[#233863] rounded font-bold hover:bg-blue-600 hover:text-white transition"><i class="fa-solid fa-eye"></i> View</button>
+                        ${quick}
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ------------------------------------------------------------
+        // TENANT DETAILS + HISTORY
+        // ------------------------------------------------------------
+        function leaseStateBadge(s) {
+            if (s === 'CURRENT') return '<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-900/40 text-emerald-300 border border-emerald-500/30">Current</span>';
+            if (s === 'RENEWED') return '<span class="px-2 py-0.5 rounded text-[10px] bg-blue-900/40 text-blue-300 border border-blue-500/30">Renewed</span>';
+            return '<span class="px-2 py-0.5 rounded text-[10px] bg-gray-800 text-gray-300 border border-gray-600/40">Ended</span>';
+        }
+        const EVENT_LABELS = { CREATED: 'Lease started', RENEWED: 'Contract renewed', EXTENDED: 'Stay extended', EDITED: 'Details edited', MOVED_OUT: 'Moved out' };
+        const EVENT_ICONS = { CREATED: 'fa-circle-plus text-emerald-400', RENEWED: 'fa-rotate text-blue-400', EXTENDED: 'fa-calendar-plus text-cyan-400', EDITED: 'fa-pen text-amber-400', MOVED_OUT: 'fa-door-open text-gray-400' };
+
+        async function openTenantDetail(tenantId) {
+            const body = document.getElementById('td-body');
+            body.innerHTML = '<div class="p-10 text-center text-gray-500 text-xs">Loading...</div>';
+            openModal('modal-tenant-detail');
+            try {
+                const token = localStorage.getItem('keyarch_token');
+                const res = await fetch(`/api/tenants/${encodeURIComponent(tenantId)}/history`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Server error');
+                renderTenantDetail(data);
+            } catch (err) {
+                body.innerHTML = `<div class="p-10 text-center text-rose-400 text-xs">Could not load history: ${esc(err.message)}</div>`;
+            }
+        }
+
+        function renderTenantDetail(h) {
+            const t = h.tenant;
+            const cur = h.leases.find(l => l.lease_state === 'CURRENT');
+            const owed = Number(h.totals.balance);
+            const idLabels = { NIDA: 'NIDA', PASSPORT: 'Passport', DRIVING_LICENSE: 'Driving License', VOTER_ID: 'Voter ID' };
+            const manage = canManageLeases();
+
+            const buttons = [];
+            if (canEditTenantInfo()) buttons.push(`<button onclick="openEditTenant(${Number(t.tenant_id)})" class="px-3 py-2 rounded-xl bg-amber-600/30 text-amber-300 border border-amber-500/50 font-bold hover:bg-amber-600 hover:text-white transition"><i class="fa-solid fa-pen"></i> Edit</button>`);
+            if (manage && cur) {
+                buttons.push(`<button onclick="openLeaseAction('renew', ${Number(t.tenant_id)})" class="px-3 py-2 rounded-xl bg-emerald-600/30 text-emerald-300 border border-emerald-500/50 font-bold hover:bg-emerald-600 hover:text-white transition"><i class="fa-solid fa-rotate"></i> Renew Contract</button>`);
+                buttons.push(`<button onclick="openLeaseAction('extend', ${Number(t.tenant_id)})" class="px-3 py-2 rounded-xl bg-cyan-600/30 text-cyan-300 border border-cyan-500/50 font-bold hover:bg-cyan-600 hover:text-white transition"><i class="fa-solid fa-calendar-plus"></i> Extend Stay</button>`);
+            }
+            if (owed > 0) buttons.push(`<button onclick="closeModal('modal-tenant-detail'); openPaymentModal()" class="px-3 py-2 rounded-xl bg-purple-600/30 text-purple-300 border border-purple-500/50 font-bold hover:bg-purple-600 hover:text-white transition"><i class="fa-solid fa-hand-holding-dollar"></i> Record Payment</button>`);
+            if (manage && cur) buttons.push(`<button onclick="moveOutTenant(${Number(t.tenant_id)}, ${Number(cur.lease_id)}, ${owed})" class="px-3 py-2 rounded-xl bg-orange-600/30 text-orange-300 border border-orange-500/50 font-bold hover:bg-orange-600 hover:text-white transition"><i class="fa-solid fa-right-from-bracket"></i> Move Out</button>`);
+            if (canDeleteTenants()) buttons.push(`<button onclick="deleteTenant(${Number(t.tenant_id)})" class="px-3 py-2 rounded-xl bg-red-600/20 text-red-300 border border-red-500/40 font-bold hover:bg-red-600 hover:text-white transition"><i class="fa-solid fa-trash-can"></i> Delete</button>`);
+
+            const leasesHtml = h.leases.map(l => {
+                const toPay = Number(l.total_to_pay ?? l.agreed_rent ?? 0);
+                const rentTxt = l.rent_price ? `${money(l.rent_price)} per ${esc(l.rent_period || 'Month')} × ${Number(l.number_of_periods) || 1}` : 'Rent';
+                return `
+                <div class="p-3 rounded-xl bg-[#14223d] border ${l.lease_state === 'CURRENT' ? 'border-emerald-500/40' : 'border-[#233863]'} text-xs">
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <div class="font-bold text-white">${esc(l.property_name)} <span class="text-gray-400">(${esc(l.unit_number)})</span></div>
+                            <div class="text-gray-400 mt-0.5">${esc(l.start_str)} → ${esc(l.end_str)}</div>
+                        </div>
+                        ${leaseStateBadge(l.lease_state)}
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 mt-2 text-[11px]">
+                        <div><div class="text-gray-500">Rent</div><div class="text-gray-200">${rentTxt}</div></div>
+                        <div><div class="text-gray-500">Total To Pay</div><div class="font-bold text-white">${money(toPay)}</div></div>
+                        <div><div class="text-gray-500">Paid</div><div class="font-bold text-emerald-400">${money(l.amount_paid)}</div></div>
+                    </div>
+                    ${l.ended_reason && l.lease_state !== 'CURRENT' ? `<div class="text-[10px] text-gray-500 mt-1.5">${esc(l.ended_reason)}</div>` : ''}
+                </div>`;
+            }).join('');
+
+            const invHtml = h.invoices.length === 0 ? '<div class="p-3 text-center text-gray-500">No invoices.</div>' : h.invoices.map(i => {
+                const bal = Number(i.amount_due) - Number(i.paid);
+                return `
+                <div class="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-[#14223d] text-xs">
+                    <div class="min-w-0"><span class="font-mono font-bold text-purple-400">${esc(i.invoice_number)}</span>
+                        <span class="text-gray-500"> · due ${fmtDate(i.due_date)}</span></div>
+                    <div class="text-right whitespace-nowrap">
+                        <span class="text-gray-300">${money(i.amount_due)}</span>
+                        <span class="ml-2 font-bold ${bal > 0 ? 'text-rose-400' : 'text-emerald-400'}">${bal > 0 ? 'owes ' + money(bal) : 'paid'}</span>
+                        ${bal > 0 ? `<button onclick="closeModal('modal-tenant-detail'); openPaymentModal(${Number(i.invoice_id)})" class="ml-2 px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-bold hover:bg-emerald-600 hover:text-white">Pay</button>` : ''}
+                        <button onclick="closeModal('modal-tenant-detail'); showInvoiceModal(${Number(i.invoice_id)})" class="ml-1 px-2 py-0.5 rounded bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-600 hover:text-white"><i class="fa-solid fa-print"></i></button>
+                    </div>
+                </div>`;
+            }).join('');
+
+            const payHtml = h.payments.length === 0 ? '<div class="p-3 text-center text-gray-500">No payments yet.</div>' : h.payments.map(p => `
+                <div class="flex justify-between p-2.5 rounded-lg bg-[#14223d] text-xs">
+                    <span class="text-gray-300">${fmtDate(p.payment_date)} <span class="text-gray-500">· ${esc(p.invoice_number)} · ${esc(p.payment_method || '')}</span></span>
+                    <span class="font-bold text-emerald-400">${money(p.amount_paid)}</span>
+                </div>`).join('');
+
+            const evHtml = h.events.length === 0 ? '<div class="p-3 text-center text-gray-500">No activity recorded yet.</div>' : h.events.map(e => `
+                <div class="flex gap-3 p-2.5 rounded-lg bg-[#14223d] text-xs">
+                    <i class="fa-solid ${EVENT_ICONS[e.event_type] || 'fa-circle text-gray-400'} mt-0.5 w-4 text-center"></i>
+                    <div class="min-w-0"><div class="font-bold text-white">${esc(EVENT_LABELS[e.event_type] || e.event_type)} <span class="text-gray-500 font-normal">· ${fmtDate(e.created_at)}</span></div>
+                        <div class="text-gray-400">${esc(e.description || '')}</div></div>
+                </div>`).join('');
+
+            document.getElementById('td-body').innerHTML = `
+                <div class="flex flex-wrap justify-between items-start gap-3">
+                    <div>
+                        <div class="text-lg font-black text-white">${esc(t.full_name)}</div>
+                        <div class="text-xs text-gray-400">${esc(t.phone_number)} · ${esc(idLabels[t.identity_type] || 'ID')}: ${esc(t.nida_passport_no)}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] text-gray-500 uppercase">Balance Owed</div>
+                        <div class="text-xl font-black ${owed > 0 ? 'text-rose-400' : 'text-emerald-400'}">${owed > 0 ? money(owed) : 'None'}</div>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2 text-xs">${buttons.join('')}</div>
+                <div class="grid grid-cols-3 gap-3 text-xs">
+                    <div class="p-3 rounded-xl border border-[#182848]"><div class="text-gray-500 text-[10px] uppercase">Total Billed</div><div class="font-black text-white">${money(h.totals.billed)}</div></div>
+                    <div class="p-3 rounded-xl border border-[#182848]"><div class="text-gray-500 text-[10px] uppercase">Total Paid</div><div class="font-black text-emerald-400">${money(h.totals.paid)}</div></div>
+                    <div class="p-3 rounded-xl border border-[#182848]"><div class="text-gray-500 text-[10px] uppercase">Leases</div><div class="font-black text-white">${h.leases.length}</div></div>
+                </div>
+                <div><div class="text-xs font-bold text-white uppercase tracking-wider mb-2">Leases (newest first)</div><div class="space-y-2">${leasesHtml}</div></div>
+                <div><div class="text-xs font-bold text-white uppercase tracking-wider mb-2">Invoices</div><div class="space-y-1.5">${invHtml}</div></div>
+                <div><div class="text-xs font-bold text-white uppercase tracking-wider mb-2">Payments</div><div class="space-y-1.5">${payHtml}</div></div>
+                <div><div class="text-xs font-bold text-white uppercase tracking-wider mb-2">Activity</div><div class="space-y-1.5">${evHtml}</div></div>
+            `;
+        }
+
+        // ------------------------------------------------------------
+        // EDIT TENANT
+        // ------------------------------------------------------------
+        function openEditTenant(tenantId) {
+            const t = currentTenantsList.find(x => String(x.tenant_id) === String(tenantId));
+            if (!t) return;
+            document.getElementById('te-tenant-id').value = t.tenant_id;
+            document.getElementById('te-lease-id').value = t.lease_state === 'CURRENT' ? t.lease_id : '';
+            document.getElementById('te-name').value = t.full_name || '';
+            document.getElementById('te-phone').value = t.phone_number || '';
+            document.getElementById('te-id-type').value = t.identity_type || 'NIDA';
+            document.getElementById('te-id-no').value = t.nida_passport_no || '';
+            document.getElementById('te-end').value = dateOnly(t.end_date);
+            document.getElementById('te-end-wrap').style.display = t.lease_state === 'CURRENT' ? 'block' : 'none';
+            closeModal('modal-tenant-detail');
+            openModal('modal-tenant-edit');
+        }
+
+        async function submitEditTenant(e) {
+            e.preventDefault();
+            const id = document.getElementById('te-tenant-id').value;
+            const leaseId = document.getElementById('te-lease-id').value;
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch(`/api/tenants/${encodeURIComponent(id)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    full_name: document.getElementById('te-name').value,
+                    phone_number: document.getElementById('te-phone').value,
+                    identity_type: document.getElementById('te-id-type').value,
+                    nida_passport_no: document.getElementById('te-id-no').value,
+                    end_date: leaseId ? document.getElementById('te-end').value : undefined,
+                    lease_id: leaseId || undefined
+                })
+            });
+            const data = await res.json();
+            if (res.ok) { closeModal('modal-tenant-edit'); loadAllData(); alert('Tenant updated.'); }
+            else alert('Failed: ' + (data.error || 'Server error'));
+        }
+
+        // ------------------------------------------------------------
+        // RENEW CONTRACT / EXTEND STAY
+        // ------------------------------------------------------------
+        function openLeaseAction(mode, tenantId) {
+            const t = currentTenantsList.find(x => String(x.tenant_id) === String(tenantId));
+            if (!t || t.lease_state !== 'CURRENT') { alert('This tenant has no current lease.'); return; }
+            activeLeaseAction = { mode, t };
+
+            const period = t.rent_period || 'Month';
+            const endStr = dateOnly(t.end_date);
+            const rent = Number(t.rent_price) || Number(t.total_to_pay) || 0;
+            const periodsInput = document.getElementById('la-periods');
+            periodsInput.dataset.manual = '';
+
+            const isRenew = mode === 'renew';
+            setText('la-title', isRenew ? 'Renew Contract' : 'Extend Stay');
+            setText('la-subtitle', `${t.full_name} · ${t.property_name} (${t.unit_number})`);
+            setText('la-start-label', isRenew ? 'New Lease Start *' : 'Current End Date');
+            setText('la-end-label', isRenew ? 'New Lease End' : 'New End Date *');
+            setText('la-sum-total-label', isRenew ? 'Total Rent' : 'Extension Charge');
+            setText('la-submit', isRenew ? 'Renew & Create Invoice →' : 'Extend & Create Invoice →');
+
+            const startEl = document.getElementById('la-start');
+            const periodEl = document.getElementById('la-period');
+            startEl.value = endStr;
+            startEl.disabled = !isRenew;
+            periodEl.value = period;
+            periodEl.disabled = !isRenew;       // extension keeps the same way of charging
+            document.getElementById('la-end').value = isRenew
+                ? addPeriodsToDate(endStr, period, Number(t.number_of_periods) || 1)
+                : addPeriodsToDate(endStr, period, 1);
+            document.getElementById('la-rent').value = formatMoney(rent);
+            document.getElementById('la-discount').value = '';
+            document.getElementById('la-paid').value = '';
+
+            closeModal('modal-tenant-detail');
+            onLeaseActionDates();
+            openModal('modal-lease-action');
+        }
+
+        function onLeaseActionDates() {
+            const period = document.getElementById('la-period').value;
+            setText('la-periods-label', activeLeaseAction && activeLeaseAction.mode === 'extend'
+                ? `Extra ${period === 'Day' ? 'Days' : period + 's'}`
+                : `Number of ${period === 'Day' ? 'Days' : period + 's'}`);
+            const input = document.getElementById('la-periods');
+            if (input.dataset.manual !== '1') {
+                input.value = countPeriods(
+                    document.getElementById('la-start').value,
+                    document.getElementById('la-end').value,
+                    period
+                ) || '';
+            }
+            calcLeaseAction();
+        }
+
+        function leaseActionFigures() {
+            const rate = parseMoney(document.getElementById('la-rent').value);
+            const periods = parseFloat(document.getElementById('la-periods').value) || 0;
+            const total = Math.round(rate * periods);
+            const discount = Math.min(parseMoney(document.getElementById('la-discount').value), total);
+            const toPay = total - discount;
+            const paid = parseMoney(document.getElementById('la-paid').value);
+            return { rate, periods, total, discount, toPay, paid, balance: toPay - paid };
+        }
+
+        function calcLeaseAction() {
+            const f = leaseActionFigures();
+            setText('la-sum-total', money(f.total));
+            setText('la-sum-discount', '- ' + money(f.discount));
+            setText('la-sum-topay', money(f.toPay));
+            setText('la-sum-paid', money(f.paid));
+            const label = document.getElementById('la-sum-label'), value = document.getElementById('la-sum-value');
+            if (f.toPay === 0) { label.innerText = 'Remaining Balance'; value.innerText = 'TZS 0'; value.className = 'text-sm font-black text-gray-400'; }
+            else if (f.balance > 0) { label.innerText = 'Remaining Balance'; value.innerText = money(f.balance); value.className = 'text-sm font-black text-rose-400'; }
+            else if (f.balance === 0) { label.innerText = 'Fully Paid'; value.innerText = '✔ TZS 0 left'; value.className = 'text-sm font-black text-emerald-400'; }
+            else { label.innerText = 'Extra Paid (tenant paid more)'; value.innerText = money(-f.balance); value.className = 'text-sm font-black text-sky-400'; }
+        }
+
+        async function submitLeaseAction(e) {
+            e.preventDefault();
+            if (!activeLeaseAction) return;
+            const { mode, t } = activeLeaseAction;
+            const f = leaseActionFigures();
+            if (f.rate <= 0 || f.periods <= 0) return alert('Please check the Rent Price and the dates / number of periods.');
+
+            const payload = mode === 'renew'
+                ? { start_date: document.getElementById('la-start').value, end_date: document.getElementById('la-end').value,
+                    rent_price: f.rate, rent_period: document.getElementById('la-period').value,
+                    number_of_periods: f.periods, discount: f.discount, paid_amount: f.paid }
+                : { new_end_date: document.getElementById('la-end').value, extra_periods: f.periods,
+                    rent_price: f.rate, discount: f.discount, paid_amount: f.paid };
+            if (mode === 'extend' && !payload.new_end_date) return alert('Please choose the new end date.');
+
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch(`/api/leases/${encodeURIComponent(t.lease_id)}/${mode}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok) return alert('Failed: ' + (data.error || 'Server error'));
+
+            closeModal('modal-lease-action');
+            loadAllData();
+            if (data.invoice) showInvoiceModal(data.invoice.invoice_id);
+        }
+
+        // ------------------------------------------------------------
+        // MOVE OUT / DELETE
+        // ------------------------------------------------------------
+        async function moveOutTenant(tenantId, leaseId, owed) {
+            const t = currentTenantsList.find(x => String(x.tenant_id) === String(tenantId));
+            const name = t ? t.full_name : 'this tenant';
+            let msg = `Move out ${name}?\n\nThe unit will become vacant and ${name} stays in your history.`;
+            if (owed > 0) msg += `\n\nNote: ${name} still owes ${money(owed)}. The balance stays recorded.`;
+            if (!confirm(msg)) return;
+
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch(`/api/leases/${encodeURIComponent(leaseId)}/end`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ reason: 'Moved out' })
+            });
+            const data = await res.json();
+            if (res.ok) { closeModal('modal-tenant-detail'); loadAllData(); alert(data.message); }
+            else alert('Failed: ' + (data.error || 'Server error'));
+        }
+
+        async function deleteTenant(tenantId) {
+            const t = currentTenantsList.find(x => String(x.tenant_id) === String(tenantId));
+            const name = t ? t.full_name : 'this tenant';
+            if (!confirm(`Delete ${name} permanently?\n\nUse this only for a tenant entered by mistake. It removes the tenant, their leases and invoices. This cannot be undone.\n\nIf the tenant has any payments, use "Move Out" instead.`)) return;
+
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch(`/api/tenants/${encodeURIComponent(tenantId)}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+            const data = await res.json();
+            if (res.ok) { closeModal('modal-tenant-detail'); loadAllData(); alert(data.message); }
+            else alert('Failed: ' + (data.error || 'Server error'));
         }
 
         function logout() {
