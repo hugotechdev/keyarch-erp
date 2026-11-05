@@ -281,7 +281,7 @@
         </footer>
     </div>
 
-    <!-- MODAL 1: ADVANCED PROPERTY FOR RENT (WIZARD - UI EXACT MATCH) -->
+    <!-- ADVANCED DYNAMIC PROPERTY WIZARD MODAL -->
     <div id="modal-property-wizard" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
         <div class="bg-[#0a1224] border border-[#182848] w-full max-w-2xl rounded-2xl p-6 relative my-8 shadow-2xl space-y-5 text-gray-200">
             <button onclick="closeModal('modal-property-wizard')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">&times;</button>
@@ -297,12 +297,12 @@
                 </div>
             </div>
 
-            <form id="form-property-wizard" class="space-y-4">
+            <form id="form-property-wizard" onsubmit="collectAndSubmitWizard(event)" class="space-y-4">
                 <div>
                     <label class="block text-xs font-semibold text-gray-300 mb-1">Property Name *</label>
                     <div class="relative">
                         <i class="fa-solid fa-house absolute left-3.5 top-3.5 text-gray-500 text-xs"></i>
-                        <input type="text" id="wiz-prop-name" placeholder="HUGO" class="w-full pl-9 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                        <input type="text" id="wiz-prop-name" placeholder="Hugo Home" class="w-full pl-9 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
                     </div>
                 </div>
 
@@ -310,7 +310,7 @@
                     <label class="block text-xs font-semibold text-gray-300 mb-1">Address *</label>
                     <div class="relative">
                         <i class="fa-solid fa-location-dot absolute left-3.5 top-3.5 text-gray-500 text-xs"></i>
-                        <input type="text" id="wiz-address" placeholder="MBEZI BEACH" class="w-full pl-9 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                        <input type="text" id="wiz-address" placeholder="Mbezi Beach, Dar es Salaam" class="w-full pl-9 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
                     </div>
                 </div>
 
@@ -344,88 +344,18 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1" id="wiz-units-label">Number of Apartments *</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-building absolute left-3.5 top-3.5 text-gray-500 text-xs"></i>
-                        <input type="number" id="wiz-units-count" value="1" min="1" class="w-full pl-9 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
-                    </div>
+                <!-- DYNAMIC GROUPS CONTAINER -->
+                <div id="groups-container" class="space-y-4">
+                    <!-- Dynamic Group Cards Will Render Here -->
                 </div>
 
-                <div class="bg-[#0e1930] border border-[#1d325c] rounded-2xl p-4 space-y-3 relative">
-                    <div class="flex justify-between items-center border-b border-[#182848] pb-2">
-                        <h4 class="text-xs font-bold text-white uppercase tracking-wider" id="wiz-group-title">Apartment Group 1</h4>
-                        <button type="button" class="text-red-400 hover:text-red-300 text-xs"><i class="fa-solid fa-trash-can"></i></button>
-                    </div>
-
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Group Name *</label>
-                            <input type="text" id="wiz-grp-name" value="Group 1" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none" required>
-                        </div>
-
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Units in Group *</label>
-                            <input type="number" id="wiz-grp-units" value="1" min="1" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none" required>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-[11px] font-semibold text-gray-300 mb-1">Bedrooms</label>
-                                <input type="number" id="wiz-bedrooms" value="0" min="0" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-[11px] font-semibold text-gray-300 mb-1">Bathrooms</label>
-                                <input type="number" id="wiz-bathrooms" value="0" min="0" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none">
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Rent Timeline *</label>
-                            <div class="grid grid-cols-4 gap-1.5" id="grp-timeline">
-                                <button type="button" onclick="selectBadge('grp-timeline', this, 'Per Day')" class="py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Per Day</button>
-                                <button type="button" onclick="selectBadge('grp-timeline', this, 'Per Week')" class="py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Per Week</button>
-                                <button type="button" onclick="selectBadge('grp-timeline', this, 'Per Month')" class="py-2 text-[10px] font-bold rounded-xl bg-blue-600 text-white border border-blue-500 active-badge">Per Month</button>
-                                <button type="button" onclick="selectBadge('grp-timeline', this, 'Per Year')" class="py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Per Year</button>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Currency *</label>
-                            <div class="grid grid-cols-4 gap-1.5" id="grp-currency">
-                                <button type="button" onclick="selectBadge('grp-currency', this, 'USD')" class="py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">USD</button>
-                                <button type="button" onclick="selectBadge('grp-currency', this, 'TSH')" class="py-2 text-[10px] font-bold rounded-xl bg-blue-600 text-white border border-blue-500 active-badge">TSH</button>
-                                <button type="button" onclick="selectBadge('grp-currency', this, 'Euro')" class="py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Euro</button>
-                                <button type="button" onclick="selectBadge('grp-currency', this, 'Pound')" class="py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Pound</button>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Rent (Monthly) *</label>
-                            <input type="number" id="wiz-rent-amount" placeholder="TSH 0" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none" required>
-                        </div>
-
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Payment Method *</label>
-                            <div class="grid grid-cols-3 gap-2" id="grp-payment">
-                                <button type="button" onclick="selectBadge('grp-payment', this, 'Mobile Money')" class="py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Mobile Money</button>
-                                <button type="button" onclick="selectBadge('grp-payment', this, 'Bank')" class="py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Bank</button>
-                                <button type="button" onclick="selectBadge('grp-payment', this, 'Cash')" class="py-2 text-[10px] font-bold rounded-xl bg-blue-600 text-white border border-blue-500 active-badge">Cash</button>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Furnishing Status</label>
-                            <div class="grid grid-cols-2 gap-2" id="grp-furnishing">
-                                <button type="button" onclick="selectBadge('grp-furnishing', this, 'Unfurnished')" class="py-2.5 text-xs font-bold rounded-xl bg-blue-500 text-white border border-blue-400 active-badge flex items-center justify-center gap-1.5"><i class="fa-solid fa-house"></i> Unfurnished</button>
-                                <button type="button" onclick="selectBadge('grp-furnishing', this, 'Furnished')" class="py-2.5 text-xs font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863] flex items-center justify-center gap-1.5"><i class="fa-solid fa-couch"></i> Furnished</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!-- ADD ANOTHER GROUP BUTTON -->
+                <button type="button" onclick="addGroupCard()" class="w-full py-2.5 border-2 border-dashed border-[#233863] hover:border-blue-500 rounded-2xl text-blue-400 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition bg-[#0d172d]/50">
+                    <i class="fa-solid fa-circle-plus"></i> + Add Another Group
+                </button>
 
                 <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl transition">
-                    Continue &rarr;
+                    Save Property & All Units &rarr;
                 </button>
             </form>
         </div>
@@ -582,13 +512,13 @@
 
     <script>
         let selectedPropertyType = 'Apartment';
-        let selectedTimeline = 'Per Month';
-        let selectedCurrency = 'TSH';
-        let selectedPaymentMethod = 'Cash';
-        let selectedFurnishing = 'Unfurnished';
+        let groupCounter = 0;
 
         document.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('keyarch_token')) showAppView();
+
+            // Seed initial group card
+            addGroupCard();
 
             document.getElementById('form-login').addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -629,45 +559,6 @@
                     document.getElementById('form-portal-register').reset();
                 } else {
                     alert('Registration Failed: ' + (data.error || 'Server error'));
-                }
-            });
-
-            // PROPERTY WIZARD SUBMIT
-            document.getElementById('form-property-wizard').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const payload = {
-                    property_name: document.getElementById('wiz-prop-name').value,
-                    address: document.getElementById('wiz-address').value,
-                    property_type: selectedPropertyType,
-                    number_of_units: parseInt(document.getElementById('wiz-units-count').value),
-                    groups: [{
-                        group_name: document.getElementById('wiz-grp-name').value,
-                        units_in_group: parseInt(document.getElementById('wiz-grp-units').value),
-                        bedrooms: parseInt(document.getElementById('wiz-bedrooms').value),
-                        bathrooms: parseInt(document.getElementById('wiz-bathrooms').value),
-                        rent_timeline: selectedTimeline,
-                        currency: selectedCurrency,
-                        rent_amount: parseFloat(document.getElementById('wiz-rent-amount').value),
-                        payment_method: selectedPaymentMethod,
-                        furnishing_status: selectedFurnishing
-                    }]
-                };
-
-                const token = localStorage.getItem('keyarch_token');
-                const res = await fetch('/api/properties/wizard', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify(payload)
-                });
-
-                if(res.ok) {
-                    alert('Property created successfully!');
-                    closeModal('modal-property-wizard');
-                    document.getElementById('form-property-wizard').reset();
-                    loadAllData();
-                } else {
-                    const data = await res.json();
-                    alert('Failed: ' + (data.error || 'Server error'));
                 }
             });
 
@@ -723,6 +614,93 @@
             });
         });
 
+        // DYNAMIC GROUP CARDS LOGIC
+        function addGroupCard() {
+            groupCounter++;
+            const container = document.getElementById('groups-container');
+            const cardId = `group-card-${groupCounter}`;
+
+            const cardHTML = `
+                <div id="${cardId}" class="group-card bg-[#0e1930] border border-[#1d325c] rounded-2xl p-4 space-y-3 relative" data-group-id="${groupCounter}">
+                    <div class="flex justify-between items-center border-b border-[#182848] pb-2">
+                        <h4 class="text-xs font-bold text-white uppercase tracking-wider group-title">${selectedPropertyType} Group ${groupCounter}</h4>
+                        ${groupCounter > 1 ? `<button type="button" onclick="removeGroupCard('${cardId}')" class="text-red-400 hover:text-red-300 text-xs"><i class="fa-solid fa-trash-can"></i> Remove Group</button>` : ''}
+                    </div>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Group Name *</label>
+                            <input type="text" class="grp-name w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none" value="Group ${groupCounter}" required>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Units in Group *</label>
+                            <input type="number" class="grp-units w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none" value="1" min="1" required>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-300 mb-1">Bedrooms</label>
+                                <input type="number" class="grp-bedrooms w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none" value="1" min="0">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-300 mb-1">Bathrooms</label>
+                                <input type="number" class="grp-bathrooms w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none" value="1" min="0">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Rent Timeline *</label>
+                            <div class="grid grid-cols-4 gap-1.5 grp-timeline-btn-group">
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Per Day" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Per Day</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Per Week" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Per Week</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Per Month" class="badge-btn active-badge py-2 text-[10px] font-bold rounded-xl bg-blue-600 text-white border border-blue-500">Per Month</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Per Year" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Per Year</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Currency *</label>
+                            <div class="grid grid-cols-4 gap-1.5 grp-currency-btn-group">
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="USD" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">USD</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="TSH" class="badge-btn active-badge py-2 text-[10px] font-bold rounded-xl bg-blue-600 text-white border border-blue-500">TSH</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Euro" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Euro</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Pound" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Pound</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Rent Amount *</label>
+                            <input type="number" class="grp-rent-amount w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none" placeholder="0" required>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Payment Method *</label>
+                            <div class="grid grid-cols-3 gap-2 grp-payment-btn-group">
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Mobile Money" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Mobile Money</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Bank" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Bank</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Cash" class="badge-btn active-badge py-2 text-[10px] font-bold rounded-xl bg-blue-600 text-white border border-blue-500">Cash</button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Furnishing Status</label>
+                            <div class="grid grid-cols-2 gap-2 grp-furnishing-btn-group">
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Unfurnished" class="badge-btn active-badge py-2.5 text-xs font-bold rounded-xl bg-blue-600 text-white border border-blue-500 flex items-center justify-center gap-1.5"><i class="fa-solid fa-house"></i> Unfurnished</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Furnished" class="badge-btn py-2.5 text-xs font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863] flex items-center justify-center gap-1.5"><i class="fa-solid fa-couch"></i> Furnished</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', cardHTML);
+        }
+
+        function removeGroupCard(cardId) {
+            const card = document.getElementById(cardId);
+            if (card) card.remove();
+        }
+
         function selectType(type) {
             selectedPropertyType = type;
             document.querySelectorAll('#wiz-prop-type-group .type-btn').forEach(btn => {
@@ -732,23 +710,82 @@
             event.currentTarget.classList.remove('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
             event.currentTarget.classList.add('bg-blue-600', 'text-white', 'border-blue-500');
             
-            document.getElementById('wiz-units-label').innerText = `Number of ${type}s *`;
-            document.getElementById('wiz-group-title').innerText = `${type} Group 1`;
+            document.querySelectorAll('.group-title').forEach((title, idx) => {
+                title.innerText = `${type} Group ${idx + 1}`;
+            });
         }
 
-        function selectBadge(groupId, element, value) {
-            const container = document.getElementById(groupId);
-            container.querySelectorAll('button').forEach(btn => {
-                btn.classList.remove('bg-blue-600', 'bg-blue-500', 'text-white', 'border-blue-500', 'border-blue-400', 'active-badge');
+        function selectBadgeInCard(element) {
+            const parentGroup = element.parentElement;
+            parentGroup.querySelectorAll('.badge-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-500', 'active-badge');
                 btn.classList.add('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
             });
             element.classList.remove('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
             element.classList.add('bg-blue-600', 'text-white', 'border-blue-500', 'active-badge');
+        }
 
-            if(groupId === 'grp-timeline') selectedTimeline = value;
-            if(groupId === 'grp-currency') selectedCurrency = value;
-            if(groupId === 'grp-payment') selectedPaymentMethod = value;
-            if(groupId === 'grp-furnishing') selectedFurnishing = value;
+        async function collectAndSubmitWizard(e) {
+            e.preventDefault();
+
+            const groupCards = document.querySelectorAll('.group-card');
+            const collectedGroups = [];
+            let calculatedTotalUnits = 0;
+
+            groupCards.forEach(card => {
+                const name = card.querySelector('.grp-name').value;
+                const units = parseInt(card.querySelector('.grp-units').value) || 1;
+                const bedrooms = parseInt(card.querySelector('.grp-bedrooms').value) || 0;
+                const bathrooms = parseInt(card.querySelector('.grp-bathrooms').value) || 0;
+                const rentAmount = parseFloat(card.querySelector('.grp-rent-amount').value) || 0;
+
+                const timeline = card.querySelector('.grp-timeline-btn-group .active-badge')?.getAttribute('data-val') || 'Per Month';
+                const currency = card.querySelector('.grp-currency-btn-group .active-badge')?.getAttribute('data-val') || 'TSH';
+                const payment = card.querySelector('.grp-payment-btn-group .active-badge')?.getAttribute('data-val') || 'Cash';
+                const furnishing = card.querySelector('.grp-furnishing-btn-group .active-badge')?.getAttribute('data-val') || 'Unfurnished';
+
+                calculatedTotalUnits += units;
+
+                collectedGroups.push({
+                    group_name: name,
+                    units_in_group: units,
+                    bedrooms: bedrooms,
+                    bathrooms: bathrooms,
+                    rent_timeline: timeline,
+                    currency: currency,
+                    rent_amount: rentAmount,
+                    payment_method: payment,
+                    furnishing_status: furnishing
+                });
+            });
+
+            const payload = {
+                property_name: document.getElementById('wiz-prop-name').value,
+                address: document.getElementById('wiz-address').value,
+                property_type: selectedPropertyType,
+                number_of_units: calculatedTotalUnits,
+                groups: collectedGroups
+            };
+
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch('/api/properties/wizard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert(`Property "${payload.property_name}" and all ${calculatedTotalUnits} units saved successfully!`);
+                closeModal('modal-property-wizard');
+                document.getElementById('form-property-wizard').reset();
+                document.getElementById('groups-container').innerHTML = '';
+                groupCounter = 0;
+                addGroupCard();
+                loadAllData();
+            } else {
+                const data = await res.json();
+                alert('Failed: ' + (data.error || 'Server error'));
+            }
         }
 
         function switchAuthTab(type) {
