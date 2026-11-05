@@ -91,6 +91,30 @@ function calculatePayment({ rent_price, number_of_periods, discount, paid_amount
     };
 }
 
+
+// Writes a line in the tenant history (renewals, extensions, move-outs...).
+// Uses a savepoint so a problem here can never break the main action.
+async function logLeaseEvent(client, companyId, leaseId, tenantId, type, description, amount, userId) {
+    try {
+        await client.query('SAVEPOINT lease_event');
+        await client.query(
+            'INSERT INTO lease_events (company_id, lease_id, tenant_id, event_type, description, amount, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [companyId, leaseId, tenantId, type, description, amount || null, userId || null]
+        );
+        await client.query('RELEASE SAVEPOINT lease_event');
+    } catch (err) {
+        console.error('Lease event warning:', err.message);
+        try { await client.query('ROLLBACK TO SAVEPOINT lease_event'); } catch (e) { /* ignore */ }
+    }
+}
+
+function payStatusOf(toPay, paid) {
+    const balance = Math.round((toPay - paid) * 100) / 100;
+    if (balance < 0) return 'EXTRA_PAID';
+    if (balance === 0) return 'PAID';
+    return paid > 0 ? 'PARTIAL' : 'UNPAID';
+}
+
 async function initDatabase() {
     try {
         if (!process.env.DATABASE_URL) return;
@@ -170,6 +194,36 @@ async function initDatabase() {
                 WHEN COALESCE(amount_paid, 0) > 0 THEN 'PARTIAL'
                 ELSE 'UNPAID' END
             WHERE payment_status IS NULL AND total_to_pay IS NOT NULL;
+        `);
+
+        // NEW: lease history (renew / extend / move out) and tenant status
+        await pool.query(`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'leases' AND column_name = 'lease_state') THEN
+                    ALTER TABLE leases ADD COLUMN lease_state VARCHAR(12) DEFAULT 'CURRENT';
+                    UPDATE leases SET lease_state = 'ENDED' WHERE status IS NOT NULL AND UPPER(status::text) <> 'ACTIVE';
+                END IF;
+            END $$;
+        `);
+        await pool.query(`
+            ALTER TABLE leases ADD COLUMN IF NOT EXISTS ended_at TIMESTAMP;
+            ALTER TABLE leases ADD COLUMN IF NOT EXISTS ended_reason VARCHAR(200);
+            ALTER TABLE leases ADD COLUMN IF NOT EXISTS previous_lease_id INTEGER;
+            ALTER TABLE tenants ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+            CREATE TABLE IF NOT EXISTS lease_events (
+                event_id SERIAL PRIMARY KEY,
+                company_id INTEGER,
+                lease_id INTEGER,
+                tenant_id INTEGER,
+                event_type VARCHAR(20),
+                description TEXT,
+                amount NUMERIC(12,2),
+                created_by INTEGER,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_lease_events_tenant ON lease_events (tenant_id);
+            CREATE INDEX IF NOT EXISTS idx_leases_tenant ON leases (tenant_id);
         `);
 
         await pool.query("CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000");
@@ -434,6 +488,8 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
             payment = payRes.rows[0];
         }
 
+        await logLeaseEvent(client, companyId, lease.lease_id, tenant.tenant_id, 'CREATED',
+            `Lease started: ${start_date} to ${leaseEndDate} (${calc.periods} ${rent_period}${calc.periods === 1 ? '' : 's'})`, calc.totalToPay, req.user.user_id);
         await createAuditLog(client, companyId, req.user.user_id, `Onboarded Tenant & Auto-Generated Invoice`, 'TENANTS', req.ip, {
             tenant_id: tenant.tenant_id,
             invoice_id: invoice.invoice_id,
@@ -469,51 +525,99 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
     }
 });
 
-// GET ALL TENANTS WITH PROPERTY DETAILS & FINANCIAL STATUS
+// ============================================================
+// TENANTS: one row per tenant (their current / latest lease)
+// ============================================================
+const LEASE_MANAGERS = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'];
+
 app.get('/api/tenants', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT t.*, l.lease_id, l.start_date, l.end_date, l.agreed_rent,
-                    l.rent_price, l.rent_period, l.number_of_periods, l.total_rent, COALESCE(l.discount, 0) as discount,
-                    COALESCE(l.total_to_pay, l.agreed_rent) as total_to_pay, l.payment_status,
-                    COALESCE(l.amount_paid, 0) as amount_paid, COALESCE(l.amount_due, l.agreed_rent) as amount_due,
-                    u.unit_number, COALESCE(p.property_name, p.title) as property_name, c.company_name
-             FROM tenants t
-             JOIN leases l ON t.tenant_id = l.tenant_id
-             JOIN units u ON l.unit_id = u.unit_id
-             JOIN properties p ON u.property_id = p.property_id
-             JOIN companies c ON t.company_id = c.company_id
-             WHERE t.company_id = $1
-             ORDER BY t.created_at DESC`,
+            `SELECT * FROM (
+                SELECT DISTINCT ON (t.tenant_id)
+                       t.*, COALESCE(t.is_active, true) AS tenant_active,
+                       l.lease_id, l.start_date, l.end_date, l.lease_state, l.agreed_rent,
+                       l.rent_price, l.rent_period, l.number_of_periods, l.total_rent, COALESCE(l.discount, 0) AS discount,
+                       COALESCE(l.total_to_pay, l.agreed_rent) AS total_to_pay, l.payment_status,
+                       COALESCE(l.amount_paid, 0) AS amount_paid, COALESCE(l.amount_due, l.agreed_rent) AS amount_due,
+                       (l.end_date::date - CURRENT_DATE) AS days_left,
+                       u.unit_id, u.unit_number, p.property_id, COALESCE(p.property_name, p.title) AS property_name,
+                       (SELECT COALESCE(SUM(GREATEST(inv.amount_due - COALESCE((SELECT SUM(py.amount_paid) FROM payments py WHERE py.invoice_id = inv.invoice_id), 0), 0)), 0)
+                          FROM invoices inv JOIN leases l2 ON inv.lease_id = l2.lease_id
+                         WHERE l2.tenant_id = t.tenant_id AND inv.company_id = $1) AS balance_owed,
+                       (SELECT COUNT(*) FROM leases l3 WHERE l3.tenant_id = t.tenant_id) AS lease_count
+                FROM tenants t
+                JOIN leases l ON t.tenant_id = l.tenant_id
+                JOIN units u ON l.unit_id = u.unit_id
+                JOIN properties p ON u.property_id = p.property_id
+                WHERE t.company_id = $1
+                ORDER BY t.tenant_id, (l.lease_state = 'CURRENT') DESC, l.lease_id DESC
+             ) x
+             ORDER BY (x.lease_state = 'CURRENT') DESC, x.tenant_id DESC`,
             [req.user.company_id]
         );
         res.json(result.rows);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// UPDATE TENANT
+// FULL HISTORY OF ONE TENANT (all leases, invoices, payments, activity)
+app.get('/api/tenants/:id/history', authenticateToken, async (req, res) => {
+    const cId = req.user.company_id;
+    const tenantId = req.params.id;
+    try {
+        const tenantRes = await pool.query('SELECT * FROM tenants WHERE tenant_id = $1 AND company_id = $2', [tenantId, cId]);
+        if (tenantRes.rows.length === 0) return res.status(404).json({ error: 'Tenant not found.' });
+
+        const leases = (await pool.query(
+            `SELECT l.*, to_char(l.start_date, 'YYYY-MM-DD') AS start_str, to_char(l.end_date, 'YYYY-MM-DD') AS end_str,
+                    (l.end_date::date - CURRENT_DATE) AS days_left,
+                    u.unit_number, COALESCE(p.property_name, p.title) AS property_name
+             FROM leases l JOIN units u ON l.unit_id = u.unit_id JOIN properties p ON u.property_id = p.property_id
+             WHERE l.tenant_id = $1 AND l.company_id = $2 ORDER BY l.lease_id DESC`,
+            [tenantId, cId]
+        )).rows;
+
+        const invoices = (await pool.query(
+            `SELECT inv.invoice_id, inv.invoice_number, inv.amount_due, inv.due_date, inv.lease_id, COALESCE(pay.paid, 0) AS paid
+             FROM invoices inv JOIN leases l ON inv.lease_id = l.lease_id
+             LEFT JOIN (SELECT invoice_id, SUM(amount_paid) AS paid FROM payments GROUP BY invoice_id) pay ON pay.invoice_id = inv.invoice_id
+             WHERE l.tenant_id = $1 AND inv.company_id = $2 ORDER BY inv.invoice_id DESC`,
+            [tenantId, cId]
+        )).rows;
+
+        const payments = (await pool.query(
+            `SELECT pay.amount_paid, pay.payment_date, pay.payment_method, inv.invoice_number
+             FROM payments pay JOIN invoices inv ON pay.invoice_id = inv.invoice_id JOIN leases l ON inv.lease_id = l.lease_id
+             WHERE l.tenant_id = $1 AND pay.company_id = $2 ORDER BY pay.payment_date DESC`,
+            [tenantId, cId]
+        )).rows;
+
+        let events = [];
+        try {
+            events = (await pool.query(
+                'SELECT event_type, description, amount, created_at FROM lease_events WHERE tenant_id = $1 AND company_id = $2 ORDER BY created_at DESC',
+                [tenantId, cId]
+            )).rows;
+        } catch (e) { console.error('History events warning:', e.message); }
+
+        const billed = invoices.reduce((s, i) => s + parseFloat(i.amount_due), 0);
+        const paid = invoices.reduce((s, i) => s + parseFloat(i.paid), 0);
+        const balance = invoices.reduce((s, i) => s + Math.max(0, parseFloat(i.amount_due) - parseFloat(i.paid)), 0);
+
+        res.json({ tenant: tenantRes.rows[0], leases, invoices, payments, events, totals: { billed, paid, balance } });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// EDIT TENANT (personal details + lease end date)
 app.put('/api/tenants/:id', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
-    const { full_name, nida_passport_no, phone_number, rent_price, rent_period, number_of_periods, discount, amount_paid, agreed_rent } = req.body;
+    const { full_name, nida_passport_no, identity_type, phone_number, end_date, lease_id } = req.body;
     const tenantId = req.params.id;
 
     if (!req.user.can_edit_tenants && req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'COMPANY_ADMIN') {
         return res.status(403).json({ error: 'You do not have permission to edit tenant details.' });
     }
-
-    // Work out the new payment figures first (only if payment fields were sent)
-    let calc = null;
-    const priceSent = rent_price !== undefined ? rent_price : agreed_rent;
-    if (priceSent !== undefined) {
-        calc = calculatePayment({
-            rent_price: priceSent,
-            number_of_periods: number_of_periods !== undefined ? number_of_periods : 1,
-            discount,
-            paid_amount: amount_paid
-        });
-        if (calc.error) return res.status(400).json({ error: calc.error });
-        if (rent_period !== undefined && !ALLOWED_RENT_PERIODS.includes(rent_period)) {
-            return res.status(400).json({ error: 'Invalid rent period. Use Day, Week, Month or Year.' });
-        }
+    if (!full_name || !phone_number || !nida_passport_no) {
+        return res.status(400).json({ error: 'Name, phone and ID number are required.' });
     }
 
     let client;
@@ -521,23 +625,28 @@ app.put('/api/tenants/:id', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPAN
         client = await pool.connect();
         await client.query('BEGIN');
 
-        await client.query(
-            'UPDATE tenants SET full_name = $1, nida_passport_no = $2, phone_number = $3 WHERE tenant_id = $4 AND company_id = $5',
-            [full_name, nida_passport_no, phone_number, tenantId, req.user.company_id]
+        const upd = await client.query(
+            `UPDATE tenants SET full_name = $1, nida_passport_no = $2, phone_number = $3, identity_type = COALESCE($4, identity_type)
+             WHERE tenant_id = $5 AND company_id = $6 RETURNING tenant_id`,
+            [String(full_name).trim(), String(nida_passport_no).trim(), String(phone_number).trim(),
+             ALLOWED_ID_TYPES.includes(identity_type) ? identity_type : null, tenantId, req.user.company_id]
         );
+        if (upd.rows.length === 0) throw new Error('Tenant not found.');
 
-        if (calc) {
-            await client.query(
-                `UPDATE leases SET
-                    rent_price = $1, rent_period = COALESCE($2, rent_period), number_of_periods = $3, total_rent = $4, discount = $5,
-                    total_to_pay = $6, agreed_rent = $6, amount_paid = $7, amount_due = $8, payment_status = $9
-                 WHERE tenant_id = $10 AND company_id = $11 AND status = 'ACTIVE'`,
-                [
-                    calc.price, rent_period || null, calc.periods, calc.totalRent, calc.discount,
-                    calc.totalToPay, calc.paid, calc.amountDue, calc.status,
-                    tenantId, req.user.company_id
-                ]
-            );
+        if (end_date && lease_id) {
+            const l = (await client.query(
+                `SELECT lease_id, to_char(start_date, 'YYYY-MM-DD') AS start_str, to_char(end_date, 'YYYY-MM-DD') AS end_str
+                 FROM leases WHERE lease_id = $1 AND tenant_id = $2 AND company_id = $3 FOR UPDATE`,
+                [lease_id, tenantId, req.user.company_id]
+            )).rows[0];
+            if (!l) throw new Error('Lease not found.');
+            if (end_date < l.start_str) throw new Error('End date cannot be before the start date.');
+
+            if (end_date !== l.end_str) {
+                const days = Math.max(0, Math.round((new Date(end_date) - new Date(l.start_str)) / 86400000));
+                await client.query('UPDATE leases SET end_date = $1, duration_days = $2 WHERE lease_id = $3 AND company_id = $4', [end_date, days, lease_id, req.user.company_id]);
+                await logLeaseEvent(client, req.user.company_id, lease_id, tenantId, 'EDITED', `Lease end date changed from ${l.end_str} to ${end_date}`, null, req.user.user_id);
+            }
         }
 
         await createAuditLog(client, req.user.company_id, req.user.user_id, 'Updated Tenant Details', 'TENANTS', req.ip, { tenant_id: tenantId });
@@ -545,7 +654,227 @@ app.put('/api/tenants/:id', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPAN
         res.json({ message: 'Tenant updated successfully' });
     } catch (err) {
         if (client) await client.query('ROLLBACK');
-        res.status(500).json({ error: err.message });
+        res.status(400).json({ error: err.message });
+    } finally {
+        if (client) client.release();
+    }
+});
+
+// RENEW CONTRACT: a NEW lease record for the same tenant and unit
+app.post('/api/leases/:id/renew', authenticateToken, allowRoles(...LEASE_MANAGERS), async (req, res) => {
+    const { start_date, end_date, rent_price, number_of_periods, discount, paid_amount } = req.body;
+    const rent_period = req.body.rent_period || 'Month';
+    const companyId = req.user.company_id;
+
+    if (!start_date) return res.status(400).json({ error: 'New lease start date is required.' });
+    if (!ALLOWED_RENT_PERIODS.includes(rent_period)) return res.status(400).json({ error: 'Invalid rent period.' });
+    if (end_date && end_date < start_date) return res.status(400).json({ error: 'End date cannot be before the start date.' });
+
+    const calc = calculatePayment({ rent_price, number_of_periods, discount, paid_amount });
+    if (calc.error) return res.status(400).json({ error: calc.error });
+
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query('BEGIN');
+
+        const old = (await client.query('SELECT * FROM leases WHERE lease_id = $1 AND company_id = $2 FOR UPDATE', [req.params.id, companyId])).rows[0];
+        if (!old) throw new Error('Lease not found.');
+        if (old.lease_state !== 'CURRENT') throw new Error('Only a current lease can be renewed.');
+
+        const newEnd = end_date || new Date(new Date(start_date).setFullYear(new Date(start_date).getFullYear() + 1)).toISOString().split('T')[0];
+        const durationDays = Math.max(0, Math.round((new Date(newEnd) - new Date(start_date)) / 86400000));
+
+        await client.query("UPDATE leases SET lease_state = 'RENEWED', ended_at = NOW(), ended_reason = 'Renewed' WHERE lease_id = $1 AND company_id = $2", [old.lease_id, companyId]);
+
+        const leaseRes = await client.query(
+            `INSERT INTO leases
+             (company_id, unit_id, tenant_id, property_id, start_date, end_date, duration_days, agreed_rent, amount_paid, amount_due, payment_cycle, status,
+              rent_price, rent_period, number_of_periods, total_rent, discount, total_to_pay, payment_status, previous_lease_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING *`,
+            [
+                companyId, old.unit_id, old.tenant_id, old.property_id, start_date, newEnd, durationDays, calc.totalToPay, calc.paid, calc.amountDue, 'MONTHLY', 'ACTIVE',
+                calc.price, rent_period, calc.periods, calc.totalRent, calc.discount, calc.totalToPay, calc.status, old.lease_id
+            ]
+        );
+        const lease = leaseRes.rows[0];
+
+        const seq = await client.query("SELECT nextval('invoice_seq')");
+        const invNumber = `INV-${new Date().getFullYear()}-${seq.rows[0].nextval}`;
+        const invStatus = calc.amountDue === 0 ? 'PAID' : (calc.paid > 0 ? 'PARTIAL' : 'PENDING');
+        const invoice = (await client.query(
+            'INSERT INTO invoices (company_id, lease_id, invoice_number, amount_due, due_date, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [companyId, lease.lease_id, invNumber, calc.totalToPay, start_date, invStatus]
+        )).rows[0];
+
+        if (calc.paid > 0) {
+            await client.query(
+                'INSERT INTO payments (company_id, invoice_id, amount_paid, payment_date, payment_method) VALUES ($1, $2, $3, NOW(), $4)',
+                [companyId, invoice.invoice_id, calc.paid, 'CASH/TRANSFER']
+            );
+        }
+
+        await logLeaseEvent(client, companyId, lease.lease_id, old.tenant_id, 'RENEWED',
+            `Contract renewed: ${start_date} to ${newEnd} (${calc.periods} ${rent_period}${calc.periods === 1 ? '' : 's'})`, calc.totalToPay, req.user.user_id);
+        await createAuditLog(client, companyId, req.user.user_id, 'Renewed Lease', 'LEASES', req.ip, { old_lease_id: old.lease_id, new_lease_id: lease.lease_id });
+        await client.query('COMMIT');
+        res.status(201).json({ message: 'Contract renewed.', lease, invoice });
+    } catch (err) {
+        if (client) await client.query('ROLLBACK');
+        res.status(400).json({ error: err.message });
+    } finally {
+        if (client) client.release();
+    }
+});
+
+// EXTEND STAY: same lease, later end date, extra charge as its own invoice
+app.post('/api/leases/:id/extend', authenticateToken, allowRoles(...LEASE_MANAGERS), async (req, res) => {
+    const { new_end_date, extra_periods, rent_price, discount, paid_amount } = req.body;
+    const companyId = req.user.company_id;
+    if (!new_end_date) return res.status(400).json({ error: 'New end date is required.' });
+
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query('BEGIN');
+
+        const lease = (await client.query(
+            `SELECT *, to_char(start_date, 'YYYY-MM-DD') AS start_str, to_char(end_date, 'YYYY-MM-DD') AS end_str
+             FROM leases WHERE lease_id = $1 AND company_id = $2 FOR UPDATE`,
+            [req.params.id, companyId]
+        )).rows[0];
+        if (!lease) throw new Error('Lease not found.');
+        if (lease.lease_state !== 'CURRENT') throw new Error('Only a current lease can be extended.');
+        if (new_end_date <= lease.end_str) throw new Error(`New end date must be after the current end date (${lease.end_str}).`);
+
+        const period = lease.rent_period || 'Month';
+        const calc = calculatePayment({
+            rent_price: rent_price !== undefined && rent_price !== '' ? rent_price : lease.rent_price,
+            number_of_periods: extra_periods, discount, paid_amount
+        });
+        if (calc.error) throw new Error(calc.error);
+
+        const oldToPay = parseFloat(lease.total_to_pay ?? lease.agreed_rent ?? 0);
+        const newToPay = oldToPay + calc.totalToPay;
+        const newPaid = parseFloat(lease.amount_paid || 0) + calc.paid;
+        const newDue = Math.max(0, Math.round((newToPay - newPaid) * 100) / 100);
+        const durationDays = Math.max(0, Math.round((new Date(new_end_date) - new Date(lease.start_str)) / 86400000));
+
+        await client.query(
+            `UPDATE leases SET end_date = $1, duration_days = $2,
+                number_of_periods = COALESCE(number_of_periods, 0) + $3,
+                total_rent = COALESCE(total_rent, 0) + $4,
+                discount = COALESCE(discount, 0) + $5,
+                total_to_pay = $6, agreed_rent = $6,
+                amount_paid = $7, amount_due = $8, payment_status = $9
+             WHERE lease_id = $10 AND company_id = $11`,
+            [new_end_date, durationDays, calc.periods, calc.totalRent, calc.discount, newToPay, newPaid, newDue, payStatusOf(newToPay, newPaid), lease.lease_id, companyId]
+        );
+
+        const seq = await client.query("SELECT nextval('invoice_seq')");
+        const invNumber = `INV-${new Date().getFullYear()}-${seq.rows[0].nextval}`;
+        const invStatus = calc.amountDue === 0 ? 'PAID' : (calc.paid > 0 ? 'PARTIAL' : 'PENDING');
+        const invoice = (await client.query(
+            'INSERT INTO invoices (company_id, lease_id, invoice_number, amount_due, due_date, status) VALUES ($1, $2, $3, $4, CURRENT_DATE, $5) RETURNING *',
+            [companyId, lease.lease_id, invNumber, calc.totalToPay, invStatus]
+        )).rows[0];
+
+        if (calc.paid > 0) {
+            await client.query(
+                'INSERT INTO payments (company_id, invoice_id, amount_paid, payment_date, payment_method) VALUES ($1, $2, $3, NOW(), $4)',
+                [companyId, invoice.invoice_id, calc.paid, 'CASH/TRANSFER']
+            );
+        }
+
+        await logLeaseEvent(client, companyId, lease.lease_id, lease.tenant_id, 'EXTENDED',
+            `Stay extended from ${lease.end_str} to ${new_end_date} (+${calc.periods} ${period}${calc.periods === 1 ? '' : 's'})`, calc.totalToPay, req.user.user_id);
+        await createAuditLog(client, companyId, req.user.user_id, 'Extended Lease', 'LEASES', req.ip, { lease_id: lease.lease_id, new_end_date });
+        await client.query('COMMIT');
+        res.status(201).json({ message: 'Stay extended.', invoice });
+    } catch (err) {
+        if (client) await client.query('ROLLBACK');
+        res.status(400).json({ error: err.message });
+    } finally {
+        if (client) client.release();
+    }
+});
+
+// MOVE OUT: ends the lease, frees the unit, keeps the history and any unpaid balance
+app.post('/api/leases/:id/end', authenticateToken, allowRoles(...LEASE_MANAGERS), async (req, res) => {
+    const companyId = req.user.company_id;
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query('BEGIN');
+
+        const lease = (await client.query('SELECT * FROM leases WHERE lease_id = $1 AND company_id = $2 FOR UPDATE', [req.params.id, companyId])).rows[0];
+        if (!lease) throw new Error('Lease not found.');
+        if (lease.lease_state !== 'CURRENT') throw new Error('This lease has already ended.');
+
+        await client.query(
+            "UPDATE leases SET lease_state = 'ENDED', ended_at = NOW(), ended_reason = $1 WHERE lease_id = $2 AND company_id = $3",
+            [String(req.body.reason || 'Moved out').slice(0, 200), lease.lease_id, companyId]
+        );
+        await client.query("UPDATE units SET status = 'VACANT' WHERE unit_id = $1 AND company_id = $2", [lease.unit_id, companyId]);
+        await client.query(
+            `UPDATE tenants SET is_active = EXISTS (SELECT 1 FROM leases WHERE tenant_id = $1 AND company_id = $2 AND lease_state = 'CURRENT')
+             WHERE tenant_id = $1 AND company_id = $2`,
+            [lease.tenant_id, companyId]
+        );
+
+        const owed = (await client.query(
+            `SELECT COALESCE(SUM(GREATEST(inv.amount_due - COALESCE((SELECT SUM(py.amount_paid) FROM payments py WHERE py.invoice_id = inv.invoice_id), 0), 0)), 0) AS owed
+             FROM invoices inv JOIN leases l ON inv.lease_id = l.lease_id WHERE l.tenant_id = $1 AND inv.company_id = $2`,
+            [lease.tenant_id, companyId]
+        )).rows[0].owed;
+
+        await logLeaseEvent(client, companyId, lease.lease_id, lease.tenant_id, 'MOVED_OUT', `Moved out. Unpaid balance: ${parseFloat(owed).toLocaleString('en-US')}`, parseFloat(owed), req.user.user_id);
+        await createAuditLog(client, companyId, req.user.user_id, 'Ended Lease (Move Out)', 'LEASES', req.ip, { lease_id: lease.lease_id });
+        await client.query('COMMIT');
+        res.json({ message: 'Tenant moved out. The unit is now vacant.', balance_owed: parseFloat(owed) });
+    } catch (err) {
+        if (client) await client.query('ROLLBACK');
+        res.status(400).json({ error: err.message });
+    } finally {
+        if (client) client.release();
+    }
+});
+
+// DELETE a tenant that was entered by mistake (only if no payment was ever recorded)
+app.delete('/api/tenants/:id', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN'), async (req, res) => {
+    const companyId = req.user.company_id;
+    const tenantId = req.params.id;
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query('BEGIN');
+
+        const t = (await client.query('SELECT tenant_id FROM tenants WHERE tenant_id = $1 AND company_id = $2 FOR UPDATE', [tenantId, companyId])).rows[0];
+        if (!t) throw new Error('Tenant not found.');
+
+        const pays = (await client.query(
+            `SELECT COUNT(*) AS c FROM payments pay JOIN invoices inv ON pay.invoice_id = inv.invoice_id JOIN leases l ON inv.lease_id = l.lease_id
+             WHERE l.tenant_id = $1 AND pay.company_id = $2`, [tenantId, companyId]
+        )).rows[0].c;
+        if (parseInt(pays) > 0) throw new Error('This tenant has payment records, so it cannot be deleted. Use "Move Out" to keep the history.');
+
+        // free the units of current leases
+        await client.query(
+            "UPDATE units SET status = 'VACANT' WHERE company_id = $2 AND unit_id IN (SELECT unit_id FROM leases WHERE tenant_id = $1 AND company_id = $2 AND lease_state = 'CURRENT')",
+            [tenantId, companyId]
+        );
+        await client.query('DELETE FROM invoices WHERE company_id = $2 AND lease_id IN (SELECT lease_id FROM leases WHERE tenant_id = $1 AND company_id = $2)', [tenantId, companyId]);
+        try { await client.query('SAVEPOINT del_events'); await client.query('DELETE FROM lease_events WHERE tenant_id = $1 AND company_id = $2', [tenantId, companyId]); await client.query('RELEASE SAVEPOINT del_events'); }
+        catch (e) { await client.query('ROLLBACK TO SAVEPOINT del_events'); }
+        await client.query('DELETE FROM leases WHERE tenant_id = $1 AND company_id = $2', [tenantId, companyId]);
+        await client.query('DELETE FROM tenants WHERE tenant_id = $1 AND company_id = $2', [tenantId, companyId]);
+
+        await createAuditLog(client, companyId, req.user.user_id, 'Deleted Tenant', 'TENANTS', req.ip, { tenant_id: tenantId });
+        await client.query('COMMIT');
+        res.json({ message: 'Tenant deleted.' });
+    } catch (err) {
+        if (client) await client.query('ROLLBACK');
+        res.status(400).json({ error: err.message });
     } finally {
         if (client) client.release();
     }
@@ -585,7 +914,7 @@ app.get('/api/dashboard/metrics', authenticateToken, async (req, res) => {
         const totalUnits = await pool.query('SELECT COUNT(*) FROM units WHERE company_id = $1', [cId]);
         const occupiedUnits = await pool.query("SELECT COUNT(*) FROM units WHERE company_id = $1 AND status = 'OCCUPIED'", [cId]);
         const vacantUnits = await pool.query("SELECT COUNT(*) FROM units WHERE company_id = $1 AND status = 'VACANT'", [cId]);
-        const activeTenants = await pool.query("SELECT COUNT(DISTINCT tenant_id) FROM leases WHERE company_id = $1 AND status = 'ACTIVE'", [cId]);
+        const activeTenants = await pool.query("SELECT COUNT(DISTINCT tenant_id) FROM leases WHERE company_id = $1 AND lease_state = 'CURRENT'", [cId]);
 
         const unitsTotal = parseInt(totalUnits.rows[0]?.count || 0);
         const unitsOccupied = parseInt(occupiedUnits.rows[0]?.count || 0);
@@ -850,7 +1179,7 @@ app.get('/api/dashboard/overview', authenticateToken, async (req, res) => {
                 (SELECT COUNT(*) FROM properties WHERE company_id = $1) AS properties,
                 (SELECT COUNT(*) FROM units WHERE company_id = $1) AS units,
                 (SELECT COUNT(*) FROM units WHERE company_id = $1 AND status = 'OCCUPIED') AS occupied,
-                (SELECT COUNT(DISTINCT tenant_id) FROM leases WHERE company_id = $1 AND status = 'ACTIVE') AS tenants`,
+                (SELECT COUNT(DISTINCT tenant_id) FROM leases WHERE company_id = $1 AND lease_state = 'CURRENT') AS tenants`,
             [cId]
         )).rows[0];
 
@@ -895,7 +1224,7 @@ app.get('/api/dashboard/overview', authenticateToken, async (req, res) => {
                 COUNT(*) FILTER (WHERE end_date < CURRENT_DATE) AS expired,
                 COUNT(*) FILTER (WHERE end_date >= CURRENT_DATE AND end_date <= CURRENT_DATE + 7) AS week,
                 COUNT(*) FILTER (WHERE end_date > CURRENT_DATE + 7 AND end_date <= CURRENT_DATE + 30) AS month
-             FROM leases WHERE company_id = $1 AND status = 'ACTIVE'`,
+             FROM leases WHERE company_id = $1 AND lease_state = 'CURRENT'`,
             [cId]
         )).rows[0];
 
