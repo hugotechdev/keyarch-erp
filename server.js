@@ -49,6 +49,40 @@ async function initDatabase() {
         console.log('🔄 Connecting to Database & Initializing Core Setup...');
         await pool.query('SELECT NOW()');
 
+        // Hakikisha columns zote zinazotakiwa kwenye 'properties' zipo (Handling legacy schemas)
+        await pool.query(`
+            DO $$ 
+            BEGIN 
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='property_name') THEN 
+                    ALTER TABLE properties ADD COLUMN property_name VARCHAR(150);
+                END IF;
+
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='title') THEN 
+                    ALTER TABLE properties ADD COLUMN title VARCHAR(150);
+                ELSE
+                    ALTER TABLE properties ALTER COLUMN title DROP NOT NULL;
+                END IF;
+
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='address') THEN 
+                    ALTER TABLE properties ADD COLUMN address TEXT;
+                ELSE
+                    ALTER TABLE properties ALTER COLUMN address DROP NOT NULL;
+                END IF;
+
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='company_id') THEN 
+                    ALTER TABLE properties ADD COLUMN company_id INT REFERENCES companies(company_id) ON DELETE CASCADE;
+                END IF;
+
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='category') THEN 
+                    ALTER TABLE properties ADD COLUMN category VARCHAR(50) DEFAULT 'RESIDENTIAL';
+                END IF;
+
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='total_units') THEN 
+                    ALTER TABLE properties ADD COLUMN total_units INT DEFAULT 1;
+                END IF;
+            END $$;
+        `);
+
         await pool.query("CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000");
 
         // Seed Master Platform Owner Company & User
@@ -194,7 +228,7 @@ app.post('/api/auth/register-company', async (req, res) => {
 app.get('/api/properties', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT p.*, COUNT(u.unit_id) as total_units_count 
+            `SELECT p.*, COALESCE(p.property_name, p.title) as property_name, COUNT(u.unit_id) as total_units_count 
              FROM properties p 
              LEFT JOIN units u ON p.property_id = u.property_id 
              WHERE p.company_id = $1 
@@ -220,10 +254,10 @@ app.post('/api/properties/wizard', authenticateToken, allowRoles('SUPER_ADMIN', 
         client = await pool.connect();
         await client.query('BEGIN');
 
-        // 1. Insert Property Record
+        // 1. Insert Property Record (Jaza property_name na title zote mbili ili kuepuka NOT NULL constraints)
         const propRes = await client.query(
-            'INSERT INTO properties (company_id, property_name, address, category, total_units) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [companyId, property_name, address, property_type, number_of_units || 1]
+            'INSERT INTO properties (company_id, property_name, title, address, category, total_units) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [companyId, property_name, property_name, address, property_type, number_of_units || 1]
         );
         const property = propRes.rows[0];
 
@@ -290,7 +324,7 @@ app.post('/api/properties/wizard', authenticateToken, allowRoles('SUPER_ADMIN', 
 app.get('/api/units', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT u.*, p.property_name 
+            `SELECT u.*, COALESCE(p.property_name, p.title) as property_name 
              FROM units u 
              JOIN properties p ON u.property_id = p.property_id 
              WHERE u.company_id = $1 
@@ -379,7 +413,7 @@ app.get('/api/tenants', authenticateToken, async (req, res) => {
 app.get('/api/leases', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT l.*, t.full_name as tenant_name, u.unit_number, p.property_name 
+            `SELECT l.*, t.full_name as tenant_name, u.unit_number, COALESCE(p.property_name, p.title) as property_name 
              FROM leases l 
              JOIN tenants t ON l.tenant_id = t.tenant_id 
              JOIN units u ON l.unit_id = u.unit_id 
@@ -455,7 +489,7 @@ app.post('/api/tickets/create', authenticateToken, allowRoles('SUPER_ADMIN', 'CO
 app.get('/api/expenses', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT e.*, p.property_name, u.full_name as recorded_by_name 
+            `SELECT e.*, COALESCE(p.property_name, p.title) as property_name, u.full_name as recorded_by_name 
              FROM expenses e 
              LEFT JOIN properties p ON e.property_id = p.property_id 
              LEFT JOIN users u ON e.recorded_by = u.user_id 
