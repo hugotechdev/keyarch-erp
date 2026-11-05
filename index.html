@@ -281,83 +281,100 @@
         </footer>
     </div>
 
-    <!-- ADVANCED DYNAMIC PROPERTY WIZARD MODAL -->
-    <div id="modal-property-wizard" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-        <div class="bg-[#0a1224] border border-[#182848] w-full max-w-2xl rounded-2xl p-6 relative my-8 shadow-2xl space-y-5 text-gray-200">
-            <button onclick="closeModal('modal-property-wizard')" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">&times;</button>
+    <!-- IMPROVED OPTIMIZED PROPERTY WIZARD MODAL (SCROLLABLE BODY & FIXED HEADER) -->
+    <div id="modal-property-wizard" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+        <div class="bg-[#0a1224] border border-[#182848] w-full max-w-2xl rounded-2xl flex flex-col max-h-[90vh] shadow-2xl text-gray-200 overflow-hidden relative">
             
-            <div class="text-center space-y-1">
-                <h3 class="text-xl font-black text-white">Property for Rent</h3>
-                <div class="flex justify-center items-center gap-2 pt-1">
-                    <span class="w-7 h-7 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center">1</span>
-                    <span class="w-8 h-0.5 bg-[#182848]"></span>
-                    <span class="w-7 h-7 rounded-full bg-[#14223d] text-gray-500 font-bold text-xs flex items-center justify-center">2</span>
-                    <span class="w-8 h-0.5 bg-[#182848]"></span>
-                    <span class="w-7 h-7 rounded-full bg-[#14223d] text-gray-500 font-bold text-xs flex items-center justify-center">3</span>
+            <!-- FIXED HEADER (HAIKATIKI NA IPO HAPAHAPA JUU SIKU ZOTE) -->
+            <div class="p-5 border-b border-[#182848] bg-[#0d172d] flex justify-between items-center sticky top-0 z-10">
+                <div class="space-y-1">
+                    <h3 class="text-lg font-black text-white flex items-center gap-2">
+                        <i class="fa-solid fa-building-circle-check text-blue-500"></i> Property Wizard
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <span class="flex items-center gap-1 text-[11px] font-bold text-blue-400 bg-blue-950/80 px-2 py-0.5 rounded-full border border-blue-800/50">
+                            <span class="w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] flex items-center justify-center">1</span> Basic Info
+                        </span>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-gray-600"></i>
+                        <span class="flex items-center gap-1 text-[11px] font-bold text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-800/50">
+                            <span class="w-4 h-4 rounded-full bg-cyan-600 text-white text-[9px] flex items-center justify-center">2</span> Groups & Units
+                        </span>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-gray-600"></i>
+                        <span class="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800/50">
+                            <span class="w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] flex items-center justify-center">3</span> Confirmation
+                        </span>
+                    </div>
                 </div>
+                <button onclick="closeModal('modal-property-wizard')" class="w-8 h-8 rounded-full bg-[#14223d] text-gray-400 hover:text-white hover:bg-red-600 transition flex items-center justify-center text-lg">&times;</button>
             </div>
 
-            <form id="form-property-wizard" onsubmit="collectAndSubmitWizard(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Property Name *</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-house absolute left-3.5 top-3.5 text-gray-500 text-xs"></i>
-                        <input type="text" id="wiz-prop-name" placeholder="Hugo Home" class="w-full pl-9 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+            <!-- SCROLLABLE BODY CONTAINER -->
+            <div class="p-5 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
+                <form id="form-property-wizard" onsubmit="collectAndSubmitWizard(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Property Name *</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-house absolute left-3.5 top-3.5 text-gray-500 text-xs"></i>
+                            <input type="text" id="wiz-prop-name" placeholder="Hugo Home" class="w-full pl-9 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                        </div>
                     </div>
-                </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-1">Address *</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-location-dot absolute left-3.5 top-3.5 text-gray-500 text-xs"></i>
-                        <input type="text" id="wiz-address" placeholder="Mbezi Beach, Dar es Salaam" class="w-full pl-9 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Address *</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-location-dot absolute left-3.5 top-3.5 text-gray-500 text-xs"></i>
+                            <input type="text" id="wiz-address" placeholder="Mbezi Beach, Dar es Salaam" class="w-full pl-9 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                        </div>
                     </div>
-                </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-gray-300 mb-2">Property Type *</label>
-                    <div class="grid grid-cols-3 sm:grid-cols-6 gap-2" id="wiz-prop-type-group">
-                        <button type="button" onclick="selectType('Apartment')" class="type-btn active bg-blue-600 text-white border-blue-500 p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
-                            <i class="fa-solid fa-building text-sm"></i>
-                            <span class="text-[10px] font-bold">Apartment</span>
-                        </button>
-                        <button type="button" onclick="selectType('House')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
-                            <i class="fa-solid fa-house-chimney text-sm"></i>
-                            <span class="text-[10px] font-bold">House</span>
-                        </button>
-                        <button type="button" onclick="selectType('Office')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
-                            <i class="fa-solid fa-briefcase text-sm"></i>
-                            <span class="text-[10px] font-bold">Office</span>
-                        </button>
-                        <button type="button" onclick="selectType('Shop')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
-                            <i class="fa-solid fa-store text-sm"></i>
-                            <span class="text-[10px] font-bold">Shop</span>
-                        </button>
-                        <button type="button" onclick="selectType('Hotel')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
-                            <i class="fa-solid fa-hotel text-sm"></i>
-                            <span class="text-[10px] font-bold">Hotel</span>
-                        </button>
-                        <button type="button" onclick="selectType('Air-Bnb')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
-                            <i class="fa-solid fa-bed text-sm"></i>
-                            <span class="text-[10px] font-bold">Air-Bnb</span>
-                        </button>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-2">Property Type *</label>
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2" id="wiz-prop-type-group">
+                            <button type="button" onclick="selectType('Apartment')" class="type-btn active bg-blue-600 text-white border-blue-500 p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-building text-sm"></i>
+                                <span class="text-[10px] font-bold">Apartment</span>
+                            </button>
+                            <button type="button" onclick="selectType('House')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-house-chimney text-sm"></i>
+                                <span class="text-[10px] font-bold">House</span>
+                            </button>
+                            <button type="button" onclick="selectType('Office')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-briefcase text-sm"></i>
+                                <span class="text-[10px] font-bold">Office</span>
+                            </button>
+                            <button type="button" onclick="selectType('Shop')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-store text-sm"></i>
+                                <span class="text-[10px] font-bold">Shop</span>
+                            </button>
+                            <button type="button" onclick="selectType('Hotel')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-hotel text-sm"></i>
+                                <span class="text-[10px] font-bold">Hotel</span>
+                            </button>
+                            <button type="button" onclick="selectType('Air-Bnb')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-bed text-sm"></i>
+                                <span class="text-[10px] font-bold">Air-Bnb</span>
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                <!-- DYNAMIC GROUPS CONTAINER -->
-                <div id="groups-container" class="space-y-4">
-                    <!-- Dynamic Group Cards Will Render Here -->
-                </div>
+                    <!-- DYNAMIC GROUPS CONTAINER -->
+                    <div id="groups-container" class="space-y-4">
+                        <!-- Dynamic Group Cards Will Render Here -->
+                    </div>
 
-                <!-- ADD ANOTHER GROUP BUTTON -->
-                <button type="button" onclick="addGroupCard()" class="w-full py-2.5 border-2 border-dashed border-[#233863] hover:border-blue-500 rounded-2xl text-blue-400 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition bg-[#0d172d]/50">
-                    <i class="fa-solid fa-circle-plus"></i> + Add Another Group
+                    <!-- ADD ANOTHER GROUP BUTTON -->
+                    <button type="button" onclick="addGroupCard()" class="w-full py-3 border-2 border-dashed border-[#233863] hover:border-blue-500 rounded-2xl text-blue-400 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition bg-[#0d172d]/50">
+                        <i class="fa-solid fa-circle-plus text-sm"></i> + Add Another Group
+                    </button>
+                </form>
+            </div>
+
+            <!-- FIXED FOOTER BUTTON -->
+            <div class="p-4 border-t border-[#182848] bg-[#0d172d] sticky bottom-0 z-10">
+                <button type="button" onclick="document.getElementById('form-property-wizard').requestSubmit()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-xs uppercase tracking-wider shadow-xl transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up text-sm"></i> Save Property & All Units &rarr;
                 </button>
-
-                <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-xl transition">
-                    Save Property & All Units &rarr;
-                </button>
-            </form>
+            </div>
         </div>
     </div>
 
@@ -517,7 +534,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('keyarch_token')) showAppView();
 
-            // Seed initial group card
             addGroupCard();
 
             document.getElementById('form-login').addEventListener('submit', async (e) => {
@@ -614,7 +630,6 @@
             });
         });
 
-        // DYNAMIC GROUP CARDS LOGIC
         function addGroupCard() {
             groupCounter++;
             const container = document.getElementById('groups-container');
@@ -624,28 +639,28 @@
                 <div id="${cardId}" class="group-card bg-[#0e1930] border border-[#1d325c] rounded-2xl p-4 space-y-3 relative" data-group-id="${groupCounter}">
                     <div class="flex justify-between items-center border-b border-[#182848] pb-2">
                         <h4 class="text-xs font-bold text-white uppercase tracking-wider group-title">${selectedPropertyType} Group ${groupCounter}</h4>
-                        ${groupCounter > 1 ? `<button type="button" onclick="removeGroupCard('${cardId}')" class="text-red-400 hover:text-red-300 text-xs"><i class="fa-solid fa-trash-can"></i> Remove Group</button>` : ''}
+                        ${groupCounter > 1 ? `<button type="button" onclick="removeGroupCard('${cardId}')" class="text-red-400 hover:text-red-300 text-xs flex items-center gap-1"><i class="fa-solid fa-trash-can"></i> Remove Group</button>` : ''}
                     </div>
 
                     <div class="space-y-3">
                         <div>
                             <label class="block text-[11px] font-semibold text-gray-300 mb-1">Group Name *</label>
-                            <input type="text" class="grp-name w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none" value="Group ${groupCounter}" required>
+                            <input type="text" class="grp-name w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="Group ${groupCounter}" required>
                         </div>
 
                         <div>
                             <label class="block text-[11px] font-semibold text-gray-300 mb-1">Units in Group *</label>
-                            <input type="number" class="grp-units w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none" value="1" min="1" required>
+                            <input type="number" class="grp-units w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="1" min="1" required>
                         </div>
 
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-[11px] font-semibold text-gray-300 mb-1">Bedrooms</label>
-                                <input type="number" class="grp-bedrooms w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none" value="1" min="0">
+                                <input type="number" class="grp-bedrooms w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="1" min="0">
                             </div>
                             <div>
                                 <label class="block text-[11px] font-semibold text-gray-300 mb-1">Bathrooms</label>
-                                <input type="number" class="grp-bathrooms w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none" value="1" min="0">
+                                <input type="number" class="grp-bathrooms w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="1" min="0">
                             </div>
                         </div>
 
@@ -671,7 +686,7 @@
 
                         <div>
                             <label class="block text-[11px] font-semibold text-gray-300 mb-1">Rent Amount *</label>
-                            <input type="number" class="grp-rent-amount w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none" placeholder="0" required>
+                            <input type="number" class="grp-rent-amount w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" placeholder="0" required>
                         </div>
 
                         <div>
