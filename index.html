@@ -21,7 +21,8 @@
         body { transition: background-color .3s var(--ka-ease), color .3s var(--ka-ease); }
 
         /* background shapes (circles) */
-        .ka-blobs { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+        html { min-height: 100%; }
+        .ka-blobs { position: fixed; top: 0; left: 0; right: 0; height: 120vh; z-index: -1; overflow: hidden; pointer-events: none; }
         .ka-blobs i { position: absolute; border-radius: 9999px; filter: blur(2px); animation: kaFloat 18s ease-in-out infinite alternate; }
         .ka-blobs i:nth-child(1) { width: 420px; height: 420px; top: -140px; right: -100px; }
         .ka-blobs i:nth-child(2) { width: 360px; height: 360px; bottom: 8%; left: -140px; animation-duration: 22s; }
@@ -30,7 +31,9 @@
         @keyframes kaFloat { from { transform: translate3d(0,0,0) scale(1); } to { transform: translate3d(24px,-30px,0) scale(1.07); } }
 
         /* ---------- LIGHT ---------- */
-        html[data-theme="light"] body { background: linear-gradient(155deg, #EAF0FB 0%, #E7ECF8 48%, #EEE9FB 100%); color: #1E293B; }
+        html[data-theme="light"] { background-color: #E8EDF8; }
+        html[data-theme="light"], html[data-theme="light"] body { background-image: linear-gradient(155deg, #EAF0FB 0%, #E7ECF8 48%, #EEE9FB 100%); background-attachment: fixed; background-repeat: no-repeat; }
+        html[data-theme="light"] body { background-color: transparent; color: #1E293B; }
         html[data-theme="light"] .ka-blobs i:nth-child(1) { background: #C4B5FD; opacity: .45; }
         html[data-theme="light"] .ka-blobs i:nth-child(2) { background: #7DD3FC; opacity: .38; }
         html[data-theme="light"] .ka-blobs i:nth-child(3) { background: #99F6E4; opacity: .45; }
@@ -105,7 +108,9 @@
         html[data-theme="light"] .nav-item.bg-blue-600\/20 { background: linear-gradient(135deg,#DBE7FF,#E7DEFF); color: #1D4ED8; box-shadow: inset 2px 2px 5px rgba(163,177,205,.4), inset -2px -2px 5px rgba(255,255,255,.9); }
 
         /* ---------- DARK ---------- */
-        html[data-theme="dark"] body { background: radial-gradient(1200px 700px at 85% -10%, #1b1f4a 0%, transparent 60%), linear-gradient(160deg, #0A1226 0%, #0B1630 55%, #0E1233 100%); }
+        html[data-theme="dark"] { background-color: #0B1630; }
+        html[data-theme="dark"], html[data-theme="dark"] body { background-image: radial-gradient(1200px 700px at 85% -10%, #1b1f4a 0%, transparent 60%), linear-gradient(160deg, #0A1226 0%, #0B1630 55%, #0E1233 100%); background-attachment: fixed; background-repeat: no-repeat; }
+        html[data-theme="dark"] body { background-color: transparent; }
         html[data-theme="dark"] .ka-blobs i:nth-child(1) { background: #7C3AED; opacity: .26; }
         html[data-theme="dark"] .ka-blobs i:nth-child(2) { background: #0891B2; opacity: .24; }
         html[data-theme="dark"] .ka-blobs i:nth-child(3) { background: #10B981; opacity: .17; }
@@ -121,7 +126,9 @@
         /* ---------- COFFEE & GOLD ---------- */
         :root { --ka-gold: linear-gradient(135deg, #F6E3A1 0%, #D9AE4E 48%, #A97C26 100%); }
         html[data-theme="coffee"] { color-scheme: dark; }
-        html[data-theme="coffee"] body { background: radial-gradient(1100px 650px at 88% -8%, rgba(184,137,43,.22) 0%, transparent 60%), linear-gradient(160deg, #17120E 0%, #130F0B 55%, #1A130D 100%); color: #F5EFE6; }
+        html[data-theme="coffee"] { background-color: #16110D; }
+        html[data-theme="coffee"], html[data-theme="coffee"] body { background-image: radial-gradient(1100px 650px at 88% -8%, rgba(184,137,43,.22) 0%, transparent 60%), linear-gradient(160deg, #17120E 0%, #130F0B 55%, #1A130D 100%); background-attachment: fixed; background-repeat: no-repeat; }
+        html[data-theme="coffee"] body { background-color: transparent; color: #F5EFE6; }
         html[data-theme="coffee"] .ka-blobs i:nth-child(1) { background: #B8892B; opacity: .2; }
         html[data-theme="coffee"] .ka-blobs i:nth-child(2) { background: #7A4B27; opacity: .4; }
         html[data-theme="coffee"] .ka-blobs i:nth-child(3) { background: #9C6B3C; opacity: .3; }
@@ -3216,7 +3223,7 @@
         // ============================================================
         // VERSIONS + DATABASE SETUP CHECK
         // ============================================================
-        const PAGE_VERSION = 'v7.1 - 2026-11-05 - Coffee and Gold style, effects';
+        const PAGE_VERSION = 'v7.2 - 2026-11-05 - Coffee and Gold style, mobile background fix';
 
         async function checkVersions() {
             let serverVersion = 'unknown (old server.js?)';
