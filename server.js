@@ -91,6 +91,25 @@ async function initDatabase() {
             );
         `);
 
+        // NEW: UNIT GROUPS TABLE FOR ADVANCED PROPERTY WIZARD
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS unit_groups (
+                group_id SERIAL PRIMARY KEY,
+                company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
+                property_id INT REFERENCES properties(property_id) ON DELETE CASCADE,
+                group_name VARCHAR(150) NOT NULL,
+                units_in_group INT NOT NULL,
+                bedrooms INT DEFAULT 0,
+                bathrooms INT DEFAULT 0,
+                rent_timeline VARCHAR(30) DEFAULT 'Per Month',
+                currency VARCHAR(10) DEFAULT 'TSH',
+                rent_amount NUMERIC(12, 2) NOT NULL,
+                payment_method VARCHAR(50) DEFAULT 'Cash',
+                furnishing_status VARCHAR(30) DEFAULT 'Unfurnished',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
         await pool.query(`
             CREATE TABLE IF NOT EXISTS units (
                 unit_id SERIAL PRIMARY KEY,
@@ -324,7 +343,6 @@ app.post('/api/auth/register-company', async (req, res) => {
 
     let client;
     try {
-        // Fast Check for Duplicate Email before transaction
         const existingUser = await pool.query('SELECT user_id FROM users WHERE email = $1', [email]);
         if (existingUser.rows.length > 0) {
             return res.status(400).json({ error: 'This email address is already registered.' });
@@ -412,6 +430,87 @@ app.post('/api/properties', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPAN
         await createAuditLog(pool, req.user.company_id, req.user.user_id, `Created Property`, 'PROPERTIES', req.ip, { property_id: result.rows[0].property_id, property_name });
         res.status(201).json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// WIZARD API: ADVANCED PROPERTY CREATION WITH GROUPS & AUTO-UNITS
+app.post('/api/properties/wizard', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
+    const { property_name, address, property_type, number_of_units, groups } = req.body;
+    const companyId = req.user.company_id;
+
+    if (!property_name || !address || !property_type) {
+        return res.status(400).json({ error: 'Please provide required property details (Property Name, Address, Type).' });
+    }
+
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query('BEGIN');
+
+        // 1. Create Main Property Record
+        const propRes = await client.query(
+            'INSERT INTO properties (company_id, property_name, address, category, total_units) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [companyId, property_name, address, property_type, number_of_units || 1]
+        );
+        const property = propRes.rows[0];
+
+        // 2. Insert Groups & Auto-Generate Units
+        if (groups && Array.isArray(groups)) {
+            let unitCounter = 1;
+            for (const grp of groups) {
+                await client.query(
+                    `INSERT INTO unit_groups 
+                     (company_id, property_id, group_name, units_in_group, bedrooms, bathrooms, rent_timeline, currency, rent_amount, payment_method, furnishing_status) 
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                    [
+                        companyId,
+                        property.property_id,
+                        grp.group_name || 'Group 1',
+                        grp.units_in_group || 1,
+                        grp.bedrooms || 0,
+                        grp.bathrooms || 0,
+                        grp.rent_timeline || 'Per Month',
+                        grp.currency || 'TSH',
+                        grp.rent_amount || 0,
+                        grp.payment_method || 'Cash',
+                        grp.furnishing_status || 'Unfurnished'
+                    ]
+                );
+
+                const totalUnitsInGroup = parseInt(grp.units_in_group || 1);
+                for (let i = 0; i < totalUnitsInGroup; i++) {
+                    const cleanGroupName = (grp.group_name || 'Unit').replace(/\s+/g, '');
+                    const unitNumber = `${cleanGroupName}-${unitCounter}`;
+
+                    await client.query(
+                        `INSERT INTO units 
+                         (company_id, property_id, unit_number, rent_amount, currency, status, is_furnished) 
+                         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                        [
+                            companyId,
+                            property.property_id,
+                            unitNumber,
+                            grp.rent_amount || 0,
+                            grp.currency || 'TSH',
+                            'VACANT',
+                            grp.furnishing_status === 'Furnished'
+                        ]
+                    );
+                    unitCounter++;
+                }
+            }
+        }
+
+        await createAuditLog(client, companyId, req.user.user_id, 'Created Detailed Property Wizard', 'PROPERTIES', req.ip, { property_id: property.property_id, property_name });
+        await client.query('COMMIT');
+
+        res.status(201).json({ message: 'Property and unit groups created successfully', property });
+    } catch (err) {
+        if (client) await client.query('ROLLBACK');
+        console.error('Property Wizard Error:', err);
+        res.status(500).json({ error: 'Failed to create property: ' + err.message });
+    } finally {
+        if (client) client.release();
+    }
 });
 
 app.get('/api/units', authenticateToken, async (req, res) => {
@@ -622,7 +721,7 @@ app.post('/api/finance/luku/vend', authenticateToken, allowRoles('SUPER_ADMIN', 
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 7. DASHBOARD METRICS & REMINDERS APIs (Corrected totalUnits)
+// 7. DASHBOARD METRICS & REMINDERS APIs
 app.get('/api/dashboard/metrics', authenticateToken, async (req, res) => {
     const cId = req.user.company_id;
     try {
