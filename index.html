@@ -62,7 +62,7 @@
             <form id="form-portal-register" class="space-y-3 hidden">
                 <div class="bg-cyan-950/40 border border-cyan-800/50 p-2.5 rounded-xl text-[11px] text-cyan-300 flex items-center gap-2 mb-1">
                     <i class="fa-solid fa-building-user text-base text-cyan-400"></i>
-                    <span>Register your real estate company to manage properties and staff.</span>
+                    <span>Register your real estate company. Access starts after your payment is confirmed.</span>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-300 mb-1">Company / Business Name *</label>
@@ -88,8 +88,33 @@
                     Create Company Account &rarr;
                 </button>
             </form>
+
+            <div class="border-t border-[#182848] pt-4 text-center text-[11px] text-gray-400 space-y-1">
+                <div>Need pricing or activation? Pricing depends on the size of your company.</div>
+                <div class="font-bold text-gray-300">HUGO TECH</div>
+                <div><a href="https://wa.me/255785799530" target="_blank" rel="noopener" class="text-emerald-300 hover:underline"><i class="fa-brands fa-whatsapp"></i> +255 785 799 530</a>
+                    &nbsp;·&nbsp; <a href="mailto:info@hugotech.co.tz" class="text-cyan-300 hover:underline">info@hugotech.co.tz</a></div>
+            </div>
         </div>
     </div>
+
+    <!-- VIEW: ACCESS NOT ACTIVE (waiting payment / suspended / subscription ended) -->
+    <div id="view-locked" style="display: none;" class="flex-grow flex items-center justify-center p-4 min-h-screen">
+        <div class="bg-[#0a1224] border border-[#182848] w-full max-w-md rounded-2xl p-8 shadow-2xl text-center space-y-5">
+            <div class="mx-auto w-16 h-16 rounded-full bg-amber-500/15 text-amber-400 flex items-center justify-center text-3xl"><i class="fa-solid fa-lock"></i></div>
+            <div>
+                <h2 class="text-xl font-black text-white">Access Not Active</h2>
+                <p id="locked-message" class="text-sm text-gray-400 mt-2">Your account is not active.</p>
+            </div>
+            <div class="bg-[#14223d] border border-[#233863] rounded-xl p-4 text-xs text-gray-300 space-y-2 text-left">
+                <div class="font-bold text-white text-sm">Contact HUGO TECH</div>
+                <div><i class="fa-brands fa-whatsapp text-emerald-400 w-5"></i> <a href="https://wa.me/255785799530" target="_blank" rel="noopener" class="text-emerald-300 font-bold hover:underline">+255 785 799 530</a></div>
+                <div><i class="fa-solid fa-envelope text-cyan-400 w-5"></i> <a href="mailto:info@hugotech.co.tz" class="text-cyan-300 font-bold hover:underline">info@hugotech.co.tz</a></div>
+            </div>
+            <button onclick="logout()" class="w-full py-3 rounded-xl bg-[#14223d] hover:bg-[#1e2f52] border border-[#233863] text-white font-bold text-xs">Back to Sign In</button>
+        </div>
+    </div>
+
 
     <!-- VIEW 2: APP (SIDEBAR + HEADER + PAGES) -->
     <div id="view-app" style="display: none;" class="w-full min-h-screen">
@@ -103,14 +128,15 @@
                 <p id="sidebar-company" class="text-[11px] text-gray-500 mt-1 truncate">Hugo Tech</p>
             </div>
             <nav class="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar">
+                <button id="nav-platform" data-page="platform" onclick="showPage('platform'); loadPlatform()" class="hidden nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-shield-halved w-4 text-center"></i> Platform Admin</button>
                 <button data-page="dashboard" onclick="showPage('dashboard')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold bg-blue-600/20 text-blue-300 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-gauge-high w-4 text-center"></i> Dashboard</button>
                 <button data-page="properties" onclick="showPage('properties')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-building w-4 text-center"></i> Properties & Units</button>
                 <button data-page="tenants" onclick="showPage('tenants')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-users w-4 text-center"></i> Tenants & Leases</button>
                 <button data-page="invoices" onclick="showPage('invoices')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-file-invoice-dollar w-4 text-center"></i> Invoices & Payments</button>
-                <button data-page="luku" onclick="showPage('luku')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-bolt w-4 text-center"></i> Luku</button>
+                <button data-page="luku" onclick="showPage('luku')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-bolt w-4 text-center"></i> <span class="flex-1 text-left">Luku</span><span id="nav-pro-luku" class="hidden px-1.5 py-0.5 rounded bg-indigo-600/40 text-indigo-200 text-[9px] font-black">PRO</span></button>
                 <button data-page="maintenance" onclick="showPage('maintenance')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition">
                     <i class="fa-solid fa-screwdriver-wrench w-4 text-center"></i> <span class="flex-1 text-left">Maintenance</span>
-                    <span id="nav-badge-tickets" class="hidden px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black">0</span>
+                    <span id="nav-badge-tickets" class="hidden px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black">0</span><span id="nav-pro-maintenance" class="hidden px-1.5 py-0.5 rounded bg-indigo-600/40 text-indigo-200 text-[9px] font-black">PRO</span>
                 </button>
                 <button data-page="expenses" onclick="showPage('expenses')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-money-bill-transfer w-4 text-center"></i> Expenses</button>
                 <button data-page="reports" onclick="showPage('reports')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-chart-line w-4 text-center"></i> Reports</button>
@@ -148,9 +174,9 @@
                         <button onclick="closeMenus(); openModal('modal-tenant')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-user-plus w-4 text-emerald-400"></i> Tenant</button>
                         <button onclick="closeMenus(); openModal('modal-invoice')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-file-invoice-dollar w-4 text-purple-400"></i> Invoice</button>
                         <button onclick="closeMenus(); openPaymentModal()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-hand-holding-dollar w-4 text-emerald-400"></i> Record Payment</button>
-                        <button onclick="closeMenus(); openModal('modal-luku')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-bolt w-4 text-amber-400"></i> Luku Token</button>
+                        <button onclick="closeMenus(); if (requireFeature('luku')) openModal('modal-luku')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-bolt w-4 text-amber-400"></i> Luku Token</button>
                         <button onclick="closeMenus(); openModal('modal-expense')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-money-bill-transfer w-4 text-red-400"></i> Expense</button>
-                        <button onclick="closeMenus(); openModal('modal-ticket')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench w-4 text-orange-400"></i> Ticket</button>
+                        <button onclick="closeMenus(); if (requireFeature('tickets')) openModal('modal-ticket')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench w-4 text-orange-400"></i> Ticket</button>
                     </div>
                 </div>
 
@@ -177,6 +203,7 @@
                             <div id="user-name-display" class="font-bold text-white truncate">User</div>
                             <div id="user-company-display" class="text-[11px] text-cyan-400 truncate">Company</div>
                             <span id="user-role-badge" class="inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-900/80 border border-blue-500 text-blue-300 uppercase">COMPANY_ADMIN</span>
+                            <span id="user-plan-badge" class="inline-block mt-1 ml-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-900/60 border border-indigo-500/60 text-indigo-200 uppercase">STANDARD PLAN</span>
                         </div>
                         <button onclick="closeMenus(); showPage('settings')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-gear w-4 text-gray-400"></i> Settings</button>
                         <button onclick="logout()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-red-900/40 text-red-300 flex items-center gap-2"><i class="fa-solid fa-power-off w-4"></i> Sign Out</button>
@@ -185,6 +212,60 @@
             </header>
 
             <main class="p-4 md:p-6 max-w-7xl w-full mx-auto flex-grow space-y-6">
+                <div id="sub-banner" class="hidden p-3 rounded-xl bg-amber-900/30 border border-amber-500/40 text-amber-200 text-xs"></div>
+
+
+                <!-- ============ PAGE: PLATFORM ADMIN (Super Admin only) ============ -->
+                <section id="page-platform" class="app-page hidden space-y-4">
+                    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                        <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl"><div class="text-[10px] text-gray-400 uppercase font-semibold">Companies</div><div id="pf-kpi-total" class="text-2xl font-black text-blue-400 mt-1">0</div></div>
+                        <div class="p-4 bg-[#0d172d] border border-emerald-500/30 rounded-2xl"><div class="text-[10px] text-gray-400 uppercase font-semibold">Active</div><div id="pf-kpi-active" class="text-2xl font-black text-emerald-400 mt-1">0</div></div>
+                        <button onclick="setPlatformFilter('pending')" class="text-left p-4 bg-[#0d172d] border border-amber-500/30 rounded-2xl hover:bg-[#101d38]"><div class="text-[10px] text-gray-400 uppercase font-semibold">Waiting Payment</div><div id="pf-kpi-pending" class="text-2xl font-black text-amber-400 mt-1">0</div></button>
+                        <button onclick="setPlatformFilter('expiring')" class="text-left p-4 bg-[#0d172d] border border-orange-500/30 rounded-2xl hover:bg-[#101d38]"><div class="text-[10px] text-gray-400 uppercase font-semibold">Ending In 7 Days</div><div id="pf-kpi-expiring" class="text-2xl font-black text-orange-400 mt-1">0</div></button>
+                        <button onclick="setPlatformFilter('blocked')" class="text-left p-4 bg-[#0d172d] border border-red-500/30 rounded-2xl hover:bg-[#101d38]"><div class="text-[10px] text-gray-400 uppercase font-semibold">Expired / Suspended</div><div id="pf-kpi-blocked" class="text-2xl font-black text-red-400 mt-1">0</div></button>
+                        <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl"><div class="text-[10px] text-gray-400 uppercase font-semibold">Received This Month</div><div id="pf-kpi-received" class="text-lg font-black text-cyan-400 mt-1">TZS 0</div></div>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row justify-between gap-3">
+                        <div id="pf-chips" class="flex flex-wrap gap-2 text-[11px] font-bold">
+                            <button data-pf="all" onclick="setPlatformFilter('all')" class="pf-chip px-3 py-1.5 rounded-full border border-[#233863] text-gray-400">All</button>
+                            <button data-pf="pending" onclick="setPlatformFilter('pending')" class="pf-chip px-3 py-1.5 rounded-full border border-[#233863] text-gray-400">Waiting Payment</button>
+                            <button data-pf="active" onclick="setPlatformFilter('active')" class="pf-chip px-3 py-1.5 rounded-full border border-[#233863] text-gray-400">Active</button>
+                            <button data-pf="expiring" onclick="setPlatformFilter('expiring')" class="pf-chip px-3 py-1.5 rounded-full border border-[#233863] text-gray-400">Ending Soon</button>
+                            <button data-pf="blocked" onclick="setPlatformFilter('blocked')" class="pf-chip px-3 py-1.5 rounded-full border border-[#233863] text-gray-400">Expired / Suspended</button>
+                        </div>
+                        <div class="relative md:w-72">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                            <input type="text" oninput="platformSearch = this.value.toLowerCase(); renderPlatform()" placeholder="Search company, owner, phone..." class="w-full pl-9 pr-3 py-2 bg-[#14223d] border border-[#233863] rounded-xl text-xs text-white outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-[#182848] bg-[#0d172d]">
+                        <table class="w-full text-left text-xs text-gray-300">
+                            <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
+                                <tr><th class="p-3">Company / Owner</th><th class="p-3">Plan</th><th class="p-3">Billing</th><th class="p-3">Usage</th><th class="p-3">Status</th><th class="p-3">Actions</th></tr>
+                            </thead>
+                            <tbody id="pf-body" class="divide-y divide-[#182848]">
+                                <tr><td colspan="6" class="p-4 text-center text-gray-500">Loading companies...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- ============ PAGE: UPGRADE (shown when a Pro feature is locked) ============ -->
+                <section id="page-upgrade" class="app-page hidden">
+                    <div class="max-w-lg mx-auto bg-[#0d172d] border border-[#182848] rounded-2xl p-8 text-center space-y-4">
+                        <div class="mx-auto w-16 h-16 rounded-full bg-indigo-500/15 text-indigo-300 flex items-center justify-center text-3xl"><i class="fa-solid fa-crown"></i></div>
+                        <h3 id="up-title" class="text-xl font-black text-white">Pro Feature</h3>
+                        <p id="up-text" class="text-sm text-gray-400">This feature is available on the Pro plan.</p>
+                        <div class="bg-[#14223d] border border-[#233863] rounded-xl p-4 text-xs text-gray-300 space-y-2 text-left">
+                            <div class="font-bold text-white text-sm">Upgrade with HUGO TECH</div>
+                            <div><i class="fa-brands fa-whatsapp text-emerald-400 w-5"></i> <a href="https://wa.me/255785799530" target="_blank" rel="noopener" class="text-emerald-300 font-bold hover:underline">+255 785 799 530</a></div>
+                            <div><i class="fa-solid fa-envelope text-cyan-400 w-5"></i> <a href="mailto:info@hugotech.co.tz" class="text-cyan-300 font-bold hover:underline">info@hugotech.co.tz</a></div>
+                        </div>
+                        <button onclick="showPage('dashboard')" class="px-4 py-2.5 rounded-xl bg-[#14223d] hover:bg-[#1e2f52] border border-[#233863] text-white font-bold text-xs">Back to Dashboard</button>
+                    </div>
+                </section>
 
                 <!-- ============ PAGE: DASHBOARD ============ -->
                 <section id="page-dashboard" class="app-page space-y-5">
@@ -470,6 +551,19 @@
                             <div class="p-3 rounded-xl bg-[#14223d]"><div class="text-gray-500 text-[10px] uppercase">Your Name</div><div id="set-name" class="font-bold text-white">-</div></div>
                             <div class="p-3 rounded-xl bg-[#14223d]"><div class="text-gray-500 text-[10px] uppercase">Email / Role</div><div id="set-email" class="font-bold text-white break-all">-</div></div>
                         </div>
+                    </div>
+
+                    <div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-5 space-y-3">
+                        <div class="flex flex-wrap justify-between items-center gap-2">
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Your Plan</h3>
+                            <a href="https://wa.me/255785799530" target="_blank" rel="noopener" class="text-[11px] font-bold text-emerald-300 hover:underline"><i class="fa-brands fa-whatsapp"></i> Upgrade / Support: HUGO TECH</a>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                            <div class="p-3 rounded-xl bg-[#14223d]"><div class="text-gray-500 text-[10px] uppercase">Plan</div><div id="set-plan" class="font-black text-white">-</div></div>
+                            <div class="p-3 rounded-xl bg-[#14223d]"><div class="text-gray-500 text-[10px] uppercase">Payment Type</div><div id="set-billing" class="font-bold text-white">-</div></div>
+                            <div class="p-3 rounded-xl bg-[#14223d]"><div class="text-gray-500 text-[10px] uppercase">Active Until</div><div id="set-until" class="font-bold text-white">-</div></div>
+                        </div>
+                        <div id="set-features" class="flex flex-wrap gap-2 text-[11px]"></div>
                     </div>
 
                     <div class="bg-[#0d172d] border border-[#182848] rounded-2xl overflow-hidden">
@@ -1051,6 +1145,100 @@
         </div>
     </div>
 
+    <!-- MODAL: PLATFORM - MANAGE COMPANY -->
+    <div id="modal-platform-company" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-2xl rounded-2xl flex flex-col max-h-[92vh] shadow-2xl overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-[#182848] bg-[#0a1224] flex justify-between items-center shrink-0">
+                <div><h3 id="pc-title" class="font-bold text-white">Manage Company</h3><p id="pc-owner" class="text-[11px] text-gray-400"></p></div>
+                <button onclick="closeModal('modal-platform-company')" class="w-8 h-8 rounded-full bg-[#14223d] text-gray-400 hover:text-white hover:bg-red-600 transition flex items-center justify-center text-lg">&times;</button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
+                <input type="hidden" id="pc-id">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Access Status</label>
+                        <select id="pc-status" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                            <option value="PENDING">Waiting Payment (no access)</option><option value="ACTIVE">Active</option><option value="SUSPENDED">Suspended (no access)</option>
+                        </select></div>
+                    <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Plan</label>
+                        <select id="pc-plan" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                            <option value="STANDARD">Standard</option><option value="PRO">Pro (full access)</option>
+                        </select></div>
+                    <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Payment Type</label>
+                        <select id="pc-billing" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                            <option value="">Not set</option><option value="SUBSCRIPTION">Subscription (monthly)</option><option value="ONE_TIME">One-time (permanent)</option>
+                        </select></div>
+                    <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Active Until (subscription)</label>
+                        <input type="date" id="pc-until" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs"></div>
+                </div>
+
+                <div>
+                    <div class="text-xs font-bold text-white uppercase tracking-wider mb-2">Special Access For This Company</div>
+                    <p class="text-[11px] text-gray-500 mb-2">"Plan default" follows the plan. Choose On or Off to give or remove one feature for this company only.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Luku</span><select id="pc-f-luku" class="p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"><option value="">Plan default</option><option value="on">On</option><option value="off">Off</option></select></div>
+                        <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Maintenance tickets</span><select id="pc-f-tickets" class="p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"><option value="">Plan default</option><option value="on">On</option><option value="off">Off</option></select></div>
+                        <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Advanced reports</span><select id="pc-f-reports_advanced" class="p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"><option value="">Plan default</option><option value="on">On</option><option value="off">Off</option></select></div>
+                        <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Full backup</span><select id="pc-f-backup_full" class="p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"><option value="">Plan default</option><option value="on">On</option><option value="off">Off</option></select></div>
+                        <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Max properties</span><input type="number" min="0" id="pc-l-max_properties" placeholder="plan default" class="w-32 p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"></div>
+                        <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Max staff</span><input type="number" min="0" id="pc-l-max_staff" placeholder="plan default" class="w-32 p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"></div>
+                    </div>
+                    <p class="text-[10px] text-gray-500 mt-2">For the limits: leave empty = plan default, 0 = unlimited.</p>
+                </div>
+
+                <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Notes (only you see this)</label>
+                    <textarea id="pc-notes" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs h-16"></textarea></div>
+
+                <div>
+                    <div class="text-xs font-bold text-white uppercase tracking-wider mb-2">Payments Received From This Company</div>
+                    <div id="pc-payments" class="space-y-1.5 text-xs"></div>
+                </div>
+            </div>
+            <div class="px-5 py-3 border-t border-[#182848] bg-[#0a1224] shrink-0 flex flex-wrap gap-2">
+                <button onclick="savePlatformCompany()" class="flex-1 min-w-[120px] bg-blue-600 hover:bg-blue-700 py-3 rounded-xl text-white font-bold text-xs">Save Changes</button>
+                <button onclick="openPlatformPayment(document.getElementById('pc-id').value)" class="flex-1 min-w-[120px] bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl text-white font-bold text-xs">Record Payment</button>
+                <button onclick="resetOwnerPassword()" class="bg-[#14223d] hover:bg-[#1e2f52] border border-[#233863] px-4 py-3 rounded-xl text-gray-200 font-bold text-xs">Reset Owner Password</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: PLATFORM - RECORD PAYMENT -->
+    <div id="modal-platform-payment" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-platform-payment')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-1 flex items-center gap-2"><i class="fa-solid fa-hand-holding-dollar text-emerald-400"></i> Record Payment Received</h3>
+            <p id="pp-company" class="text-[11px] text-gray-400 mb-4"></p>
+            <form id="form-platform-payment" onsubmit="submitPlatformPayment(event)" class="space-y-3">
+                <input type="hidden" id="pp-company-id">
+                <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Payment For</label>
+                    <select id="pp-type" onchange="onPlatformPaymentType()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                        <option value="SUBSCRIPTION">Subscription (monthly) - gives access</option>
+                        <option value="ONE_TIME">One-time payment - permanent access</option>
+                        <option value="MAINTENANCE">Maintenance / support</option>
+                        <option value="FEATURE">New feature</option>
+                    </select></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Plan</label>
+                        <select id="pp-plan" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                            <option value="">Keep current plan</option><option value="STANDARD">Standard</option><option value="PRO">Pro</option>
+                        </select></div>
+                    <div id="pp-months-wrap"><label class="block text-[11px] font-semibold text-gray-400 mb-1">Months Paid</label>
+                        <input type="number" min="1" id="pp-months" value="1" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs"></div>
+                </div>
+                <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Amount Received (TZS) *</label>
+                    <input type="text" inputmode="decimal" autocomplete="off" id="pp-amount" placeholder="0" class="money-input w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Paid By</label>
+                        <select id="pp-method" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs"><option>Mobile Money</option><option>Bank</option><option>Cash</option></select></div>
+                    <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Reference</label>
+                        <input type="text" id="pp-ref" placeholder="Transaction ID" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs"></div>
+                </div>
+                <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Notes</label>
+                    <input type="text" id="pp-notes" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs"></div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Payment & Update Access</button>
+            </form>
+        </div>
+    </div>
+
     <script>
         let selectedPropertyType = 'Apartment';
         let groupCounter = 0;
@@ -1128,9 +1316,10 @@
                 const data = await res.json();
                 if (res.ok) {
                     localStorage.setItem('keyarch_token', data.token);
-                    localStorage.setItem('keyarch_user', JSON.stringify(data.user));
+                    localStorage.setItem('keyarch_user', JSON.stringify({ ...data.user, company: data.company }));
                     showAppView();
-                } else alert(data.error || 'Login Failed!');
+                } else if (LOCK_CODES.includes(data.code)) { showLockedScreen(data.error); }
+                else alert(data.error || 'Login Failed!');
             });
 
             document.getElementById('form-portal-register').addEventListener('submit', async (e) => {
@@ -1148,7 +1337,7 @@
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    alert('Congratulations! Your company has been registered successfully. You can now sign in.');
+                    alert('Your company has been registered.\n\nYour account will be activated after your payment is confirmed. For pricing and payment, contact HUGO TECH:\nWhatsApp +255 785 799 530\ninfo@hugotech.co.tz');
                     switchAuthTab('login');
                     document.getElementById('login-email').value = document.getElementById('p-reg-email').value;
                     document.getElementById('form-portal-register').reset();
@@ -1904,7 +2093,7 @@
         const PAGE_TITLES = {
             dashboard: 'Dashboard', properties: 'Properties & Units', tenants: 'Tenants & Leases',
             invoices: 'Invoices & Payments', luku: 'Luku', maintenance: 'Maintenance',
-            expenses: 'Expenses', reports: 'Reports', settings: 'Settings'
+            expenses: 'Expenses', reports: 'Reports', settings: 'Settings', platform: 'Platform Admin', upgrade: 'Upgrade'
         };
 
         function toggleSidebar() {
@@ -1931,6 +2120,8 @@
         });
 
         function showPage(page) {
+            const gate = FEATURE_PAGES[page];
+            if (gate && !hasFeature(gate)) { showUpgrade(page); return; }
             document.querySelectorAll('.app-page').forEach(el => el.classList.add('hidden'));
             document.getElementById('page-' + page)?.classList.remove('hidden');
 
@@ -1977,7 +2168,10 @@
             const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'COMPANY_ADMIN';
             document.getElementById('btn-admin-register').style.display = isAdmin ? 'inline-block' : 'none';
 
-            showPage('dashboard');
+            if (user.role === 'SUPER_ADMIN') { showPage('platform'); loadPlatform(); }
+            else showPage('dashboard');
+            applyFeatureUI();
+            loadMe();
             loadAllData();
         }
 
@@ -2665,6 +2859,319 @@
             const data = await res.json();
             if (res.ok) { closeModal('modal-tenant-detail'); loadAllData(); alert(data.message); }
             else alert('Failed: ' + (data.error || 'Server error'));
+        }
+
+        // ============================================================
+        // ACCESS CONTROL, PLANS (Standard / Pro) AND PLATFORM ADMIN
+        // ============================================================
+        const FEATURE_PAGES = { luku: 'luku', maintenance: 'tickets' };
+        const FEATURE_LABELS = { luku: 'Luku', tickets: 'Maintenance tickets', reports_advanced: 'Advanced reports', backup_full: 'Full backup' };
+
+        function isSuperAdmin() { return currentUserInfo().role === 'SUPER_ADMIN'; }
+        function hasFeature(key) {
+            if (isSuperAdmin()) return true;
+            const c = currentUserInfo().company;
+            return !!(c && c.features && c.features[key]);
+        }
+        function requireFeature(key) {
+            if (hasFeature(key)) return true;
+            showUpgrade(key === 'luku' ? 'luku' : 'maintenance');
+            return false;
+        }
+        function showUpgrade(page) {
+            const label = page === 'luku' ? 'Luku' : 'Maintenance Tickets';
+            setText('up-title', label + ' is a Pro feature');
+            setText('up-text', `Your current plan does not include ${label}. Contact HUGO TECH to upgrade to Pro and get full access.`);
+            showPage('upgrade');
+        }
+
+        async function api(url, method, body) {
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch(url, {
+                method: method || 'GET',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: body ? JSON.stringify(body) : undefined
+            });
+            let data = {};
+            try { data = await res.json(); } catch (e) { /* no body */ }
+            return { ok: res.ok, status: res.status, data };
+        }
+
+        // Lock screen when the company is unpaid / suspended / expired
+        const LOCK_CODES = ['ACCOUNT_PENDING', 'ACCOUNT_SUSPENDED', 'SUBSCRIPTION_EXPIRED'];
+        let sessionAlertShown = false;
+        const nativeFetch = window.fetch.bind(window);
+        window.fetch = async (url, opts) => {
+            const res = await nativeFetch(url, opts);
+            if ((res.status === 401 || res.status === 403) && !String(url).includes('/api/auth/login')) {
+                try {
+                    const data = await res.clone().json();
+                    if (LOCK_CODES.includes(data.code)) showLockedScreen(data.error);
+                    else if (res.status === 401 || /session expired|invalid token/i.test(data.error || '')) sessionExpired();
+                } catch (e) { /* not json */ }
+            }
+            return res;
+        };
+
+        function showLockedScreen(message) {
+            localStorage.removeItem('keyarch_token');
+            localStorage.removeItem('keyarch_user');
+            document.getElementById('view-login').style.display = 'none';
+            document.getElementById('view-app').style.display = 'none';
+            document.getElementById('view-locked').style.display = 'flex';
+            setText('locked-message', message || 'Your account is not active.');
+        }
+        function sessionExpired() {
+            if (sessionAlertShown) return;
+            sessionAlertShown = true;
+            localStorage.removeItem('keyarch_token');
+            localStorage.removeItem('keyarch_user');
+            alert('Your session has ended. Please sign in again.');
+            window.location.reload();
+        }
+
+        // refresh plan + features from the server, then update the screen
+        async function loadMe() {
+            const r = await api('/api/me');
+            if (!r.ok || !r.data.company) return;
+            const user = currentUserInfo();
+            user.company = r.data.company;
+            localStorage.setItem('keyarch_user', JSON.stringify(user));
+            applyFeatureUI();
+        }
+
+        function applyFeatureUI() {
+            const user = currentUserInfo();
+            const c = user.company || {};
+            const superAdmin = user.role === 'SUPER_ADMIN';
+            const planLabel = c.plan === 'PRO' ? 'Pro' : 'Standard';
+            const monthYear = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+            document.getElementById('nav-platform').classList.toggle('hidden', !superAdmin);
+            document.getElementById('nav-pro-luku').classList.toggle('hidden', hasFeature('luku'));
+            document.getElementById('nav-pro-maintenance').classList.toggle('hidden', hasFeature('tickets'));
+            setText('page-subtitle', `${c.company_name || user.company_name || ''} · ${superAdmin ? 'Platform Owner' : planLabel + ' Plan'} · ${monthYear}`);
+            setText('user-plan-badge', superAdmin ? 'PLATFORM OWNER' : planLabel.toUpperCase() + ' PLAN');
+
+            // settings: plan card
+            setText('set-plan', superAdmin ? 'Platform Owner' : planLabel);
+            setText('set-billing', c.billing_type === 'SUBSCRIPTION' ? 'Subscription (monthly)' : (c.billing_type === 'ONE_TIME' ? 'One-time (permanent)' : '-'));
+            setText('set-until', c.billing_type === 'SUBSCRIPTION' && c.paid_until ? c.paid_until : (c.billing_type === 'ONE_TIME' ? 'Permanent' : '-'));
+            const feats = c.features || {};
+            document.getElementById('set-features').innerHTML = Object.keys(FEATURE_LABELS).map(k => {
+                const on = superAdmin || !!feats[k];
+                return `<span class="px-2.5 py-1 rounded-full border ${on ? 'bg-emerald-900/30 text-emerald-300 border-emerald-500/30' : 'bg-[#14223d] text-gray-500 border-[#233863]'}"><i class="fa-solid ${on ? 'fa-check' : 'fa-lock'} mr-1"></i>${FEATURE_LABELS[k]}</span>`;
+            }).join('') + (feats.max_properties ? `<span class="px-2.5 py-1 rounded-full border bg-[#14223d] text-gray-300 border-[#233863]">Up to ${feats.max_properties} properties</span>` : '')
+                        + (feats.max_staff ? `<span class="px-2.5 py-1 rounded-full border bg-[#14223d] text-gray-300 border-[#233863]">Up to ${feats.max_staff} staff</span>` : '');
+
+            // warning when a subscription is about to end
+            const banner = document.getElementById('sub-banner');
+            if (!superAdmin && c.billing_type === 'SUBSCRIPTION' && c.days_left !== null && c.days_left <= 7) {
+                banner.classList.remove('hidden');
+                banner.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-2"></i>Your subscription ${c.days_left < 0 ? 'has ended' : (c.days_left === 0 ? 'ends today' : 'ends in ' + c.days_left + ' day(s)')} (${esc(c.paid_until)}). Contact HUGO TECH on WhatsApp <a class="underline font-bold" href="https://wa.me/255785799530" target="_blank" rel="noopener">+255 785 799 530</a> to renew.`;
+            } else banner.classList.add('hidden');
+        }
+
+        // ============================================================
+        // PLATFORM ADMIN (Super Admin)
+        // ============================================================
+        let platformCompanies = [];
+        let platformFilter = 'all';
+        let platformSearch = '';
+        let platformReceived = 0;
+
+        function pfStatus(c) {
+            if (c.access_status === 'PENDING') return 'pending';
+            if (c.access_status === 'SUSPENDED' || c.is_active === false) return 'suspended';
+            if (c.expired) return 'expired';
+            if (c.billing_type === 'SUBSCRIPTION' && c.days_left !== null && Number(c.days_left) <= 7) return 'expiring';
+            return 'active';
+        }
+        function waLink(phone) {
+            let d = String(phone || '').replace(/[^\d]/g, '');
+            if (d.startsWith('0')) d = '255' + d.slice(1);
+            return d ? `https://wa.me/${d}` : '';
+        }
+
+        async function loadPlatform() {
+            const r = await api('/api/platform/companies');
+            if (!r.ok) return;
+            platformCompanies = r.data.companies || [];
+            platformReceived = r.data.received_this_month || 0;
+            renderPlatform();
+        }
+
+        function setPlatformFilter(f) { platformFilter = f; renderPlatform(); }
+
+        function renderPlatform() {
+            const list = platformCompanies;
+            const st = list.map(pfStatus);
+            setText('pf-kpi-total', list.length);
+            setText('pf-kpi-active', st.filter(s => s === 'active' || s === 'expiring').length);
+            setText('pf-kpi-pending', st.filter(s => s === 'pending').length);
+            setText('pf-kpi-expiring', st.filter(s => s === 'expiring').length);
+            setText('pf-kpi-blocked', st.filter(s => s === 'expired' || s === 'suspended').length);
+            setText('pf-kpi-received', money(platformReceived));
+
+            document.querySelectorAll('.pf-chip').forEach(chip => {
+                const on = chip.dataset.pf === platformFilter;
+                chip.classList.toggle('bg-blue-600', on); chip.classList.toggle('text-white', on);
+                chip.classList.toggle('border-blue-500', on); chip.classList.toggle('text-gray-400', !on);
+            });
+
+            const rows = list.filter(c => {
+                const s = pfStatus(c);
+                const pass = platformFilter === 'all' ? true
+                    : platformFilter === 'active' ? (s === 'active' || s === 'expiring')
+                    : platformFilter === 'blocked' ? (s === 'expired' || s === 'suspended')
+                    : s === platformFilter;
+                if (!pass) return false;
+                if (!platformSearch) return true;
+                return [c.company_name, c.owner_name, c.owner_email, c.owner_phone].some(v => String(v || '').toLowerCase().includes(platformSearch));
+            });
+
+            const badges = {
+                pending: '<span class="px-2 py-0.5 rounded text-[10px] bg-amber-900/40 text-amber-300 border border-amber-500/30">Waiting Payment</span>',
+                active: '<span class="px-2 py-0.5 rounded text-[10px] bg-emerald-900/40 text-emerald-300 border border-emerald-500/30">Active</span>',
+                expiring: '<span class="px-2 py-0.5 rounded text-[10px] bg-orange-900/40 text-orange-300 border border-orange-500/30">Ending Soon</span>',
+                expired: '<span class="px-2 py-0.5 rounded text-[10px] bg-red-900/40 text-red-300 border border-red-500/30">Subscription Ended</span>',
+                suspended: '<span class="px-2 py-0.5 rounded text-[10px] bg-gray-800 text-gray-300 border border-gray-600/40">Suspended</span>'
+            };
+
+            document.getElementById('pf-body').innerHTML = rows.length === 0
+                ? '<tr><td colspan="6" class="p-4 text-center text-gray-500">No companies in this view.</td></tr>'
+                : rows.map(c => {
+                    const s = pfStatus(c);
+                    const wa = waLink(c.owner_phone);
+                    const billing = c.billing_type === 'SUBSCRIPTION'
+                        ? `Subscription<div class="text-[10px] ${s === 'expired' ? 'text-red-400' : 'text-gray-500'}">until ${esc(c.paid_until || '-')}${c.days_left !== null && s !== 'expired' ? ' (' + c.days_left + 'd)' : ''}</div>`
+                        : (c.billing_type === 'ONE_TIME' ? 'One-time<div class="text-[10px] text-gray-500">permanent</div>' : '<span class="text-gray-500">Not paid yet</span>');
+                    return `
+                    <tr class="hover:bg-[#14223d]/50">
+                        <td class="p-3"><div class="font-bold text-white">${esc(c.company_name)}</div>
+                            <div class="text-[10px] text-gray-400">${esc(c.owner_name || '-')} · ${esc(c.owner_phone || '')}</div>
+                            <div class="text-[10px] text-gray-500">${esc(c.owner_email || '')}</div></td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] ${c.plan === 'PRO' ? 'bg-indigo-900/50 text-indigo-300 border border-indigo-500/40' : 'bg-[#14223d] text-gray-300 border border-[#233863]'}">${c.plan === 'PRO' ? 'PRO' : 'STANDARD'}</span></td>
+                        <td class="p-3">${billing}</td>
+                        <td class="p-3 text-[11px]">${c.properties} properties · ${c.units} units<div class="text-gray-500">${c.tenants} tenants · ${c.staff} staff</div></td>
+                        <td class="p-3">${badges[s]}</td>
+                        <td class="p-3 whitespace-nowrap space-x-1">
+                            <button onclick="openPlatformCompany(${Number(c.company_id)})" class="px-2.5 py-1 bg-blue-600/30 text-blue-300 border border-blue-500/50 rounded font-bold hover:bg-blue-600 hover:text-white transition">Manage</button>
+                            <button onclick="openPlatformPayment(${Number(c.company_id)})" class="px-2.5 py-1 bg-emerald-600/30 text-emerald-300 border border-emerald-500/50 rounded font-bold hover:bg-emerald-600 hover:text-white transition">Payment</button>
+                            ${wa ? `<a href="${wa}" target="_blank" rel="noopener" class="inline-block px-2 py-1 bg-[#14223d] text-emerald-300 border border-[#233863] rounded hover:bg-emerald-700 hover:text-white transition"><i class="fa-brands fa-whatsapp"></i></a>` : ''}
+                        </td>
+                    </tr>`;
+                }).join('');
+        }
+
+        async function openPlatformCompany(id) {
+            const c = platformCompanies.find(x => String(x.company_id) === String(id));
+            if (!c) return;
+            document.getElementById('pc-id').value = c.company_id;
+            setText('pc-title', c.company_name);
+            setText('pc-owner', `${c.owner_name || '-'} · ${c.owner_phone || ''} · ${c.owner_email || ''}`);
+            document.getElementById('pc-status').value = c.access_status || 'ACTIVE';
+            document.getElementById('pc-plan').value = c.plan || 'STANDARD';
+            document.getElementById('pc-billing').value = c.billing_type || '';
+            document.getElementById('pc-until').value = c.paid_until || '';
+            document.getElementById('pc-notes').value = c.notes || '';
+
+            const f = c.features || {};
+            ['luku', 'tickets', 'reports_advanced', 'backup_full'].forEach(k => {
+                document.getElementById('pc-f-' + k).value = typeof f[k] === 'boolean' ? (f[k] ? 'on' : 'off') : '';
+            });
+            ['max_properties', 'max_staff'].forEach(k => {
+                document.getElementById('pc-l-' + k).value = typeof f[k] === 'number' ? f[k] : '';
+            });
+
+            document.getElementById('pc-payments').innerHTML = '<div class="p-3 text-center text-gray-500">Loading...</div>';
+            openModal('modal-platform-company');
+
+            const r = await api(`/api/platform/companies/${encodeURIComponent(id)}/payments`);
+            const labels = { SUBSCRIPTION: 'Subscription', ONE_TIME: 'One-time', MAINTENANCE: 'Maintenance', FEATURE: 'New feature' };
+            document.getElementById('pc-payments').innerHTML = !r.ok || r.data.length === 0
+                ? '<div class="p-3 text-center text-gray-500">No payments recorded yet.</div>'
+                : r.data.map(p => `
+                    <div class="flex justify-between gap-2 p-2.5 rounded-lg bg-[#14223d]">
+                        <span class="text-gray-300">${fmtDate(p.paid_at)} · ${labels[p.payment_type] || esc(p.payment_type)}${p.months ? ' (' + p.months + ' mo)' : ''}
+                            <span class="text-gray-500">· ${esc(p.method || '')} ${esc(p.reference || '')}</span></span>
+                        <span class="font-bold text-emerald-400 whitespace-nowrap">${money(p.amount)}</span>
+                    </div>`).join('');
+        }
+
+        async function savePlatformCompany() {
+            const id = document.getElementById('pc-id').value;
+            const features = {};
+            ['luku', 'tickets', 'reports_advanced', 'backup_full'].forEach(k => {
+                const v = document.getElementById('pc-f-' + k).value;
+                if (v === 'on') features[k] = true;
+                if (v === 'off') features[k] = false;
+            });
+            ['max_properties', 'max_staff'].forEach(k => {
+                const v = document.getElementById('pc-l-' + k).value;
+                if (v !== '') features[k] = parseInt(v);
+            });
+            const r = await api(`/api/platform/companies/${encodeURIComponent(id)}`, 'PUT', {
+                access_status: document.getElementById('pc-status').value,
+                plan: document.getElementById('pc-plan').value,
+                billing_type: document.getElementById('pc-billing').value,
+                paid_until: document.getElementById('pc-until').value,
+                notes: document.getElementById('pc-notes').value,
+                features
+            });
+            if (r.ok) { closeModal('modal-platform-company'); loadPlatform(); alert('Company updated.'); }
+            else alert('Failed: ' + (r.data.error || 'Server error'));
+        }
+
+        function onPlatformPaymentType() {
+            const t = document.getElementById('pp-type').value;
+            document.getElementById('pp-months-wrap').style.display = t === 'SUBSCRIPTION' ? 'block' : 'none';
+            if (t === 'ONE_TIME') document.getElementById('pp-plan').value = 'PRO';
+        }
+
+        function openPlatformPayment(id) {
+            const c = platformCompanies.find(x => String(x.company_id) === String(id));
+            if (!c) return;
+            document.getElementById('pp-company-id').value = c.company_id;
+            setText('pp-company', `${c.company_name} · ${c.owner_name || ''}`);
+            document.getElementById('pp-type').value = c.access_status === 'PENDING' ? 'SUBSCRIPTION' : 'SUBSCRIPTION';
+            document.getElementById('pp-plan').value = '';
+            document.getElementById('pp-months').value = 1;
+            document.getElementById('pp-amount').value = '';
+            document.getElementById('pp-ref').value = '';
+            document.getElementById('pp-notes').value = '';
+            onPlatformPaymentType();
+            closeModal('modal-platform-company');
+            openModal('modal-platform-payment');
+        }
+
+        async function submitPlatformPayment(e) {
+            e.preventDefault();
+            const id = document.getElementById('pp-company-id').value;
+            const amount = parseMoney(document.getElementById('pp-amount').value);
+            if (!(amount > 0)) return alert('Please enter the amount received.');
+            const r = await api(`/api/platform/companies/${encodeURIComponent(id)}/payments`, 'POST', {
+                payment_type: document.getElementById('pp-type').value,
+                plan: document.getElementById('pp-plan').value || undefined,
+                months: parseInt(document.getElementById('pp-months').value) || 1,
+                amount,
+                method: document.getElementById('pp-method').value,
+                reference: document.getElementById('pp-ref').value,
+                notes: document.getElementById('pp-notes').value
+            });
+            if (r.ok) {
+                closeModal('modal-platform-payment');
+                loadPlatform();
+                alert(r.data.paid_until ? `Payment saved. Access is active until ${r.data.paid_until}.` : 'Payment saved. Access is active.');
+            } else alert('Failed: ' + (r.data.error || 'Server error'));
+        }
+
+        async function resetOwnerPassword() {
+            const id = document.getElementById('pc-id').value;
+            const pw = prompt('Type a new password for the owner of this company (at least 6 characters):');
+            if (!pw) return;
+            const r = await api(`/api/platform/companies/${encodeURIComponent(id)}/reset-password`, 'POST', { password: pw });
+            alert(r.ok ? r.data.message : 'Failed: ' + (r.data.error || 'Server error'));
         }
 
         function logout() {
