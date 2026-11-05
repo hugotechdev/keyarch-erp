@@ -42,7 +42,7 @@
             <form id="form-login" class="space-y-4 block">
                 <div>
                     <label class="block text-xs font-semibold text-gray-300 mb-1">Email Address</label>
-                    <input type="email" id="login-email" value="admin@keyarch.co.tz" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
+                    <input type="email" id="login-email" placeholder="you@company.co.tz" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-gray-300 mb-1">Password</label>
@@ -229,9 +229,9 @@
                                     <tr>
                                         <th class="p-3">Tenant Details</th>
                                         <th class="p-3">Property / Unit</th>
-                                        <th class="p-3">Agreed Rent</th>
+                                        <th class="p-3">Total To Pay</th>
                                         <th class="p-3">Amount Paid</th>
-                                        <th class="p-3">Amount Due</th>
+                                        <th class="p-3">Balance</th>
                                         <th class="p-3">End Date</th>
                                         <th class="p-3">Actions</th>
                                     </tr>
@@ -347,27 +347,27 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-300 mb-2">Property Type *</label>
                         <div class="grid grid-cols-3 sm:grid-cols-6 gap-2" id="wiz-prop-type-group">
-                            <button type="button" onclick="selectType('Apartment')" class="type-btn active bg-blue-600 text-white border-blue-500 p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                            <button type="button" onclick="selectType('Apartment', this)" class="type-btn active bg-blue-600 text-white border-blue-500 p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
                                 <i class="fa-solid fa-building text-sm"></i>
                                 <span class="text-[10px] font-bold">Apartment</span>
                             </button>
-                            <button type="button" onclick="selectType('House')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                            <button type="button" onclick="selectType('House', this)" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
                                 <i class="fa-solid fa-house-chimney text-sm"></i>
                                 <span class="text-[10px] font-bold">House</span>
                             </button>
-                            <button type="button" onclick="selectType('Office')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                            <button type="button" onclick="selectType('Office', this)" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
                                 <i class="fa-solid fa-briefcase text-sm"></i>
                                 <span class="text-[10px] font-bold">Office</span>
                             </button>
-                            <button type="button" onclick="selectType('Shop')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                            <button type="button" onclick="selectType('Shop', this)" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
                                 <i class="fa-solid fa-store text-sm"></i>
                                 <span class="text-[10px] font-bold">Shop</span>
                             </button>
-                            <button type="button" onclick="selectType('Hotel')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                            <button type="button" onclick="selectType('Hotel', this)" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
                                 <i class="fa-solid fa-hotel text-sm"></i>
                                 <span class="text-[10px] font-bold">Hotel</span>
                             </button>
-                            <button type="button" onclick="selectType('Air-Bnb')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                            <button type="button" onclick="selectType('Air-Bnb', this)" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
                                 <i class="fa-solid fa-bed text-sm"></i>
                                 <span class="text-[10px] font-bold">Air-Bnb</span>
                             </button>
@@ -402,7 +402,7 @@
         </div>
     </div>
 
-    <!-- MODAL 3: TENANT ONBOARDING (WITH SEARCHABLE DROPDOWNS & LEASE CALCULATOR) -->
+    <!-- MODAL 3: TENANT ONBOARDING (WITH SEARCHABLE DROPDOWNS & PAYMENT CALCULATOR) -->
     <div id="modal-tenant" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-xl rounded-2xl p-6 relative my-8 shadow-2xl">
             <button onclick="closeModal('modal-tenant')" class="absolute top-4 right-4 text-gray-400 text-xl hover:text-white">&times;</button>
@@ -410,7 +410,7 @@
                 <i class="fa-solid fa-user-plus text-emerald-400"></i> Tenant Onboarding
             </h3>
             <form id="form-tenant-onboard" onsubmit="handleTenantSubmit(event)" class="space-y-4">
-                
+
                 <!-- 1. PERSONAL DETAILS -->
                 <div class="border-b border-[#182848] pb-3">
                     <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">1. Personal Details</div>
@@ -421,15 +421,15 @@
                     </div>
                 </div>
 
-                <!-- 2. LEASE & FINANCIAL DETAILS -->
+                <!-- 2. LEASE & PAYMENT DETAILS -->
                 <div>
-                    <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">2. Lease & Financial Details</div>
+                    <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">2. Lease & Payment Details</div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        
+
                         <!-- SEARCHABLE PROPERTY DROPDOWN -->
                         <div class="relative">
                             <label class="block text-[11px] font-semibold text-gray-400 mb-1">Select Property *</label>
-                            <input type="hidden" id="tenant-property-id" required>
+                            <input type="hidden" id="tenant-property-id">
                             <div id="prop-dropdown-trigger" onclick="toggleDropdown('prop-dropdown-list')" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs cursor-pointer flex justify-between items-center">
                                 <span id="prop-selected-label" class="text-gray-400">-- Select Property --</span>
                                 <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
@@ -448,7 +448,7 @@
                         <!-- SEARCHABLE UNIT DROPDOWN -->
                         <div class="relative">
                             <label class="block text-[11px] font-semibold text-gray-400 mb-1">Select Unit *</label>
-                            <input type="hidden" id="tenant-unit-id" required>
+                            <input type="hidden" id="tenant-unit-id">
                             <div id="unit-dropdown-trigger" onclick="toggleDropdown('unit-dropdown-list')" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs cursor-pointer flex justify-between items-center">
                                 <span id="unit-selected-label" class="text-gray-400">-- Select Property First --</span>
                                 <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
@@ -476,24 +476,53 @@
                         <!-- DISPLAY LEASE DURATION PERIOD -->
                         <div class="sm:col-span-2 bg-[#14223d]/60 border border-[#233863] p-2.5 rounded-xl flex justify-between items-center text-xs">
                             <span class="text-gray-400 font-semibold flex items-center gap-1.5">
-                                <i class="fa-solid fa-calendar-days text-cyan-400"></i> Calculated Lease Duration:
+                                <i class="fa-solid fa-calendar-days text-cyan-400"></i> Lease Duration:
                             </span>
                             <span id="tenant-period-display" class="font-extrabold text-cyan-300">-- Select Dates --</span>
                         </div>
 
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Agreed Rent (TZS) *</label>
-                            <input type="number" id="tenant-rent" oninput="calculateAmountDue()" placeholder="1,000,000" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
+                        <!-- RENT PRICE + HOW IT IS CHARGED -->
+                        <div class="sm:col-span-2 grid grid-cols-3 gap-3">
+                            <div class="col-span-2">
+                                <label class="block text-[11px] font-semibold text-gray-400 mb-1">Rent Price (TZS) *</label>
+                                <input type="number" min="0" id="tenant-rent" oninput="calculateAmountDue()" placeholder="150,000" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-400 mb-1">Charged</label>
+                                <select id="tenant-rent-period" onchange="autoFillPeriods()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs outline-none">
+                                    <option value="Day">Per Day</option>
+                                    <option value="Week">Per Week</option>
+                                    <option value="Month" selected>Per Month</option>
+                                    <option value="Year">Per Year</option>
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Paid Amount (Optional)</label>
-                            <input type="number" id="tenant-paid" oninput="calculateAmountDue()" placeholder="0" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
-                        </div>
-                    </div>
 
-                    <div class="mt-3 bg-[#14223d] p-3 rounded-xl border border-[#233863] flex justify-between items-center">
-                        <span class="text-xs font-bold text-gray-400">Amount Due (Auto-calculated):</span>
-                        <span id="tenant-due-display" class="text-sm font-black text-rose-400">TZS 0</span>
+                        <div>
+                            <label id="tenant-periods-label" class="block text-[11px] font-semibold text-gray-400 mb-1">Number of Months</label>
+                            <input type="number" step="0.01" min="0" id="tenant-periods" oninput="onPeriodsEdited()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Discount (TZS) - Optional</label>
+                            <input type="number" min="0" id="tenant-discount" oninput="calculateAmountDue()" placeholder="0" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
+                        </div>
+
+                        <div class="sm:col-span-2">
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Amount Paid (TZS) - Optional</label>
+                            <input type="number" min="0" id="tenant-paid" oninput="calculateAmountDue()" placeholder="0" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
+                        </div>
+
+                        <!-- PAYMENT SUMMARY -->
+                        <div id="tenant-summary-box" class="sm:col-span-2 bg-[#14223d] p-3 rounded-xl border border-[#233863] space-y-1.5 text-xs">
+                            <div class="flex justify-between"><span class="text-gray-400">Total Rent</span><span id="sum-total" class="font-bold text-white">TZS 0</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Discount</span><span id="sum-discount" class="font-bold text-amber-400">- TZS 0</span></div>
+                            <div class="flex justify-between border-t border-[#233863] pt-1.5"><span class="text-gray-300 font-bold">Total To Pay</span><span id="sum-topay" class="font-black text-white">TZS 0</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Amount Paid</span><span id="sum-paid" class="font-bold text-emerald-400">TZS 0</span></div>
+                            <div id="sum-result" class="flex justify-between items-center border-t border-[#233863] pt-2 mt-1">
+                                <span id="sum-result-label" class="font-bold text-gray-300">Remaining Balance</span>
+                                <span id="sum-result-value" class="text-sm font-black text-gray-400">TZS 0</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -563,24 +592,15 @@
                     <thead>
                         <tr class="bg-slate-100 border-b border-t border-slate-200 text-slate-700 uppercase font-bold">
                             <th class="py-2.5 px-3">Description</th>
-                            <th class="py-2.5 px-3 text-right">Agreed Rent</th>
-                            <th class="py-2.5 px-3 text-right">Paid Amount</th>
-                            <th class="py-2.5 px-3 text-right">Remaining Due</th>
+                            <th class="py-2.5 px-3 text-right">Amount</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        <tr>
-                            <td class="py-3 px-3 font-semibold text-slate-800">Rental Lease Fee (Agreement)</td>
-                            <td id="inv-table-agreed" class="py-3 px-3 text-right font-bold text-slate-900">TZS 1,200,000</td>
-                            <td id="inv-table-paid" class="py-3 px-3 text-right font-bold text-emerald-600">TZS 1,200,000</td>
-                            <td id="inv-table-due" class="py-3 px-3 text-right font-bold text-rose-600">TZS 0</td>
-                        </tr>
-                    </tbody>
+                    <tbody id="inv-lines" class="divide-y divide-slate-100"></tbody>
                 </table>
 
                 <div class="border-t pt-4 flex justify-between items-center text-xs text-slate-500">
-                    <p>Asante kwa kuchagua huduma zetu!</p>
-                    <p class="font-bold text-slate-700">Imetolewa na KeyArch Management System</p>
+                    <p>Thank you for choosing our services!</p>
+                    <p class="font-bold text-slate-700">Issued by KeyArch Management System</p>
                 </div>
             </div>
         </div>
@@ -686,10 +706,18 @@
         let groupCounter = 0;
         let currentTenantsList = [];
 
+        // SAFE TEXT: stops names like <script> from running inside the page
+        function esc(value) {
+            return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+        function money(n) { return 'TZS ' + (Number(n) || 0).toLocaleString(); }
+        function fmtDate(d) { return d ? new Date(d).toLocaleDateString() : 'No end date'; }
+
         document.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('keyarch_token')) showAppView();
 
             addGroupCard();
+            calculateAmountDue();
 
             // Close dropdowns on outside click
             document.addEventListener('click', (e) => {
@@ -822,14 +850,8 @@
             const container = document.getElementById(containerId);
             if (!container) return;
 
-            const options = container.querySelectorAll('.dropdown-item');
-            options.forEach(opt => {
-                const text = opt.innerText.toLowerCase();
-                if (text.includes(filter)) {
-                    opt.style.display = 'block';
-                } else {
-                    opt.style.display = 'none';
-                }
+            container.querySelectorAll('.dropdown-item').forEach(opt => {
+                opt.style.display = opt.innerText.toLowerCase().includes(filter) ? 'flex' : 'none';
             });
         }
 
@@ -857,11 +879,12 @@
 
             document.getElementById('unit-dropdown-list').classList.add('hidden');
 
+            // Fill the rent price from the unit (user can still change it)
             const rentInput = document.getElementById('tenant-rent');
-            if (!rentInput.value && rentAmount) {
+            if (rentAmount) {
                 rentInput.value = rentAmount;
-                calculateAmountDue();
             }
+            calculateAmountDue();
         }
 
         // LOAD PROPERTIES WITH SEARCHABLE OPTIONS
@@ -870,19 +893,19 @@
                 const token = localStorage.getItem('keyarch_token');
                 const res = await fetch('/api/properties', { headers: { 'Authorization': `Bearer ${token}` } });
                 const props = await res.json();
-                
+
                 const container = document.getElementById('prop-options-container');
                 if (!container) return;
 
-                if (props.length === 0) {
+                if (!Array.isArray(props) || props.length === 0) {
                     container.innerHTML = '<div class="p-2 text-xs text-gray-500 text-center">No properties found.</div>';
                     return;
                 }
 
                 container.innerHTML = props.map(p => `
-                    <div onclick="selectPropertyOption(${p.property_id}, '${p.property_name.replace(/'/g, "\\'")}')" class="dropdown-item p-2 hover:bg-[#1e2f52] rounded-lg cursor-pointer text-xs text-gray-200 transition flex justify-between items-center">
-                        <span class="font-semibold text-white">${p.property_name}</span>
-                        <span class="text-[10px] text-cyan-400 bg-cyan-950 px-1.5 py-0.5 rounded border border-cyan-800/40">${p.category || 'Property'}</span>
+                    <div data-id="${esc(p.property_id)}" data-name="${esc(p.property_name)}" onclick="selectPropertyOption(this.dataset.id, this.dataset.name)" class="dropdown-item p-2 hover:bg-[#1e2f52] rounded-lg cursor-pointer text-xs text-gray-200 transition flex justify-between items-center">
+                        <span class="font-semibold text-white">${esc(p.property_name)}</span>
+                        <span class="text-[10px] text-cyan-400 bg-cyan-950 px-1.5 py-0.5 rounded border border-cyan-800/40">${esc(p.category || 'Property')}</span>
                     </div>
                 `).join('');
             } catch (err) { console.error('Error loading properties dropdown:', err); }
@@ -900,10 +923,10 @@
 
             try {
                 const token = localStorage.getItem('keyarch_token');
-                const res = await fetch(`/api/units/by-property/${propertyId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const res = await fetch(`/api/units/by-property/${encodeURIComponent(propertyId)}`, { headers: { 'Authorization': `Bearer ${token}` } });
                 const units = await res.json();
 
-                if (units.length === 0) {
+                if (!Array.isArray(units) || units.length === 0) {
                     container.innerHTML = '<div class="p-2 text-xs text-rose-400 text-center">No vacant units available</div>';
                     return;
                 }
@@ -911,8 +934,8 @@
                 container.innerHTML = units.map(u => {
                     const displayText = `${u.unit_number} (TZS ${parseFloat(u.rent_amount).toLocaleString()})`;
                     return `
-                        <div onclick="selectUnitOption(${u.unit_id}, '${displayText.replace(/'/g, "\\'")}', ${u.rent_amount})" class="dropdown-item p-2 hover:bg-[#1e2f52] rounded-lg cursor-pointer text-xs text-gray-200 transition flex justify-between items-center">
-                            <span class="font-semibold text-white">Unit ${u.unit_number}</span>
+                        <div data-id="${esc(u.unit_id)}" data-text="${esc(displayText)}" data-rent="${esc(u.rent_amount)}" onclick="selectUnitOption(this.dataset.id, this.dataset.text, parseFloat(this.dataset.rent))" class="dropdown-item p-2 hover:bg-[#1e2f52] rounded-lg cursor-pointer text-xs text-gray-200 transition flex justify-between items-center">
+                            <span class="font-semibold text-white">Unit ${esc(u.unit_number)}</span>
                             <span class="text-[11px] text-emerald-400 font-bold">TZS ${parseFloat(u.rent_amount).toLocaleString()}</span>
                         </div>
                     `;
@@ -920,15 +943,19 @@
             } catch (err) { console.error('Error loading units dropdown:', err); }
         }
 
-        // LEASE DURATION CALCULATOR
+        // LEASE DURATION DISPLAY
         function calculateLeasePeriod() {
             const startDateVal = document.getElementById('tenant-start-date').value;
             const endDateVal = document.getElementById('tenant-end-date').value;
             const displayElement = document.getElementById('tenant-period-display');
 
+            // dates changed, so the number of months/weeks/days is calculated again
+            document.getElementById('tenant-periods').dataset.manual = '';
+
             if (!startDateVal || !endDateVal) {
-                displayElement.innerText = '-- Select Both Dates --';
+                displayElement.innerText = !startDateVal ? '-- Select Dates --' : 'No end date (1 period charged)';
                 displayElement.className = 'font-bold text-gray-400';
+                autoFillPeriods();
                 return;
             }
 
@@ -936,13 +963,13 @@
             const end = new Date(endDateVal);
 
             if (end < start) {
-                displayElement.innerText = 'Tarehe ya kuisha haiwezi kuwa kabla ya kuanza!';
+                displayElement.innerText = 'End date cannot be before start date!';
                 displayElement.className = 'font-bold text-rose-400';
+                autoFillPeriods();
                 return;
             }
 
-            const diffTime = Math.abs(end - start);
-            const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const totalDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
 
             let years = end.getFullYear() - start.getFullYear();
             let months = end.getMonth() - start.getMonth();
@@ -958,25 +985,103 @@
                 months += 12;
             }
 
-            let durationText = [];
+            const durationText = [];
             if (years > 0) durationText.push(`${years} ${years === 1 ? 'Year' : 'Years'}`);
             if (months > 0) durationText.push(`${months} ${months === 1 ? 'Month' : 'Months'}`);
             if (days > 0) durationText.push(`${days} ${days === 1 ? 'Day' : 'Days'}`);
-
-            if (durationText.length === 0) {
-                durationText.push('1 Day');
-            }
+            if (durationText.length === 0) durationText.push('1 Day');
 
             displayElement.innerText = `${durationText.join(', ')} (${totalDays} Days total)`;
             displayElement.className = 'font-extrabold text-cyan-300';
+
+            autoFillPeriods();
         }
 
-        // AUTO-CALCULATE AMOUNT DUE
+        // HOW MANY MONTHS / WEEKS / DAYS / YEARS IS THE LEASE
+        function countPeriods(startVal, endVal, period) {
+            if (!startVal) return 0;
+            if (!endVal) return 1; // no end date = charge one period
+            const start = new Date(startVal);
+            const end = new Date(endVal);
+            if (end < start) return 0;
+
+            const totalDays = Math.ceil((end - start) / 86400000);
+            let result;
+
+            if (period === 'Day') result = totalDays;
+            else if (period === 'Week') result = totalDays / 7;
+            else if (period === 'Year') result = totalDays / 365;
+            else {
+                let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+                let days = end.getDate() - start.getDate();
+                if (days < 0) {
+                    months -= 1;
+                    days += new Date(end.getFullYear(), end.getMonth(), 0).getDate();
+                }
+                result = months + days / 30; // extra days are charged as part of a month
+            }
+            return Math.round(result * 100) / 100;
+        }
+
+        function autoFillPeriods() {
+            const period = document.getElementById('tenant-rent-period').value;
+            document.getElementById('tenant-periods-label').innerText = `Number of ${period === 'Day' ? 'Days' : period + 's'}`;
+
+            const input = document.getElementById('tenant-periods');
+            if (input.dataset.manual !== '1') {
+                input.value = countPeriods(
+                    document.getElementById('tenant-start-date').value,
+                    document.getElementById('tenant-end-date').value,
+                    period
+                ) || '';
+            }
+            calculateAmountDue();
+        }
+
+        // user typed the number himself, so dates must not overwrite it
+        function onPeriodsEdited() {
+            document.getElementById('tenant-periods').dataset.manual = '1';
+            calculateAmountDue();
+        }
+
+        function getPaymentFigures() {
+            const rate = parseFloat(document.getElementById('tenant-rent').value) || 0;
+            const periods = parseFloat(document.getElementById('tenant-periods').value) || 0;
+            const totalRent = Math.round(rate * periods);
+            const discount = Math.min(Math.max(parseFloat(document.getElementById('tenant-discount').value) || 0, 0), totalRent);
+            const totalToPay = totalRent - discount;
+            const paid = parseFloat(document.getElementById('tenant-paid').value) || 0;
+            return { rate, periods, totalRent, discount, totalToPay, paid, balance: totalToPay - paid };
+        }
+
         function calculateAmountDue() {
-            const rent = parseFloat(document.getElementById('tenant-rent').value || 0);
-            const paid = parseFloat(document.getElementById('tenant-paid').value || 0);
-            const due = Math.max(0, rent - paid);
-            document.getElementById('tenant-due-display').innerText = `TZS ${due.toLocaleString()}`;
+            const f = getPaymentFigures();
+
+            document.getElementById('sum-total').innerText = money(f.totalRent);
+            document.getElementById('sum-discount').innerText = '- ' + money(f.discount);
+            document.getElementById('sum-topay').innerText = money(f.totalToPay);
+            document.getElementById('sum-paid').innerText = money(f.paid);
+
+            const label = document.getElementById('sum-result-label');
+            const value = document.getElementById('sum-result-value');
+
+            if (f.totalToPay === 0) {
+                label.innerText = 'Remaining Balance';
+                value.innerText = 'TZS 0';
+                value.className = 'text-sm font-black text-gray-400';
+            } else if (f.balance > 0) {
+                label.innerText = 'Remaining Balance';
+                value.innerText = money(f.balance);
+                value.className = 'text-sm font-black text-rose-400';
+            } else if (f.balance === 0) {
+                label.innerText = 'Fully Paid';
+                value.innerText = '✔ TZS 0 left';
+                value.className = 'text-sm font-black text-emerald-400';
+            } else {
+                label.innerText = 'Extra Paid (tenant paid more)';
+                value.innerText = money(Math.abs(f.balance));
+                value.className = 'text-sm font-black text-sky-400';
+            }
         }
 
         // TENANT SUBMISSION & AUTO INVOICE
@@ -987,7 +1092,13 @@
             const unitId = document.getElementById('tenant-unit-id').value;
 
             if (!propId || !unitId) {
-                alert('Tafadhali chagua Property na Unit kabla ya kuhifadhi.');
+                alert('Please select a Property and a Unit before saving.');
+                return;
+            }
+
+            const f = getPaymentFigures();
+            if (f.rate <= 0 || f.periods <= 0) {
+                alert('Please enter the Rent Price and make sure the lease dates / number of periods are correct.');
                 return;
             }
 
@@ -999,8 +1110,12 @@
                 unit_id: unitId,
                 start_date: document.getElementById('tenant-start-date').value,
                 end_date: document.getElementById('tenant-end-date').value,
-                agreed_rent: document.getElementById('tenant-rent').value,
-                paid_amount: document.getElementById('tenant-paid').value
+                rent_price: f.rate,
+                rent_period: document.getElementById('tenant-rent-period').value,
+                number_of_periods: f.periods,
+                discount: f.discount,
+                paid_amount: f.paid
+                // the server calculates total_rent, total_to_pay, balance and status again
             };
 
             try {
@@ -1016,13 +1131,15 @@
 
                 closeModal('modal-tenant');
                 document.getElementById('form-tenant-onboard').reset();
-                
+
+                document.getElementById('tenant-property-id').value = '';
+                document.getElementById('tenant-unit-id').value = '';
                 document.getElementById('prop-selected-label').innerText = '-- Select Property --';
                 document.getElementById('prop-selected-label').className = 'text-gray-400';
                 document.getElementById('unit-selected-label').innerText = '-- Select Property First --';
                 document.getElementById('unit-selected-label').className = 'text-gray-400';
-                
-                calculateAmountDue();
+                document.getElementById('tenant-periods').dataset.manual = '';
+
                 calculateLeasePeriod();
                 loadAllData();
 
@@ -1039,6 +1156,7 @@
                 const token = localStorage.getItem('keyarch_token');
                 const res = await fetch(`/api/invoices/${invoiceId}/print`, { headers: { 'Authorization': `Bearer ${token}` } });
                 const inv = await res.json();
+                if (!res.ok) throw new Error(inv.error || 'Server error');
 
                 document.getElementById('inv-company-name').innerText = inv.company_name;
                 document.getElementById('inv-number').innerText = inv.invoice_number;
@@ -1051,11 +1169,40 @@
 
                 document.getElementById('inv-property-name').innerText = inv.property_name;
                 document.getElementById('inv-unit-number').innerText = `Unit: ${inv.unit_number}`;
-                document.getElementById('inv-lease-period').innerText = `Period: ${inv.start_date.split('T')[0]} to ${inv.end_date.split('T')[0]}`;
+                const startTxt = inv.start_date ? String(inv.start_date).split('T')[0] : '-';
+                const endTxt = inv.end_date ? String(inv.end_date).split('T')[0] : 'No end date';
+                document.getElementById('inv-lease-period').innerText = `Period: ${startTxt} to ${endTxt}`;
 
-                document.getElementById('inv-table-agreed').innerText = `TZS ${parseFloat(inv.agreed_rent).toLocaleString()}`;
-                document.getElementById('inv-table-paid').innerText = `TZS ${parseFloat(inv.paid_amount).toLocaleString()}`;
-                document.getElementById('inv-table-due').innerText = `TZS ${parseFloat(inv.remaining_due).toLocaleString()}`;
+                // Invoice lines: works with the new fields and also with old invoices
+                const totalRent = Number(inv.total_rent ?? inv.agreed_rent ?? 0);
+                const discount = Number(inv.discount ?? 0);
+                const totalToPay = Number(inv.total_to_pay ?? (totalRent - discount));
+                const paid = Number(inv.paid_amount ?? 0);
+                const balance = totalToPay - paid;
+
+                let rentDescription = 'Rent';
+                if (inv.rent_price && inv.number_of_periods && inv.rent_period) {
+                    const unitWord = inv.rent_period === 'Day' ? 'Day' : inv.rent_period;
+                    rentDescription = `Rent: ${money(inv.rent_price)} per ${unitWord} × ${inv.number_of_periods} ${unitWord}${Number(inv.number_of_periods) === 1 ? '' : 's'}`;
+                }
+
+                const lines = [
+                    { text: esc(rentDescription), amount: money(totalRent), cls: 'text-slate-900' }
+                ];
+                if (discount > 0) lines.push({ text: 'Discount', amount: '- ' + money(discount), cls: 'text-amber-600' });
+                lines.push({ text: 'Total To Pay', amount: money(totalToPay), cls: 'text-slate-900 font-extrabold', row: 'bg-slate-50' });
+                lines.push({ text: 'Amount Paid', amount: money(paid), cls: 'text-emerald-600' });
+
+                if (balance > 0) lines.push({ text: 'Remaining Balance', amount: money(balance), cls: 'text-rose-600 font-extrabold', row: 'bg-rose-50' });
+                else if (balance < 0) lines.push({ text: 'Extra Paid (credit)', amount: money(Math.abs(balance)), cls: 'text-sky-600 font-extrabold', row: 'bg-sky-50' });
+                else lines.push({ text: 'Fully Paid', amount: money(0), cls: 'text-emerald-600 font-extrabold', row: 'bg-emerald-50' });
+
+                document.getElementById('inv-lines').innerHTML = lines.map(l => `
+                    <tr class="${l.row || ''}">
+                        <td class="py-3 px-3 font-semibold text-slate-800">${l.text}</td>
+                        <td class="py-3 px-3 text-right font-bold ${l.cls}">${esc(l.amount)}</td>
+                    </tr>
+                `).join('');
 
                 openModal('modal-invoice-print');
             } catch (err) {
@@ -1065,12 +1212,16 @@
 
         function filterTenants(query) {
             const q = query.toLowerCase();
-            const filtered = currentTenantsList.filter(t => 
-                t.full_name.toLowerCase().includes(q) || 
-                t.property_name.toLowerCase().includes(q) ||
-                t.unit_number.toLowerCase().includes(q)
+            const filtered = currentTenantsList.filter(t =>
+                String(t.full_name || '').toLowerCase().includes(q) ||
+                String(t.property_name || '').toLowerCase().includes(q) ||
+                String(t.unit_number || '').toLowerCase().includes(q)
             );
             renderTenantsTable(filtered);
+        }
+
+        function editTenantPrompt(tenantId) {
+            alert('Edit tenant #' + tenantId + ' is not available yet.');
         }
 
         function renderTenantsTable(tenants) {
@@ -1085,19 +1236,30 @@
                 return;
             }
 
-            tbody.innerHTML = tenants.map(t => `
+            tbody.innerHTML = tenants.map(t => {
+                const toPay = Number(t.total_to_pay ?? t.agreed_rent ?? 0);
+                const paid = Number(t.amount_paid ?? 0);
+                const balance = Number(t.amount_due ?? (toPay - paid));
+                const extra = paid - toPay;
+
+                let balanceCell;
+                if (extra > 0) balanceCell = `<span class="text-sky-400">Extra paid ${money(extra)}</span>`;
+                else if (balance > 0) balanceCell = `<span class="text-rose-400">${money(balance)}</span>`;
+                else balanceCell = `<span class="text-emerald-400">Fully paid</span>`;
+
+                return `
                 <tr class="hover:bg-[#14223d]/50 border-b border-[#182848] text-xs">
-                    <td class="p-3 font-bold text-white">${t.full_name}<br><span class="text-gray-400 font-normal">${t.phone_number}</span></td>
-                    <td class="p-3 text-cyan-300 font-semibold">${t.property_name} (${t.unit_number})</td>
-                    <td class="p-3 font-bold text-gray-200">TZS ${parseFloat(t.agreed_rent).toLocaleString()}</td>
-                    <td class="p-3 font-bold text-emerald-400">TZS ${parseFloat(t.amount_paid).toLocaleString()}</td>
-                    <td class="p-3 font-bold text-rose-400">TZS ${parseFloat(t.amount_due).toLocaleString()}</td>
-                    <td class="p-3 text-gray-400">${new Date(t.end_date).toLocaleDateString()}</td>
+                    <td class="p-3 font-bold text-white">${esc(t.full_name)}<br><span class="text-gray-400 font-normal">${esc(t.phone_number)}</span></td>
+                    <td class="p-3 text-cyan-300 font-semibold">${esc(t.property_name)} (${esc(t.unit_number)})</td>
+                    <td class="p-3 font-bold text-gray-200">${money(toPay)}</td>
+                    <td class="p-3 font-bold text-emerald-400">${money(paid)}</td>
+                    <td class="p-3 font-bold">${balanceCell}</td>
+                    <td class="p-3 text-gray-400">${fmtDate(t.end_date)}</td>
                     <td class="p-3">
-                        ${canEdit ? `<button onclick="editTenantPrompt(${t.tenant_id})" class="px-2.5 py-1 bg-amber-600/30 text-amber-300 border border-amber-500/50 font-bold rounded hover:bg-amber-600 hover:text-white transition">Edit</button>` : `<span class="text-gray-500 italic">View Only</span>`}
+                        ${canEdit ? `<button onclick="editTenantPrompt(${Number(t.tenant_id)})" class="px-2.5 py-1 bg-amber-600/30 text-amber-300 border border-amber-500/50 font-bold rounded hover:bg-amber-600 hover:text-white transition">Edit</button>` : `<span class="text-gray-500 italic">View Only</span>`}
                     </td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
         }
 
         function addGroupCard() {
@@ -1178,15 +1340,17 @@
             if (card) card.remove();
         }
 
-        function selectType(type) {
+        function selectType(type, btn) {
             selectedPropertyType = type;
-            document.querySelectorAll('#wiz-prop-type-group .type-btn').forEach(btn => {
-                btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-500');
-                btn.classList.add('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
+            document.querySelectorAll('#wiz-prop-type-group .type-btn').forEach(b => {
+                b.classList.remove('bg-blue-600', 'text-white', 'border-blue-500');
+                b.classList.add('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
             });
-            event.currentTarget.classList.remove('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
-            event.currentTarget.classList.add('bg-blue-600', 'text-white', 'border-blue-500');
-            
+            if (btn) {
+                btn.classList.remove('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
+                btn.classList.add('bg-blue-600', 'text-white', 'border-blue-500');
+            }
+
             document.querySelectorAll('.group-title').forEach((title, idx) => {
                 title.innerText = `${type} Group ${idx + 1}`;
             });
@@ -1296,7 +1460,7 @@
                 body: JSON.stringify(bodyData)
             });
             if (res.ok) {
-                if(formId) document.getElementById(formId).reset();
+                if (formId) document.getElementById(formId).reset();
                 closeModal(modalId);
                 loadAllData();
                 alert('Action completed successfully.');
@@ -1314,14 +1478,14 @@
         function showAppView() {
             document.getElementById('view-login').style.display = 'none';
             document.getElementById('view-app').style.display = 'flex';
-            
+
             const user = JSON.parse(localStorage.getItem('keyarch_user') || '{}');
             document.getElementById('user-role-badge').innerText = user.role || 'COMPANY_ADMIN';
             document.getElementById('user-company-display').innerText = user.company_name || 'Hugo Tech';
             document.getElementById('user-name-display').innerText = '• ' + (user.full_name || '');
 
             if (user.role === 'SUPER_ADMIN' || user.role === 'COMPANY_ADMIN') {
-                document.getElementById('btn-admin-register').style.display = 'inline-block';
+                document.getElementById('btn-admin-register').style.display = 'inline-flex';
             } else {
                 document.getElementById('btn-admin-register').style.display = 'none';
             }
@@ -1338,7 +1502,7 @@
 
             document.getElementById(tabId).classList.remove('hidden');
             const activeBtn = document.getElementById('btn-' + tabId);
-            if(activeBtn) {
+            if (activeBtn) {
                 activeBtn.classList.add('border-b-2', 'border-blue-500', 'text-blue-400');
                 activeBtn.classList.remove('text-gray-400');
             }
@@ -1381,22 +1545,22 @@
         async function loadDropdowns() {
             const token = localStorage.getItem('keyarch_token');
             const headers = { 'Authorization': `Bearer ${token}` };
-            
+
             const propSelect = document.getElementById('unit-prop-id');
             if (propSelect) {
                 const propRes = await fetch('/api/properties', { headers });
                 if (propRes.ok) {
                     const props = await propRes.json();
-                    propSelect.innerHTML = props.map(p => `<option value="${p.property_id}">${p.property_name}</option>`).join('');
+                    propSelect.innerHTML = props.map(p => `<option value="${esc(p.property_id)}">${esc(p.property_name)}</option>`).join('');
                 }
             }
-            
+
             const unitRes = await fetch('/api/units', { headers });
             if (unitRes.ok) {
                 const units = await unitRes.json();
                 const tktUnitSelect = document.getElementById('tkt-unit-id');
                 if (tktUnitSelect) {
-                    tktUnitSelect.innerHTML = units.map(u => `<option value="${u.unit_id}">${u.property_name} - ${u.unit_number}</option>`).join('');
+                    tktUnitSelect.innerHTML = units.map(u => `<option value="${esc(u.unit_id)}">${esc(u.property_name)} - ${esc(u.unit_number)}</option>`).join('');
                 }
             }
 
@@ -1406,7 +1570,7 @@
                 if (leaseRes.ok) {
                     const leases = await leaseRes.json();
                     const activeLeases = leases.filter(l => l.status === 'ACTIVE');
-                    leaseSelect.innerHTML = activeLeases.map(l => `<option value="${l.lease_id}">${l.tenant_name} (${l.unit_number})</option>`).join('');
+                    leaseSelect.innerHTML = activeLeases.map(l => `<option value="${esc(l.lease_id)}">${esc(l.tenant_name)} (${esc(l.unit_number)})</option>`).join('');
                 }
             }
         }
@@ -1417,17 +1581,17 @@
 
             // LOAD PROPERTIES
             const propRes = await fetch('/api/properties', { headers });
-            if(propRes.ok) {
+            if (propRes.ok) {
                 const props = await propRes.json();
                 const tbody = document.getElementById('table-properties-body');
-                if(props.length > 0) {
+                if (props.length > 0) {
                     tbody.innerHTML = props.map(p => `
                         <tr class="hover:bg-[#14223d]/50">
-                            <td class="p-3 font-mono text-gray-400">#${p.property_id}</td>
-                            <td class="p-3 font-bold text-white">${p.property_name}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-blue-900/40 text-blue-300 border border-blue-500/30">${p.category}</span></td>
-                            <td class="p-3 text-gray-400">${p.address}</td>
-                            <td class="p-3 font-bold text-cyan-400">${p.total_units_count || 0}</td>
+                            <td class="p-3 font-mono text-gray-400">#${esc(p.property_id)}</td>
+                            <td class="p-3 font-bold text-white">${esc(p.property_name)}</td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-blue-900/40 text-blue-300 border border-blue-500/30">${esc(p.category)}</span></td>
+                            <td class="p-3 text-gray-400">${esc(p.address)}</td>
+                            <td class="p-3 font-bold text-cyan-400">${esc(p.total_units_count || 0)}</td>
                         </tr>
                     `).join('');
                 } else {
@@ -1437,26 +1601,26 @@
 
             // LOAD TENANTS
             const tenRes = await fetch('/api/tenants', { headers });
-            if(tenRes.ok) {
+            if (tenRes.ok) {
                 currentTenantsList = await tenRes.json();
                 renderTenantsTable(currentTenantsList);
             }
 
             // LOAD INVOICES
             const invRes = await fetch('/api/invoices', { headers });
-            if(invRes.ok) {
+            if (invRes.ok) {
                 const invoices = await invRes.json();
                 const tbody = document.getElementById('table-invoices-body');
-                if(invoices.length > 0) {
+                if (invoices.length > 0) {
                     tbody.innerHTML = invoices.map(i => `
                         <tr class="hover:bg-[#14223d]/50 border-b border-[#182848]">
-                            <td class="p-3 font-mono font-bold text-purple-400">${i.invoice_number}</td>
-                            <td class="p-3 font-bold text-white">${i.tenant_name}</td>
+                            <td class="p-3 font-mono font-bold text-purple-400">${esc(i.invoice_number)}</td>
+                            <td class="p-3 font-bold text-white">${esc(i.tenant_name)}</td>
                             <td class="p-3 font-bold text-emerald-400">TZS ${parseFloat(i.amount_due).toLocaleString()}</td>
                             <td class="p-3 text-gray-400">${new Date(i.due_date).toLocaleDateString()}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] ${i.status === 'PAID' ? 'bg-emerald-900/40 text-emerald-300 border border-emerald-500/30' : 'bg-amber-900/40 text-amber-300 border border-amber-500/30'}">${i.status}</span></td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] ${i.status === 'PAID' ? 'bg-emerald-900/40 text-emerald-300 border border-emerald-500/30' : 'bg-amber-900/40 text-amber-300 border border-amber-500/30'}">${esc(i.status)}</span></td>
                             <td class="p-3">
-                                <button onclick="showInvoiceModal(${i.invoice_id})" class="px-2.5 py-1 bg-cyan-600/30 text-cyan-300 border border-cyan-500/50 rounded font-bold hover:bg-cyan-600 hover:text-white transition flex items-center gap-1"><i class="fa-solid fa-print"></i> Print</button>
+                                <button onclick="showInvoiceModal(${Number(i.invoice_id)})" class="px-2.5 py-1 bg-cyan-600/30 text-cyan-300 border border-cyan-500/50 rounded font-bold hover:bg-cyan-600 hover:text-white transition flex items-center gap-1"><i class="fa-solid fa-print"></i> Print</button>
                             </td>
                         </tr>
                     `).join('');
@@ -1467,18 +1631,18 @@
 
             // LOAD TICKETS
             const tktRes = await fetch('/api/tickets', { headers });
-            if(tktRes.ok) {
+            if (tktRes.ok) {
                 const tickets = await tktRes.json();
                 const tbody = document.getElementById('table-tickets-body');
-                if(tickets.length > 0) {
+                if (tickets.length > 0) {
                     tbody.innerHTML = tickets.map(t => `
                         <tr class="hover:bg-[#14223d]/50">
-                            <td class="p-3 font-mono text-gray-400">#${t.ticket_id}</td>
-                            <td class="p-3 font-bold text-white">${t.title}</td>
-                            <td class="p-3">Unit ${t.unit_number || 'N/A'}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-orange-900/40 text-orange-300 border border-orange-500/30">${t.priority}</span></td>
-                            <td class="p-3 text-gray-400">${t.technician_name || 'Unassigned'}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-blue-900/40 text-blue-300 border border-blue-500/30">${t.status}</span></td>
+                            <td class="p-3 font-mono text-gray-400">#${esc(t.ticket_id)}</td>
+                            <td class="p-3 font-bold text-white">${esc(t.title)}</td>
+                            <td class="p-3">Unit ${esc(t.unit_number || 'N/A')}</td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-orange-900/40 text-orange-300 border border-orange-500/30">${esc(t.priority)}</span></td>
+                            <td class="p-3 text-gray-400">${esc(t.technician_name || 'Unassigned')}</td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-blue-900/40 text-blue-300 border border-blue-500/30">${esc(t.status)}</span></td>
                         </tr>
                     `).join('');
                 } else {
