@@ -91,7 +91,7 @@ async function initDatabase() {
             );
         `);
 
-        // NEW: UNIT GROUPS TABLE FOR ADVANCED PROPERTY WIZARD
+        // UNIT GROUPS TABLE FOR MULTIPLE GROUPS
         await pool.query(`
             CREATE TABLE IF NOT EXISTS unit_groups (
                 group_id SERIAL PRIMARY KEY,
@@ -329,16 +329,12 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     }
 });
 
-// REGISTER COMPANY / PROPERTY OWNER
+// REGISTER COMPANY
 app.post('/api/auth/register-company', async (req, res) => {
     const { company_name, admin_full_name, email, password, phone_number } = req.body;
     
     if (!company_name || !admin_full_name || !email || !password) {
-        return res.status(400).json({ error: 'Please provide all required fields (Company Name, Full Name, Email, Password).' });
-    }
-
-    if (password.length < 6) {
-        return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+        return res.status(400).json({ error: 'Please provide all required fields.' });
     }
 
     let client;
@@ -370,37 +366,9 @@ app.post('/api/auth/register-company', async (req, res) => {
         res.status(201).json({ message: 'Company onboarded successfully', company, admin_user: user });
     } catch (err) {
         if (client) await client.query('ROLLBACK');
-        console.error('Registration Database Error:', err);
-        if (err.code === '23505') {
-            return res.status(400).json({ error: 'This email address is already registered.' });
-        }
         res.status(500).json({ error: 'Registration error: ' + err.message });
     } finally {
         if (client) client.release();
-    }
-});
-
-// REGISTER STAFF
-app.post('/api/auth/register-staff', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN'), async (req, res) => {
-    const { full_name, email, password, phone_number, role } = req.body;
-    const companyId = req.user.role === 'SUPER_ADMIN' ? (req.body.company_id || req.user.company_id) : req.user.company_id;
-
-    if (!full_name || !email || !password) {
-        return res.status(400).json({ error: 'Full Name, Email, and Password are required.' });
-    }
-
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const result = await pool.query(
-            'INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING user_id, full_name, email, role',
-            [companyId, full_name, email, hashedPassword, phone_number || '', role || 'PROPERTY_MANAGER', true]
-        );
-
-        await createAuditLog(pool, companyId, req.user.user_id, `Created Staff Account (${role})`, 'USER_MGMT', req.ip, { created_email: email, role });
-        res.status(201).json({ message: 'Staff member registered successfully', user: result.rows[0] });
-    } catch (err) { 
-        if (err.code === '23505') return res.status(400).json({ error: 'This email address is already registered.' });
-        res.status(500).json({ error: 'Staff registration error: ' + err.message }); 
     }
 });
 
@@ -420,25 +388,13 @@ app.get('/api/properties', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/properties', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
-    const { property_name, address, category, total_units } = req.body;
-    try {
-        const result = await pool.query(
-            'INSERT INTO properties (company_id, property_name, address, category, total_units) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
-            [req.user.company_id, property_name, address, category || 'RESIDENTIAL', total_units || 1]
-        );
-        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Created Property`, 'PROPERTIES', req.ip, { property_id: result.rows[0].property_id, property_name });
-        res.status(201).json(result.rows[0]);
-    } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// WIZARD API: ADVANCED PROPERTY CREATION WITH GROUPS & AUTO-UNITS
+// WIZARD API: ADVANCED PROPERTY CREATION WITH UNLIMITED GROUPS & AUTO-UNITS
 app.post('/api/properties/wizard', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
     const { property_name, address, property_type, number_of_units, groups } = req.body;
     const companyId = req.user.company_id;
 
-    if (!property_name || !address || !property_type) {
-        return res.status(400).json({ error: 'Please provide required property details (Property Name, Address, Type).' });
+    if (!property_name || !address || !property_type || !groups || !Array.isArray(groups)) {
+        return res.status(400).json({ error: 'Please provide valid property details and group array.' });
     }
 
     let client;
@@ -446,64 +402,64 @@ app.post('/api/properties/wizard', authenticateToken, allowRoles('SUPER_ADMIN', 
         client = await pool.connect();
         await client.query('BEGIN');
 
-        // 1. Create Main Property Record
+        // 1. Insert Property Record
         const propRes = await client.query(
             'INSERT INTO properties (company_id, property_name, address, category, total_units) VALUES ($1, $2, $3, $4, $5) RETURNING *',
             [companyId, property_name, address, property_type, number_of_units || 1]
         );
         const property = propRes.rows[0];
 
-        // 2. Insert Groups & Auto-Generate Units
-        if (groups && Array.isArray(groups)) {
-            let unitCounter = 1;
-            for (const grp of groups) {
+        // 2. Loop Through All Dynamic Groups & Auto Generate Units
+        for (let gIdx = 0; gIdx < groups.length; gIdx++) {
+            const grp = groups[gIdx];
+
+            await client.query(
+                `INSERT INTO unit_groups 
+                 (company_id, property_id, group_name, units_in_group, bedrooms, bathrooms, rent_timeline, currency, rent_amount, payment_method, furnishing_status) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                [
+                    companyId,
+                    property.property_id,
+                    grp.group_name || `Group ${gIdx + 1}`,
+                    grp.units_in_group || 1,
+                    grp.bedrooms || 0,
+                    grp.bathrooms || 0,
+                    grp.rent_timeline || 'Per Month',
+                    grp.currency || 'TSH',
+                    grp.rent_amount || 0,
+                    grp.payment_method || 'Cash',
+                    grp.furnishing_status || 'Unfurnished'
+                ]
+            );
+
+            // Generate units for this specific group
+            const unitsCount = parseInt(grp.units_in_group || 1);
+            const cleanGrpName = (grp.group_name || `G${gIdx + 1}`).replace(/\s+/g, '-');
+
+            for (let uIdx = 1; uIdx <= unitsCount; uIdx++) {
+                const unitNumber = `${cleanGrpName}-${uIdx}`;
+
                 await client.query(
-                    `INSERT INTO unit_groups 
-                     (company_id, property_id, group_name, units_in_group, bedrooms, bathrooms, rent_timeline, currency, rent_amount, payment_method, furnishing_status) 
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                    `INSERT INTO units 
+                     (company_id, property_id, unit_number, rent_amount, currency, status, is_furnished) 
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
                     [
                         companyId,
                         property.property_id,
-                        grp.group_name || 'Group 1',
-                        grp.units_in_group || 1,
-                        grp.bedrooms || 0,
-                        grp.bathrooms || 0,
-                        grp.rent_timeline || 'Per Month',
-                        grp.currency || 'TSH',
+                        unitNumber,
                         grp.rent_amount || 0,
-                        grp.payment_method || 'Cash',
-                        grp.furnishing_status || 'Unfurnished'
+                        grp.currency || 'TSH',
+                        'VACANT',
+                        grp.furnishing_status === 'Furnished'
                     ]
                 );
-
-                const totalUnitsInGroup = parseInt(grp.units_in_group || 1);
-                for (let i = 0; i < totalUnitsInGroup; i++) {
-                    const cleanGroupName = (grp.group_name || 'Unit').replace(/\s+/g, '');
-                    const unitNumber = `${cleanGroupName}-${unitCounter}`;
-
-                    await client.query(
-                        `INSERT INTO units 
-                         (company_id, property_id, unit_number, rent_amount, currency, status, is_furnished) 
-                         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                        [
-                            companyId,
-                            property.property_id,
-                            unitNumber,
-                            grp.rent_amount || 0,
-                            grp.currency || 'TSH',
-                            'VACANT',
-                            grp.furnishing_status === 'Furnished'
-                        ]
-                    );
-                    unitCounter++;
-                }
             }
         }
 
-        await createAuditLog(client, companyId, req.user.user_id, 'Created Detailed Property Wizard', 'PROPERTIES', req.ip, { property_id: property.property_id, property_name });
+        await createAuditLog(client, companyId, req.user.user_id, 'Created Multi-Group Property Wizard', 'PROPERTIES', req.ip, { property_id: property.property_id, total_groups: groups.length });
         await client.query('COMMIT');
 
-        res.status(201).json({ message: 'Property and unit groups created successfully', property });
+        res.status(201).json({ message: 'Property, Groups, and Units created successfully', property });
     } catch (err) {
         if (client) await client.query('ROLLBACK');
         console.error('Property Wizard Error:', err);
@@ -542,7 +498,7 @@ app.post('/api/units', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADM
     }
 });
 
-// 3. TENANT ONBOARDING TRANSACTION
+// TENANT ONBOARDING
 app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
     let client;
     try {
@@ -583,7 +539,7 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
             invoice = invRes.rows[0];
         }
 
-        await createAuditLog(client, companyId, req.user.user_id, `Onboarded Tenant`, 'TENANT_ONBOARDING', req.ip, { tenant_id: tenant.tenant_id, lease_id: lease.lease_id, unit_id, invoice_number: invoice ? invoice.invoice_number : null });
+        await createAuditLog(client, companyId, req.user.user_id, `Onboarded Tenant`, 'TENANT_ONBOARDING', req.ip, { tenant_id: tenant.tenant_id, lease_id: lease.lease_id });
         await client.query('COMMIT');
         res.status(201).json({ message: 'Tenant onboarded successfully', tenant, lease, invoice });
     } catch (err) {
@@ -601,7 +557,7 @@ app.get('/api/tenants', authenticateToken, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 4. LEASES & INVOICES APIs
+// LEASES & INVOICES
 app.get('/api/leases', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
@@ -644,12 +600,12 @@ app.post('/api/invoices/issue', authenticateToken, allowRoles('SUPER_ADMIN', 'CO
             'INSERT INTO invoices (company_id, lease_id, invoice_number, amount_due, due_date, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', 
             [req.user.company_id, lease_id, autoInvoiceNum, amount_due, due_date, 'PENDING']
         );
-        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Issued Invoice`, 'INVOICES', req.ip, { invoice_number: autoInvoiceNum, lease_id, amount_due });
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Issued Invoice`, 'INVOICES', req.ip, { invoice_number: autoInvoiceNum });
         res.status(201).json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 5. WORK ORDERS / TICKETS APIs
+// TICKETS
 app.get('/api/tickets', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
@@ -672,12 +628,12 @@ app.post('/api/tickets/create', authenticateToken, allowRoles('SUPER_ADMIN', 'CO
             'INSERT INTO work_orders (company_id, unit_id, assigned_technician_id, title, description, priority, status, estimated_cost) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *', 
             [req.user.company_id, unit_id || null, assigned_technician_id || null, title, description, priority || 'MEDIUM', 'OPEN', estimated_cost || 0.00]
         );
-        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Created Maintenance Ticket`, 'WORK_ORDERS', req.ip, { ticket_id: result.rows[0].ticket_id, title, priority });
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Created Maintenance Ticket`, 'WORK_ORDERS', req.ip, { ticket_id: result.rows[0].ticket_id });
         res.status(201).json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 6. FINANCE & LUKU VENDING APIs
+// EXPENSES & LUKU
 app.get('/api/expenses', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
@@ -700,7 +656,7 @@ app.post('/api/finance/expenses', authenticateToken, allowRoles('SUPER_ADMIN', '
             'INSERT INTO expenses (company_id, property_id, description, amount, category, recorded_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', 
             [req.user.company_id, property_id || null, description, amount, category || 'MISC', req.user.user_id]
         );
-        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Recorded Expense`, 'EXPENSES', req.ip, { expense_id: result.rows[0].expense_id, amount, category });
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Recorded Expense`, 'EXPENSES', req.ip, { expense_id: result.rows[0].expense_id });
         res.status(201).json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -716,12 +672,12 @@ app.post('/api/finance/luku/vend', authenticateToken, allowRoles('SUPER_ADMIN', 
             'INSERT INTO luku_vouchers (company_id, meter_number, tenant_name, amount, token_number, kwh_units, sold_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *', 
             [req.user.company_id, meter_number, tenant_name, amount, token_number, kwh_units, req.user.user_id]
         );
-        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Vended Luku Token`, 'FINANCE_LUKU', req.ip, { voucher_id: result.rows[0].voucher_id, meter_number, token_number, amount, kwh_units });
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Vended Luku Token`, 'FINANCE_LUKU', req.ip, { voucher_id: result.rows[0].voucher_id });
         res.status(201).json(result.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 7. DASHBOARD METRICS & REMINDERS APIs
+// DASHBOARD METRICS
 app.get('/api/dashboard/metrics', authenticateToken, async (req, res) => {
     const cId = req.user.company_id;
     try {
