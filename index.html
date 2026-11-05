@@ -1,4 +1,748 @@
-document.getElementById('form-portal-register').reset();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KEY ARCH ERP — Multi-Tenant Property Management SaaS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        @media print {
+            body * { visibility: hidden; }
+            #modal-invoice-print, #modal-invoice-print * { visibility: visible; }
+            #modal-invoice-print { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: white !important; color: black !important; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-[#060c18] text-gray-100 font-sans pb-16">
+
+    <!-- VIEW 1: AUTHENTICATION PORTAL -->
+    <div id="view-login" class="flex-grow flex items-center justify-center p-4">
+        <div class="bg-[#0a1224] border border-[#182848] w-full max-w-md rounded-2xl p-8 shadow-2xl space-y-6">
+            <div class="text-center space-y-1">
+                <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
+                    KEY ARCH <span class="text-xs font-semibold px-2 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 align-middle">ERP</span>
+                </h1>
+                <p class="text-xs text-gray-400 uppercase tracking-widest">SaaS Property Portal</p>
+            </div>
+
+            <!-- AUTH SWITCH TABS -->
+            <div class="flex border-b border-[#182848] bg-[#14223d]/40 rounded-xl p-1">
+                <button type="button" onclick="switchAuthTab('login')" id="tab-auth-login" class="flex-1 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white transition">
+                    Sign In
+                </button>
+                <button type="button" onclick="switchAuthTab('register')" id="tab-auth-register" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition">
+                    Register Company
+                </button>
+            </div>
+
+            <!-- FORM 1: LOGIN -->
+            <form id="form-login" class="space-y-4 block">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Email Address</label>
+                    <input type="email" id="login-email" value="admin@keyarch.co.tz" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Password</label>
+                    <input type="password" id="login-password" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
+                </div>
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg transition">
+                    Sign In &rarr;
+                </button>
+            </form>
+
+            <!-- FORM 2: REGISTER PROPERTY OWNER -->
+            <form id="form-portal-register" class="space-y-3 hidden">
+                <div class="bg-cyan-950/40 border border-cyan-800/50 p-2.5 rounded-xl text-[11px] text-cyan-300 flex items-center gap-2 mb-1">
+                    <i class="fa-solid fa-building-user text-base text-cyan-400"></i>
+                    <span>Register your real estate company to manage properties and staff.</span>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Company / Business Name *</label>
+                    <input type="text" id="p-reg-company" placeholder="e.g. Mikadi Beach Apartments" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Owner / Director Full Name *</label>
+                    <input type="text" id="p-reg-name" placeholder="Full Name" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Email Address *</label>
+                    <input type="email" id="p-reg-email" placeholder="owner@company.co.tz" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Phone Number *</label>
+                    <input type="tel" id="p-reg-phone" placeholder="+255 700 000 000" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Password *</label>
+                    <input type="password" id="p-reg-password" placeholder="Min 6 characters" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-sm shadow-lg transition mt-2">
+                    Create Company Account &rarr;
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- VIEW 2: MAIN DASHBOARD -->
+    <div id="view-app" style="display: none;" class="flex-col min-h-screen justify-between">
+        <header class="bg-[#0a1224]/90 backdrop-blur-md border-b border-[#182848] px-6 py-4 sticky top-0 z-40 shadow-2xl flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <span id="user-role-badge" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-900/80 border border-blue-500 text-blue-300 uppercase">COMPANY_ADMIN</span>
+                <span id="user-company-display" class="text-xs font-bold text-cyan-400 hidden sm:inline border-l border-[#182848] pl-3">Hugo Tech</span>
+                <span id="user-name-display" class="text-xs font-semibold text-gray-300 hidden md:inline">• User</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
+                KEY ARCH <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300">ERP</span>
+            </h1>
+            <button onclick="logout()" class="bg-red-900/40 hover:bg-red-800/60 border border-red-500/50 px-3 py-1.5 rounded-xl text-xs font-bold text-red-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-power-off"></i> <span class="hidden md:inline">Sign Out</span>
+            </button>
+        </header>
+
+        <main class="container mx-auto p-4 md:p-6 max-w-7xl flex-grow space-y-6">
+            <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-white">System Operations Center</h2>
+                    <p class="text-xs text-gray-400">Enterprise property, finance, and maintenance management.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="openModal('modal-property-wizard')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-building"></i> + Property</button>
+                    <button onclick="openModal('modal-unit')" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-door-open"></i> + Unit</button>
+                    <button onclick="openModal('modal-tenant')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-user-plus"></i> + Onboard Tenant</button>
+                    <button onclick="openModal('modal-invoice')" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-file-invoice-dollar"></i> + Invoice</button>
+                    <button onclick="openModal('modal-luku')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-bolt"></i> + Vend Luku</button>
+                    <button onclick="openModal('modal-expense')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-money-bill-transfer"></i> + Expense</button>
+                    <button onclick="openModal('modal-ticket')" class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-screwdriver-wrench"></i> + Ticket</button>
+                    <button id="btn-admin-register" onclick="openModal('modal-register')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-user-gear"></i> + Staff</button>
+                </div>
+            </div>
+
+            <!-- METRICS & REMINDERS -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-[#0d172d] border-l-4 border-red-500 rounded-2xl flex justify-between items-center shadow-lg">
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold uppercase">Expired Leases</div>
+                        <div id="rem-expired" class="text-2xl font-black text-red-400">0</div>
+                    </div>
+                    <i class="fa-solid fa-file-circle-exclamation text-red-500/30 text-3xl"></i>
+                </div>
+                <div class="p-4 bg-[#0d172d] border-l-4 border-amber-500 rounded-2xl flex justify-between items-center shadow-lg">
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Week</div>
+                        <div id="rem-week" class="text-2xl font-black text-amber-400">0</div>
+                    </div>
+                    <i class="fa-solid fa-clock-rotate-left text-amber-500/30 text-3xl"></i>
+                </div>
+                <div class="p-4 bg-[#0d172d] border-l-4 border-blue-500 rounded-2xl flex justify-between items-center shadow-lg">
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Month</div>
+                        <div id="rem-month" class="text-2xl font-black text-blue-400">0</div>
+                    </div>
+                    <i class="fa-solid fa-calendar-check text-blue-500/30 text-3xl"></i>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-center">
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
+                    <div class="text-[10px] text-gray-400 uppercase">Properties</div>
+                    <div id="stat-properties" class="text-lg font-bold text-blue-400">0</div>
+                </div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
+                    <div class="text-[10px] text-gray-400 uppercase">Total Units</div>
+                    <div id="stat-units" class="text-lg font-bold text-cyan-400">0</div>
+                </div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
+                    <div class="text-[10px] text-gray-400 uppercase">Occupancy</div>
+                    <div id="stat-occupancy" class="text-lg font-bold text-emerald-400">0%</div>
+                </div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
+                    <div class="text-[10px] text-gray-400 uppercase">Active Tenants</div>
+                    <div id="stat-tenants" class="text-lg font-bold text-emerald-400">0</div>
+                </div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
+                    <div class="text-[10px] text-gray-400 uppercase">Pending Tickets</div>
+                    <div id="stat-tickets" class="text-lg font-bold text-orange-400">0</div>
+                </div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl col-span-3 shadow-md">
+                    <div class="text-[10px] text-gray-400 uppercase">Monthly Performance</div>
+                    <div class="flex justify-around items-center mt-1">
+                        <div><span class="text-[10px] text-gray-500 block">Income</span><span id="stat-income" class="text-sm font-bold text-emerald-400">TZS 0</span></div>
+                        <div><span class="text-[10px] text-gray-500 block">Profit</span><span id="stat-profit" class="text-sm font-bold text-cyan-400">TZS 0</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABBED DATA DIRECTORY -->
+            <div class="bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl overflow-hidden">
+                <div class="flex border-b border-[#182848] bg-[#0a1224]/50 overflow-x-auto scrollbar-none">
+                    <button onclick="switchTab('tab-properties')" id="btn-tab-properties" class="tab-btn active border-b-2 border-blue-500 text-blue-400 px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
+                        <i class="fa-solid fa-building"></i> Properties & Units
+                    </button>
+                    <button onclick="switchTab('tab-tenants')" id="btn-tab-tenants" class="tab-btn text-gray-400 hover:text-white px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
+                        <i class="fa-solid fa-users"></i> Tenants & Leases
+                    </button>
+                    <button onclick="switchTab('tab-finance')" id="btn-tab-finance" class="tab-btn text-gray-400 hover:text-white px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Financials & Luku
+                    </button>
+                    <button onclick="switchTab('tab-tickets')" id="btn-tab-tickets" class="tab-btn text-gray-400 hover:text-white px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
+                        <i class="fa-solid fa-screwdriver-wrench"></i> Maintenance Tickets
+                    </button>
+                </div>
+
+                <div class="p-5">
+                    <!-- TAB 1: PROPERTIES -->
+                    <div id="tab-properties" class="tab-content block space-y-4">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Properties Directory</h3>
+                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
+                            <table class="w-full text-left text-xs text-gray-300">
+                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
+                                    <tr>
+                                        <th class="p-3">ID</th>
+                                        <th class="p-3">Property Name</th>
+                                        <th class="p-3">Category</th>
+                                        <th class="p-3">Address</th>
+                                        <th class="p-3">Total Units</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-properties-body" class="divide-y divide-[#182848]">
+                                    <tr><td colspan="5" class="p-4 text-center text-gray-500">No properties loaded yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: TENANTS -->
+                    <div id="tab-tenants" class="tab-content hidden space-y-4">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Active Leases & Tenant History</h3>
+                            <div class="relative w-full md:w-72">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                                <input type="text" oninput="filterTenants(this.value)" placeholder="Search tenant, property, unit..." class="w-full pl-9 pr-3 py-2 bg-[#14223d] border border-[#233863] rounded-xl text-xs text-white outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
+                            <table class="w-full text-left text-xs text-gray-300">
+                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
+                                    <tr>
+                                        <th class="p-3">Tenant Details</th>
+                                        <th class="p-3">Property / Unit</th>
+                                        <th class="p-3">Agreed Rent</th>
+                                        <th class="p-3">Amount Paid</th>
+                                        <th class="p-3">Amount Due</th>
+                                        <th class="p-3">End Date</th>
+                                        <th class="p-3">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tenants-table-body" class="divide-y divide-[#182848]">
+                                    <tr><td colspan="7" class="p-4 text-center text-gray-500">No active tenants loaded yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: FINANCIALS -->
+                    <div id="tab-finance" class="tab-content hidden space-y-4">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Issued Invoices</h3>
+                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
+                            <table class="w-full text-left text-xs text-gray-300">
+                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
+                                    <tr>
+                                        <th class="p-3">Invoice #</th>
+                                        <th class="p-3">Tenant Name</th>
+                                        <th class="p-3">Amount Due</th>
+                                        <th class="p-3">Due Date</th>
+                                        <th class="p-3">Status</th>
+                                        <th class="p-3">Print / View</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-invoices-body" class="divide-y divide-[#182848]">
+                                    <tr><td colspan="6" class="p-4 text-center text-gray-500">No invoices generated yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: TICKETS -->
+                    <div id="tab-tickets" class="tab-content hidden space-y-4">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Work Orders & Maintenance Tickets</h3>
+                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
+                            <table class="w-full text-left text-xs text-gray-300">
+                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
+                                    <tr>
+                                        <th class="p-3">Ticket ID</th>
+                                        <th class="p-3">Issue Title</th>
+                                        <th class="p-3">Unit</th>
+                                        <th class="p-3">Priority</th>
+                                        <th class="p-3">Technician</th>
+                                        <th class="p-3">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-tickets-body" class="divide-y divide-[#182848]">
+                                    <tr><td colspan="6" class="p-4 text-center text-gray-500">No work orders recorded yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="fixed bottom-0 left-0 right-0 bg-[#0a1224]/95 backdrop-blur-md border-t border-[#182848] py-2 px-6 z-40 shadow-2xl flex justify-between items-center text-xs text-gray-400">
+            <div class="flex items-center space-x-6">
+                <button onclick="openModal('modal-property-wizard')" class="hover:text-blue-400 transition flex items-center gap-1.5"><i class="fa-solid fa-building"></i> Properties</button>
+                <button onclick="openModal('modal-tenant')" class="hover:text-emerald-400 transition flex items-center gap-1.5"><i class="fa-solid fa-users"></i> Tenants</button>
+                <button onclick="openModal('modal-ticket')" class="hover:text-orange-400 transition flex items-center gap-1.5"><i class="fa-solid fa-screwdriver-wrench"></i> Tickets</button>
+                <button onclick="openModal('modal-luku')" class="hover:text-amber-400 transition flex items-center gap-1.5"><i class="fa-solid fa-bolt"></i> Vend Luku</button>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="text-[11px] font-mono text-gray-500 hidden sm:inline">&copy; 2026 KEY ARCH ERP • Hugo Tech</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- MODAL 1: PROPERTY WIZARD -->
+    <div id="modal-property-wizard" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+        <div class="bg-[#0a1224] border border-[#182848] w-full max-w-2xl rounded-2xl flex flex-col max-h-[90vh] shadow-2xl text-gray-200 overflow-hidden relative">
+            <div class="p-5 border-b border-[#182848] bg-[#0d172d] flex justify-between items-center sticky top-0 z-10">
+                <div class="space-y-1">
+                    <h3 class="text-lg font-black text-white flex items-center gap-2">
+                        <i class="fa-solid fa-building-circle-check text-blue-500"></i> Property Wizard
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <span class="flex items-center gap-1 text-[11px] font-bold text-blue-400 bg-blue-950/80 px-2 py-0.5 rounded-full border border-blue-800/50">
+                            <span class="w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] flex items-center justify-center">1</span> Basic Info
+                        </span>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-gray-600"></i>
+                        <span class="flex items-center gap-1 text-[11px] font-bold text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-800/50">
+                            <span class="w-4 h-4 rounded-full bg-cyan-600 text-white text-[9px] flex items-center justify-center">2</span> Groups & Units
+                        </span>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-gray-600"></i>
+                        <span class="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800/50">
+                            <span class="w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] flex items-center justify-center">3</span> Confirmation
+                        </span>
+                    </div>
+                </div>
+                <button onclick="closeModal('modal-property-wizard')" class="w-8 h-8 rounded-full bg-[#14223d] text-gray-400 hover:text-white hover:bg-red-600 transition flex items-center justify-center text-lg">&times;</button>
+            </div>
+
+            <div class="p-5 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
+                <form id="form-property-wizard" onsubmit="collectAndSubmitWizard(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Property Name *</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-house absolute left-3.5 top-3.5 text-gray-500 text-xs"></i>
+                            <input type="text" id="wiz-prop-name" placeholder="Hugo Home" class="w-full pl-9 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Address *</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-location-dot absolute left-3.5 top-3.5 text-gray-500 text-xs"></i>
+                            <input type="text" id="wiz-address" placeholder="Mbezi Beach, Dar es Salaam" class="w-full pl-9 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-2">Property Type *</label>
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2" id="wiz-prop-type-group">
+                            <button type="button" onclick="selectType('Apartment')" class="type-btn active bg-blue-600 text-white border-blue-500 p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-building text-sm"></i>
+                                <span class="text-[10px] font-bold">Apartment</span>
+                            </button>
+                            <button type="button" onclick="selectType('House')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-house-chimney text-sm"></i>
+                                <span class="text-[10px] font-bold">House</span>
+                            </button>
+                            <button type="button" onclick="selectType('Office')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-briefcase text-sm"></i>
+                                <span class="text-[10px] font-bold">Office</span>
+                            </button>
+                            <button type="button" onclick="selectType('Shop')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-store text-sm"></i>
+                                <span class="text-[10px] font-bold">Shop</span>
+                            </button>
+                            <button type="button" onclick="selectType('Hotel')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-hotel text-sm"></i>
+                                <span class="text-[10px] font-bold">Hotel</span>
+                            </button>
+                            <button type="button" onclick="selectType('Air-Bnb')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-bed text-sm"></i>
+                                <span class="text-[10px] font-bold">Air-Bnb</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="groups-container" class="space-y-4"></div>
+                    <button type="button" onclick="addGroupCard()" class="w-full py-3 border-2 border-dashed border-[#233863] hover:border-blue-500 rounded-2xl text-blue-400 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition bg-[#0d172d]/50">
+                        <i class="fa-solid fa-circle-plus text-sm"></i> + Add Another Group
+                    </button>
+                </form>
+            </div>
+
+            <div class="p-4 border-t border-[#182848] bg-[#0d172d] sticky bottom-0 z-10">
+                <button type="button" onclick="document.getElementById('form-property-wizard').requestSubmit()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-xs uppercase tracking-wider shadow-xl transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up text-sm"></i> Save Property & All Units &rarr;
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: REGISTER UNIT -->
+    <div id="modal-unit" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-unit')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Register Unit</h3>
+            <form id="form-unit" class="space-y-3">
+                <select id="unit-prop-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required></select>
+                <input type="text" id="unit-no" placeholder="Unit Number (e.g. 101) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="number" id="unit-rent" placeholder="Rent Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Unit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: TENANT ONBOARDING (WITH SEARCHABLE DROPDOWNS & LEASE CALCULATOR) -->
+    <div id="modal-tenant" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-xl rounded-2xl p-6 relative my-8 shadow-2xl">
+            <button onclick="closeModal('modal-tenant')" class="absolute top-4 right-4 text-gray-400 text-xl hover:text-white">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-user-plus text-emerald-400"></i> Tenant Onboarding
+            </h3>
+            <form id="form-tenant-onboard" onsubmit="handleTenantSubmit(event)" class="space-y-4">
+                
+                <!-- 1. PERSONAL DETAILS -->
+                <div class="border-b border-[#182848] pb-3">
+                    <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">1. Personal Details</div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input type="text" id="tenant-full-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
+                        <input type="text" id="tenant-nida" placeholder="NIDA / Passport *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
+                        <input type="tel" id="tenant-phone" placeholder="Phone Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs sm:col-span-2 focus:border-emerald-500 outline-none" required>
+                    </div>
+                </div>
+
+                <!-- 2. LEASE & FINANCIAL DETAILS -->
+                <div>
+                    <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">2. Lease & Financial Details</div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        
+                        <!-- SEARCHABLE PROPERTY DROPDOWN -->
+                        <div class="relative">
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Select Property *</label>
+                            <input type="hidden" id="tenant-property-id" required>
+                            <div id="prop-dropdown-trigger" onclick="toggleDropdown('prop-dropdown-list')" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs cursor-pointer flex justify-between items-center">
+                                <span id="prop-selected-label" class="text-gray-400">-- Select Property --</span>
+                                <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
+                            </div>
+                            <div id="prop-dropdown-list" class="hidden absolute top-full left-0 right-0 mt-1 bg-[#101b33] border border-[#233863] rounded-xl shadow-2xl z-50 p-2 space-y-2">
+                                <div class="relative">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                                    <input type="text" id="prop-search-input" oninput="filterDropdownOptions('prop-search-input', 'prop-options-container')" placeholder="Search Property..." class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500">
+                                </div>
+                                <div id="prop-options-container" class="max-h-40 overflow-y-auto space-y-1 custom-scrollbar">
+                                    <div class="p-2 text-xs text-gray-500 text-center">Loading properties...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SEARCHABLE UNIT DROPDOWN -->
+                        <div class="relative">
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Select Unit *</label>
+                            <input type="hidden" id="tenant-unit-id" required>
+                            <div id="unit-dropdown-trigger" onclick="toggleDropdown('unit-dropdown-list')" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs cursor-pointer flex justify-between items-center">
+                                <span id="unit-selected-label" class="text-gray-400">-- Select Property First --</span>
+                                <i class="fa-solid fa-chevron-down text-gray-400 text-xs"></i>
+                            </div>
+                            <div id="unit-dropdown-list" class="hidden absolute top-full left-0 right-0 mt-1 bg-[#101b33] border border-[#233863] rounded-xl shadow-2xl z-50 p-2 space-y-2">
+                                <div class="relative">
+                                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                                    <input type="text" id="unit-search-input" oninput="filterDropdownOptions('unit-search-input', 'unit-options-container')" placeholder="Search Unit..." class="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500">
+                                </div>
+                                <div id="unit-options-container" class="max-h-40 overflow-y-auto space-y-1 custom-scrollbar">
+                                    <div class="p-2 text-xs text-gray-500 text-center">Select property first</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Lease Start *</label>
+                            <input type="date" id="tenant-start-date" onchange="calculateLeasePeriod()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Lease End (Optional)</label>
+                            <input type="date" id="tenant-end-date" onchange="calculateLeasePeriod()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
+                        </div>
+
+                        <!-- DISPLAY LEASE DURATION PERIOD -->
+                        <div class="sm:col-span-2 bg-[#14223d]/60 border border-[#233863] p-2.5 rounded-xl flex justify-between items-center text-xs">
+                            <span class="text-gray-400 font-semibold flex items-center gap-1.5">
+                                <i class="fa-solid fa-calendar-days text-cyan-400"></i> Calculated Lease Duration:
+                            </span>
+                            <span id="tenant-period-display" class="font-extrabold text-cyan-300">-- Select Dates --</span>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Agreed Rent (TZS) *</label>
+                            <input type="number" id="tenant-rent" oninput="calculateAmountDue()" placeholder="1,000,000" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Paid Amount (Optional)</label>
+                            <input type="number" id="tenant-paid" oninput="calculateAmountDue()" placeholder="0" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="mt-3 bg-[#14223d] p-3 rounded-xl border border-[#233863] flex justify-between items-center">
+                        <span class="text-xs font-bold text-gray-400">Amount Due (Auto-calculated):</span>
+                        <span id="tenant-due-display" class="text-sm font-black text-rose-400">TZS 0</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3.5 rounded-xl text-white font-bold text-xs shadow-lg transition">
+                    Save Tenant & Generate Auto Invoice &rarr;
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 4: INVOICE (MANUAL) -->
+    <div id="modal-invoice" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-invoice')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Issue Invoice</h3>
+            <form id="form-invoice" class="space-y-3">
+                <select id="inv-lease-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                    <option value="">Select Active Lease...</option>
+                </select>
+                <input type="number" id="inv-amount" placeholder="Amount Due (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="date" id="inv-due" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Generate Invoice</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PRINTABLE INVOICE TEMPLATE -->
+    <div id="modal-invoice-print" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white text-slate-900 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+            <div class="px-6 py-3 bg-slate-900 text-white flex justify-between items-center no-print">
+                <h3 class="text-sm font-bold flex items-center gap-2"><i class="fa-solid fa-file-invoice-dollar text-emerald-400"></i> Official Invoice Preview</h3>
+                <div class="flex gap-2">
+                    <button onclick="window.print()" class="px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600 flex items-center gap-1"><i class="fa-solid fa-print"></i> Download / Print PDF</button>
+                    <button onclick="closeModal('modal-invoice-print')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-times text-lg"></i></button>
+                </div>
+            </div>
+
+            <div id="invoice-printable-area" class="p-8 overflow-y-auto space-y-6 text-slate-800 bg-white">
+                <div class="flex justify-between items-start border-b pb-6">
+                    <div>
+                        <h2 id="inv-company-name" class="text-2xl font-black text-slate-900 tracking-tight">HUGO TECH ESTATE</h2>
+                        <p class="text-xs text-slate-500 mt-1">Official Property Lease & Rent Invoice</p>
+                    </div>
+                    <div class="text-right">
+                        <span id="inv-status-badge" class="px-3 py-1 rounded-full text-xs font-extrabold uppercase bg-emerald-100 text-emerald-800">PAID</span>
+                        <p id="inv-number" class="text-sm font-bold text-slate-700 mt-2">INV-2026-100001</p>
+                        <p id="inv-date" class="text-xs text-slate-500">Date: 2026-11-05</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-8 text-xs">
+                    <div>
+                        <p class="font-bold text-slate-400 uppercase tracking-wider mb-1">Billed To (Tenant)</p>
+                        <p id="inv-tenant-name" class="font-extrabold text-slate-900 text-sm">Hugo Mlula</p>
+                        <p id="inv-tenant-phone" class="text-slate-600">+255 700 000 000</p>
+                        <p id="inv-tenant-nida" class="text-slate-600">NIDA: 19921223XXXXX</p>
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-400 uppercase tracking-wider mb-1">Property & Location</p>
+                        <p id="inv-property-name" class="font-extrabold text-slate-900 text-sm">Mikadi Beach Apartments</p>
+                        <p id="inv-unit-number" class="text-slate-600">Unit: G1-1</p>
+                        <p id="inv-lease-period" class="text-slate-600">Period: 2026-11-05 to 2027-11-05</p>
+                    </div>
+                </div>
+
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 border-b border-t border-slate-200 text-slate-700 uppercase font-bold">
+                            <th class="py-2.5 px-3">Description</th>
+                            <th class="py-2.5 px-3 text-right">Agreed Rent</th>
+                            <th class="py-2.5 px-3 text-right">Paid Amount</th>
+                            <th class="py-2.5 px-3 text-right">Remaining Due</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr>
+                            <td class="py-3 px-3 font-semibold text-slate-800">Rental Lease Fee (Agreement)</td>
+                            <td id="inv-table-agreed" class="py-3 px-3 text-right font-bold text-slate-900">TZS 1,200,000</td>
+                            <td id="inv-table-paid" class="py-3 px-3 text-right font-bold text-emerald-600">TZS 1,200,000</td>
+                            <td id="inv-table-due" class="py-3 px-3 text-right font-bold text-rose-600">TZS 0</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="border-t pt-4 flex justify-between items-center text-xs text-slate-500">
+                    <p>Asante kwa kuchagua huduma zetu!</p>
+                    <p class="font-bold text-slate-700">Imetolewa na KeyArch Management System</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: EXPENSE -->
+    <div id="modal-expense" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-expense')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Record Expense</h3>
+            <form id="form-expense" class="space-y-3">
+                <select id="exp-category" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="REPAIR">Repair & Maintenance</option>
+                    <option value="UTILITY">Utility Bills</option>
+                    <option value="SALARY">Staff Salary</option>
+                </select>
+                <input type="text" id="exp-desc" placeholder="Description *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="number" id="exp-amount" placeholder="Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Expense</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 6: TICKET -->
+    <div id="modal-ticket" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-ticket')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Create Maintenance Ticket</h3>
+            <form id="form-ticket" class="space-y-3">
+                <select id="tkt-unit-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                    <option value="">Select Affected Unit...</option>
+                </select>
+                <input type="text" id="tkt-title" placeholder="Issue Title *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <textarea id="tkt-desc" placeholder="Issue Description" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs h-20"></textarea>
+                <select id="tkt-priority" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="LOW">LOW</option>
+                    <option value="MEDIUM" selected>MEDIUM</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="URGENT">URGENT</option>
+                </select>
+                <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Create Ticket</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 7: REGISTER STAFF -->
+    <div id="modal-register" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-register')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Register Staff Member</h3>
+            <form id="form-register" class="space-y-3">
+                <input type="text" id="reg-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="email" id="reg-email" placeholder="Email Address *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="password" id="reg-password" placeholder="Password (Min 6 chars) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <select id="reg-role" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="PROPERTY_MANAGER">Property Manager</option>
+                    <option value="ACCOUNTANT">Accountant</option>
+                    <option value="TECHNICIAN">Technician</option>
+                </select>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Register Staff Member</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 8: VEND LUKU -->
+    <div id="modal-luku" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-luku')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Vend Luku Token</h3>
+            <form id="form-luku" class="space-y-3">
+                <input type="text" id="luku-meter" placeholder="Meter Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" id="luku-tenant" placeholder="Tenant Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="number" id="luku-amount" placeholder="Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Generate Token</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 9: LUKU RESULT -->
+    <div id="modal-luku-result" style="display: none;" class="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-amber-500/50 w-full max-w-md rounded-3xl p-8 text-center shadow-[0_0_40px_rgba(245,158,11,0.2)]">
+            <div class="mx-auto w-16 h-16 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-3xl mb-4">
+                <i class="fa-solid fa-bolt"></i>
+            </div>
+            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Luku Token Generated</h3>
+            <div id="res-token" class="text-3xl font-black text-amber-400 tracking-widest bg-[#14223d] py-4 rounded-xl border border-[#1e2f52] my-4 select-all">
+                0000-0000-0000-0000
+            </div>
+            <div class="grid grid-cols-2 gap-4 text-left bg-[#14223d] p-4 rounded-xl border border-[#1e2f52] mb-6">
+                <div><span class="text-[10px] text-gray-500 block uppercase">Meter</span><span id="res-meter" class="text-sm font-bold text-white">0</span></div>
+                <div><span class="text-[10px] text-gray-500 block uppercase">Units (kWh)</span><span id="res-kwh" class="text-sm font-bold text-cyan-400">0.0</span></div>
+                <div class="col-span-2"><span class="text-[10px] text-gray-500 block uppercase">Amount</span><span id="res-amount" class="text-sm font-bold text-emerald-400">TZS 0</span></div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="copyLukuToken()" class="flex-1 bg-[#14223d] hover:bg-[#1e2f52] border border-[#233863] py-3 rounded-xl text-white font-bold text-xs"><i class="fa-solid fa-copy"></i> Copy</button>
+                <button onclick="closeModal('modal-luku-result')" class="flex-1 bg-amber-600 hover:bg-amber-700 py-3 rounded-xl text-white font-bold text-xs">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedPropertyType = 'Apartment';
+        let groupCounter = 0;
+        let currentTenantsList = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('keyarch_token')) showAppView();
+
+            addGroupCard();
+
+            // Close dropdowns on outside click
+            document.addEventListener('click', (e) => {
+                const propDropdown = document.getElementById('prop-dropdown-list');
+                const propTrigger = document.getElementById('prop-dropdown-trigger');
+                if (propDropdown && propTrigger && !propTrigger.contains(e.target) && !propDropdown.contains(e.target)) {
+                    propDropdown.classList.add('hidden');
+                }
+
+                const unitDropdown = document.getElementById('unit-dropdown-list');
+                const unitTrigger = document.getElementById('unit-dropdown-trigger');
+                if (unitDropdown && unitTrigger && !unitTrigger.contains(e.target) && !unitDropdown.contains(e.target)) {
+                    unitDropdown.classList.add('hidden');
+                }
+            });
+
+            document.getElementById('form-login').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: document.getElementById('login-email').value,
+                        password: document.getElementById('login-password').value
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('keyarch_token', data.token);
+                    localStorage.setItem('keyarch_user', JSON.stringify(data.user));
+                    showAppView();
+                } else alert(data.error || 'Login Failed!');
+            });
+
+            document.getElementById('form-portal-register').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const res = await fetch('/api/auth/register-company', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        company_name: document.getElementById('p-reg-company').value,
+                        admin_full_name: document.getElementById('p-reg-name').value,
+                        email: document.getElementById('p-reg-email').value,
+                        phone_number: document.getElementById('p-reg-phone').value,
+                        password: document.getElementById('p-reg-password').value
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Congratulations! Your company has been registered successfully. You can now sign in.');
+                    switchAuthTab('login');
+                    document.getElementById('login-email').value = document.getElementById('p-reg-email').value;
+                    document.getElementById('form-portal-register').reset();
                 } else {
                     alert('Registration Failed: ' + (data.error || 'Server error'));
                 }
@@ -58,7 +802,6 @@ document.getElementById('form-portal-register').reset();
 
             const isHidden = list.classList.contains('hidden');
 
-            // Funga dropdowns zote kwanza
             document.getElementById('prop-dropdown-list')?.classList.add('hidden');
             document.getElementById('unit-dropdown-list')?.classList.add('hidden');
 
@@ -98,7 +841,6 @@ document.getElementById('form-portal-register').reset();
 
             document.getElementById('prop-dropdown-list').classList.add('hidden');
 
-            // Weka upya Unit dropdown na upakie units mpya
             document.getElementById('tenant-unit-id').value = '';
             const unitLabel = document.getElementById('unit-selected-label');
             unitLabel.innerText = '-- Select Vacant Unit --';
@@ -115,7 +857,6 @@ document.getElementById('form-portal-register').reset();
 
             document.getElementById('unit-dropdown-list').classList.add('hidden');
 
-            // Jaza kiotomatiki Agreed Rent kama haijawekwa
             const rentInput = document.getElementById('tenant-rent');
             if (!rentInput.value && rentAmount) {
                 rentInput.value = rentAmount;
@@ -276,7 +1017,6 @@ document.getElementById('form-portal-register').reset();
                 closeModal('modal-tenant');
                 document.getElementById('form-tenant-onboard').reset();
                 
-                // Reset custom labels
                 document.getElementById('prop-selected-label').innerText = '-- Select Property --';
                 document.getElementById('prop-selected-label').className = 'text-gray-400';
                 document.getElementById('unit-selected-label').innerText = '-- Select Property First --';
