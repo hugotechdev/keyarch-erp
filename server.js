@@ -186,7 +186,7 @@ async function initDatabase() {
                 total_rent = COALESCE(total_rent, agreed_rent),
                 discount = COALESCE(discount, 0),
                 total_to_pay = COALESCE(total_to_pay, agreed_rent),
-                duration_days = COALESCE(duration_days, (end_date - start_date))
+                duration_days = COALESCE(duration_days, (end_date::date - start_date::date))
             WHERE total_to_pay IS NULL OR rent_price IS NULL OR duration_days IS NULL;
             UPDATE leases SET payment_status = CASE
                 WHEN COALESCE(amount_paid, 0) > total_to_pay THEN 'EXTRA_PAID'
