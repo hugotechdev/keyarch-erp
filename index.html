@@ -1,141 +1,1283 @@
-<!-- TENANT ONBOARDING MODAL -->
-<div id="modal-tenant" class="modal-overlay hidden">
-  <div class="modal-container w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-    <div class="px-6 py-4 bg-slate-900 text-white flex justify-between items-center">
-      <h3 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-user-plus text-amber-400"></i> Onboard New Tenant</h3>
-      <button onclick="closeModal('modal-tenant')" class="text-slate-400 hover:text-white"><i class="fas fa-times text-xl"></i></button>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KEY ARCH ERP — Multi-Tenant Property Management SaaS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/style.css">
+    <style>
+        @media print {
+            body * { visibility: hidden; }
+            #modal-invoice-print, #modal-invoice-print * { visibility: visible; }
+            #modal-invoice-print { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: white !important; color: black !important; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-[#060c18] text-gray-100 font-sans pb-16">
+
+    <!-- VIEW 1: AUTHENTICATION PORTAL -->
+    <div id="view-login" class="flex-grow flex items-center justify-center p-4">
+        <div class="bg-[#0a1224] border border-[#182848] w-full max-w-md rounded-2xl p-8 shadow-2xl space-y-6">
+            <div class="text-center space-y-1">
+                <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
+                    KEY ARCH <span class="text-xs font-semibold px-2 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 align-middle">ERP</span>
+                </h1>
+                <p class="text-xs text-gray-400 uppercase tracking-widest">SaaS Property Portal</p>
+            </div>
+
+            <!-- AUTH SWITCH TABS -->
+            <div class="flex border-b border-[#182848] bg-[#14223d]/40 rounded-xl p-1">
+                <button type="button" onclick="switchAuthTab('login')" id="tab-auth-login" class="flex-1 py-2 text-xs font-bold rounded-lg bg-blue-600 text-white transition">
+                    Sign In
+                </button>
+                <button type="button" onclick="switchAuthTab('register')" id="tab-auth-register" class="flex-1 py-2 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition">
+                    Register Company
+                </button>
+            </div>
+
+            <!-- FORM 1: LOGIN -->
+            <form id="form-login" class="space-y-4 block">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Email Address</label>
+                    <input type="email" id="login-email" value="admin@keyarch.co.tz" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Password</label>
+                    <input type="password" id="login-password" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
+                </div>
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg transition">
+                    Sign In &rarr;
+                </button>
+            </form>
+
+            <!-- FORM 2: REGISTER PROPERTY OWNER -->
+            <form id="form-portal-register" class="space-y-3 hidden">
+                <div class="bg-cyan-950/40 border border-cyan-800/50 p-2.5 rounded-xl text-[11px] text-cyan-300 flex items-center gap-2 mb-1">
+                    <i class="fa-solid fa-building-user text-base text-cyan-400"></i>
+                    <span>Register your real estate company to manage properties and staff.</span>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Company / Business Name *</label>
+                    <input type="text" id="p-reg-company" placeholder="e.g. Mikadi Beach Apartments" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Owner / Director Full Name *</label>
+                    <input type="text" id="p-reg-name" placeholder="Full Name" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Email Address *</label>
+                    <input type="email" id="p-reg-email" placeholder="owner@company.co.tz" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Phone Number *</label>
+                    <input type="tel" id="p-reg-phone" placeholder="+255 700 000 000" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Password *</label>
+                    <input type="password" id="p-reg-password" placeholder="Min 6 characters" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                </div>
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-sm shadow-lg transition mt-2">
+                    Create Company Account &rarr;
+                </button>
+            </form>
+        </div>
     </div>
-    <form id="form-tenant-onboard" onsubmit="handleTenantSubmit(event)" class="p-6 overflow-y-auto space-y-6">
-      
-      <!-- STEP 1: PERSONAL DETAILS -->
-      <div>
-        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 border-b pb-1">1. Personal Details</h4>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Full Name *</label>
-            <input type="text" id="tenant-full-name" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none" placeholder="Mf. John Doe">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">NIDA / Passport *</label>
-            <input type="text" id="tenant-nida" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none" placeholder="199XXXXXXXXXXXXXXX">
-          </div>
-          <div class="md:col-span-2">
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Phone Number *</label>
-            <input type="tel" id="tenant-phone" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none" placeholder="+255 7XX XXX XXX">
-          </div>
-        </div>
-      </div>
 
-      <!-- STEP 2: LEASE INFORMATION -->
-      <div>
-        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 border-b pb-1">2. Lease Information</h4>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Select Property *</label>
-            <select id="tenant-property-id" required onchange="loadPropertyUnits(this.value)" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none bg-white">
-              <option value="">-- Chagua Property --</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Select Unit *</label>
-            <select id="tenant-unit-id" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none bg-white">
-              <option value="">-- Chagua Unit Kwanza --</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Lease Start *</label>
-            <input type="date" id="tenant-start-date" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Lease End (Hiari)</label>
-            <input type="date" id="tenant-end-date" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Agreed Rent (TZS) *</label>
-            <input type="number" id="tenant-rent" required oninput="calculateAmountDue()" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none" placeholder="1000000">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Paid Amount (TZS)</label>
-            <input type="number" id="tenant-paid" oninput="calculateAmountDue()" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500 outline-none" placeholder="0">
-          </div>
-          <div class="md:col-span-2 bg-slate-50 p-3 rounded-lg flex justify-between items-center border border-slate-200">
-            <span class="text-xs font-bold text-slate-600">Amount Due (Auto-calculated):</span>
-            <span id="tenant-due-display" class="text-sm font-black text-rose-600">TZS 0</span>
-          </div>
-        </div>
-      </div>
+    <!-- VIEW 2: MAIN DASHBOARD -->
+    <div id="view-app" style="display: none;" class="flex-col min-h-screen justify-between">
+        <header class="bg-[#0a1224]/90 backdrop-blur-md border-b border-[#182848] px-6 py-4 sticky top-0 z-40 shadow-2xl flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <span id="user-role-badge" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-900/80 border border-blue-500 text-blue-300 uppercase">COMPANY_ADMIN</span>
+                <span id="user-company-display" class="text-xs font-bold text-cyan-400 hidden sm:inline border-l border-[#182848] pl-3">Hugo Tech</span>
+                <span id="user-name-display" class="text-xs font-semibold text-gray-300 hidden md:inline">• User</span>
+            </div>
+            <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
+                KEY ARCH <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300">ERP</span>
+            </h1>
+            <button onclick="logout()" class="bg-red-900/40 hover:bg-red-800/60 border border-red-500/50 px-3 py-1.5 rounded-xl text-xs font-bold text-red-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-power-off"></i> <span class="hidden md:inline">Sign Out</span>
+            </button>
+        </header>
 
-      <div class="pt-4 border-t flex justify-end gap-3">
-        <button type="button" onclick="closeModal('modal-tenant')" class="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Ghairi</button>
-        <button type="submit" class="px-6 py-2 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-lg shadow-md">Hifadhi & Generate Invoice</button>
-      </div>
-    </form>
-  </div>
-</div>
+        <main class="container mx-auto p-4 md:p-6 max-w-7xl flex-grow space-y-6">
+            <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-white">System Operations Center</h2>
+                    <p class="text-xs text-gray-400">Enterprise property, finance, and maintenance management.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="openModal('modal-property-wizard')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-building"></i> + Property</button>
+                    <button onclick="openModal('modal-unit')" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-door-open"></i> + Unit</button>
+                    <button onclick="openModal('modal-tenant')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-user-plus"></i> + Onboard Tenant</button>
+                    <button onclick="openModal('modal-invoice')" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-file-invoice-dollar"></i> + Invoice</button>
+                    <button onclick="openModal('modal-luku')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-bolt"></i> + Vend Luku</button>
+                    <button onclick="openModal('modal-expense')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-money-bill-transfer"></i> + Expense</button>
+                    <button onclick="openModal('modal-ticket')" class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-screwdriver-wrench"></i> + Ticket</button>
+                    <button id="btn-admin-register" onclick="openModal('modal-register')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-user-gear"></i> + Staff</button>
+                </div>
+            </div>
 
-<!-- AUTO GENERATED INVOICE MODAL (STANDARDS INVOICE DOWNLOAD/PRINT) -->
-<div id="modal-invoice-print" class="modal-overlay hidden">
-  <div class="modal-container w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
-    <div class="px-6 py-3 bg-slate-900 text-white flex justify-between items-center no-print">
-      <h3 class="text-sm font-bold flex items-center gap-2"><i class="fas fa-file-invoice-dollar text-emerald-400"></i> Generated Official Invoice</h3>
-      <div class="flex gap-2">
-        <button onclick="window.print()" class="px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600 flex items-center gap-1"><i class="fas fa-print"></i> Download / Print PDF</button>
-        <button onclick="closeModal('modal-invoice-print')" class="text-slate-400 hover:text-white"><i class="fas fa-times text-lg"></i></button>
-      </div>
+            <!-- METRICS & REMINDERS -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-4 bg-[#0d172d] border-l-4 border-red-500 rounded-2xl flex justify-between items-center shadow-lg">
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold uppercase">Expired Leases</div>
+                        <div id="rem-expired" class="text-2xl font-black text-red-400">0</div>
+                    </div>
+                    <i class="fa-solid fa-file-circle-exclamation text-red-500/30 text-3xl"></i>
+                </div>
+                <div class="p-4 bg-[#0d172d] border-l-4 border-amber-500 rounded-2xl flex justify-between items-center shadow-lg">
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Week</div>
+                        <div id="rem-week" class="text-2xl font-black text-amber-400">0</div>
+                    </div>
+                    <i class="fa-solid fa-clock-rotate-left text-amber-500/30 text-3xl"></i>
+                </div>
+                <div class="p-4 bg-[#0d172d] border-l-4 border-blue-500 rounded-2xl flex justify-between items-center shadow-lg">
+                    <div>
+                        <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Month</div>
+                        <div id="rem-month" class="text-2xl font-black text-blue-400">0</div>
+                    </div>
+                    <i class="fa-solid fa-calendar-check text-blue-500/30 text-3xl"></i>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-center">
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
+                    <div class="text-[10px] text-gray-400 uppercase">Properties</div>
+                    <div id="stat-properties" class="text-lg font-bold text-blue-400">0</div>
+                </div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
+                    <div class="text-[10px] text-gray-400 uppercase">Total Units</div>
+                    <div id="stat-units" class="text-lg font-bold text-cyan-400">0</div>
+                </div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
+                    <div class="text-[10px] text-gray-400 uppercase">Occupancy</div>
+                    <div id="stat-occupancy" class="text-lg font-bold text-emerald-400">0%</div>
+                </div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
+                    <div class="text-[10px] text-gray-400 uppercase">Active Tenants</div>
+                    <div id="stat-tenants" class="text-lg font-bold text-emerald-400">0</div>
+                </div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
+                    <div class="text-[10px] text-gray-400 uppercase">Pending Tickets</div>
+                    <div id="stat-tickets" class="text-lg font-bold text-orange-400">0</div>
+                </div>
+                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl col-span-3 shadow-md">
+                    <div class="text-[10px] text-gray-400 uppercase">Monthly Performance</div>
+                    <div class="flex justify-around items-center mt-1">
+                        <div><span class="text-[10px] text-gray-500 block">Income</span><span id="stat-income" class="text-sm font-bold text-emerald-400">TZS 0</span></div>
+                        <div><span class="text-[10px] text-gray-500 block">Profit</span><span id="stat-profit" class="text-sm font-bold text-cyan-400">TZS 0</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABBED DATA DIRECTORY -->
+            <div class="bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl overflow-hidden">
+                <div class="flex border-b border-[#182848] bg-[#0a1224]/50 overflow-x-auto scrollbar-none">
+                    <button onclick="switchTab('tab-properties')" id="btn-tab-properties" class="tab-btn active border-b-2 border-blue-500 text-blue-400 px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
+                        <i class="fa-solid fa-building"></i> Properties & Units
+                    </button>
+                    <button onclick="switchTab('tab-tenants')" id="btn-tab-tenants" class="tab-btn text-gray-400 hover:text-white px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
+                        <i class="fa-solid fa-users"></i> Tenants & Leases
+                    </button>
+                    <button onclick="switchTab('tab-finance')" id="btn-tab-finance" class="tab-btn text-gray-400 hover:text-white px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Financials & Luku
+                    </button>
+                    <button onclick="switchTab('tab-tickets')" id="btn-tab-tickets" class="tab-btn text-gray-400 hover:text-white px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
+                        <i class="fa-solid fa-screwdriver-wrench"></i> Maintenance Tickets
+                    </button>
+                </div>
+
+                <div class="p-5">
+                    <!-- TAB 1: PROPERTIES -->
+                    <div id="tab-properties" class="tab-content block space-y-4">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Properties Directory</h3>
+                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
+                            <table class="w-full text-left text-xs text-gray-300">
+                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
+                                    <tr>
+                                        <th class="p-3">ID</th>
+                                        <th class="p-3">Property Name</th>
+                                        <th class="p-3">Category</th>
+                                        <th class="p-3">Address</th>
+                                        <th class="p-3">Total Units</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-properties-body" class="divide-y divide-[#182848]">
+                                    <tr><td colspan="5" class="p-4 text-center text-gray-500">No properties loaded yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: TENANTS (WITH LIVE SEARCH & EDIT PERMISSION) -->
+                    <div id="tab-tenants" class="tab-content hidden space-y-4">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Active Leases & Tenant History</h3>
+                            <div class="relative w-full md:w-72">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                                <input type="text" oninput="filterTenants(this.value)" placeholder="Search tenant, property, unit..." class="w-full pl-9 pr-3 py-2 bg-[#14223d] border border-[#233863] rounded-xl text-xs text-white outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
+                            <table class="w-full text-left text-xs text-gray-300">
+                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
+                                    <tr>
+                                        <th class="p-3">Tenant Details</th>
+                                        <th class="p-3">Property / Unit</th>
+                                        <th class="p-3">Agreed Rent</th>
+                                        <th class="p-3">Amount Paid</th>
+                                        <th class="p-3">Amount Due</th>
+                                        <th class="p-3">End Date</th>
+                                        <th class="p-3">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tenants-table-body" class="divide-y divide-[#182848]">
+                                    <tr><td colspan="7" class="p-4 text-center text-gray-500">No active tenants loaded yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: FINANCIALS -->
+                    <div id="tab-finance" class="tab-content hidden space-y-4">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Issued Invoices</h3>
+                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
+                            <table class="w-full text-left text-xs text-gray-300">
+                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
+                                    <tr>
+                                        <th class="p-3">Invoice #</th>
+                                        <th class="p-3">Tenant Name</th>
+                                        <th class="p-3">Amount Due</th>
+                                        <th class="p-3">Due Date</th>
+                                        <th class="p-3">Status</th>
+                                        <th class="p-3">Print / View</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-invoices-body" class="divide-y divide-[#182848]">
+                                    <tr><td colspan="6" class="p-4 text-center text-gray-500">No invoices generated yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: TICKETS -->
+                    <div id="tab-tickets" class="tab-content hidden space-y-4">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Work Orders & Maintenance Tickets</h3>
+                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
+                            <table class="w-full text-left text-xs text-gray-300">
+                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
+                                    <tr>
+                                        <th class="p-3">Ticket ID</th>
+                                        <th class="p-3">Issue Title</th>
+                                        <th class="p-3">Unit</th>
+                                        <th class="p-3">Priority</th>
+                                        <th class="p-3">Technician</th>
+                                        <th class="p-3">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-tickets-body" class="divide-y divide-[#182848]">
+                                    <tr><td colspan="6" class="p-4 text-center text-gray-500">No work orders recorded yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="fixed bottom-0 left-0 right-0 bg-[#0a1224]/95 backdrop-blur-md border-t border-[#182848] py-2 px-6 z-40 shadow-2xl flex justify-between items-center text-xs text-gray-400">
+            <div class="flex items-center space-x-6">
+                <button onclick="openModal('modal-property-wizard')" class="hover:text-blue-400 transition flex items-center gap-1.5"><i class="fa-solid fa-building"></i> Properties</button>
+                <button onclick="openModal('modal-tenant')" class="hover:text-emerald-400 transition flex items-center gap-1.5"><i class="fa-solid fa-users"></i> Tenants</button>
+                <button onclick="openModal('modal-ticket')" class="hover:text-orange-400 transition flex items-center gap-1.5"><i class="fa-solid fa-screwdriver-wrench"></i> Tickets</button>
+                <button onclick="openModal('modal-luku')" class="hover:text-amber-400 transition flex items-center gap-1.5"><i class="fa-solid fa-bolt"></i> Vend Luku</button>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="text-[11px] font-mono text-gray-500 hidden sm:inline">&copy; 2026 KEY ARCH ERP • Hugo Tech</span>
+            </div>
+        </footer>
     </div>
-    
-    <!-- Printable Invoice Template -->
-    <div id="invoice-printable-area" class="p-8 overflow-y-auto space-y-6 text-slate-800 bg-white">
-      <div class="flex justify-between items-start border-b pb-6">
-        <div>
-          <h2 id="inv-company-name" class="text-2xl font-black text-slate-900 tracking-tight">HUGO TECH ESTATE</h2>
-          <p class="text-xs text-slate-500 mt-1">Official Property Lease & Rent Invoice</p>
-        </div>
-        <div class="text-right">
-          <span id="inv-status-badge" class="px-3 py-1 rounded-full text-xs font-extrabold uppercase bg-emerald-100 text-emerald-800">PAID</span>
-          <p id="inv-number" class="text-sm font-bold text-slate-700 mt-2">INV-2026-100001</p>
-          <p id="inv-date" class="text-xs text-slate-500">Date: 2026-11-05</p>
-        </div>
-      </div>
 
-      <div class="grid grid-cols-2 gap-8 text-xs">
-        <div>
-          <p class="font-bold text-slate-400 uppercase tracking-wider mb-1">Billed To (Tenant)</p>
-          <p id="inv-tenant-name" class="font-extrabold text-slate-900 text-sm">Hugo Mlula</p>
-          <p id="inv-tenant-phone" class="text-slate-600">+255 700 000 000</p>
-          <p id="inv-tenant-nida" class="text-slate-600">NIDA: 19921223XXXXX</p>
-        </div>
-        <div>
-          <p class="font-bold text-slate-400 uppercase tracking-wider mb-1">Property & Location</p>
-          <p id="inv-property-name" class="font-extrabold text-slate-900 text-sm">Mikadi Beach Apartments</p>
-          <p id="inv-unit-number" class="text-slate-600">Unit: G1-1</p>
-          <p id="inv-lease-period" class="text-slate-600">Period: 2026-11-05 to 2027-11-05</p>
-        </div>
-      </div>
+    <!-- MODAL 1: PROPERTY WIZARD -->
+    <div id="modal-property-wizard" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+        <div class="bg-[#0a1224] border border-[#182848] w-full max-w-2xl rounded-2xl flex flex-col max-h-[90vh] shadow-2xl text-gray-200 overflow-hidden relative">
+            <div class="p-5 border-b border-[#182848] bg-[#0d172d] flex justify-between items-center sticky top-0 z-10">
+                <div class="space-y-1">
+                    <h3 class="text-lg font-black text-white flex items-center gap-2">
+                        <i class="fa-solid fa-building-circle-check text-blue-500"></i> Property Wizard
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <span class="flex items-center gap-1 text-[11px] font-bold text-blue-400 bg-blue-950/80 px-2 py-0.5 rounded-full border border-blue-800/50">
+                            <span class="w-4 h-4 rounded-full bg-blue-600 text-white text-[9px] flex items-center justify-center">1</span> Basic Info
+                        </span>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-gray-600"></i>
+                        <span class="flex items-center gap-1 text-[11px] font-bold text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-800/50">
+                            <span class="w-4 h-4 rounded-full bg-cyan-600 text-white text-[9px] flex items-center justify-center">2</span> Groups & Units
+                        </span>
+                        <i class="fa-solid fa-chevron-right text-[10px] text-gray-600"></i>
+                        <span class="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800/50">
+                            <span class="w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] flex items-center justify-center">3</span> Confirmation
+                        </span>
+                    </div>
+                </div>
+                <button onclick="closeModal('modal-property-wizard')" class="w-8 h-8 rounded-full bg-[#14223d] text-gray-400 hover:text-white hover:bg-red-600 transition flex items-center justify-center text-lg">&times;</button>
+            </div>
 
-      <table class="w-full text-left text-xs border-collapse">
-        <thead>
-          <tr class="bg-slate-100 border-b border-t border-slate-200 text-slate-700 uppercase font-bold">
-            <th class="py-2.5 px-3">Description</th>
-            <th class="py-2.5 px-3 text-right">Agreed Rent</th>
-            <th class="py-2.5 px-3 text-right">Paid Amount</th>
-            <th class="py-2.5 px-3 text-right">Remaining Due</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-          <tr>
-            <td class="py-3 px-3 font-semibold text-slate-800">Rental Lease Fee (Annual/Monthly Agreement)</td>
-            <td id="inv-table-agreed" class="py-3 px-3 text-right font-bold text-slate-900">TZS 1,200,000</td>
-            <td id="inv-table-paid" class="py-3 px-3 text-right font-bold text-emerald-600">TZS 1,200,000</td>
-            <td id="inv-table-due" class="py-3 px-3 text-right font-bold text-rose-600">TZS 0</td>
-          </tr>
-        </tbody>
-      </table>
+            <div class="p-5 overflow-y-auto flex-1 space-y-5 custom-scrollbar">
+                <form id="form-property-wizard" onsubmit="collectAndSubmitWizard(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Property Name *</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-house absolute left-3.5 top-3.5 text-gray-500 text-xs"></i>
+                            <input type="text" id="wiz-prop-name" placeholder="Hugo Home" class="w-full pl-9 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1">Address *</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-location-dot absolute left-3.5 top-3.5 text-gray-500 text-xs"></i>
+                            <input type="text" id="wiz-address" placeholder="Mbezi Beach, Dar es Salaam" class="w-full pl-9 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs focus:border-blue-500 outline-none" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-300 mb-2">Property Type *</label>
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2" id="wiz-prop-type-group">
+                            <button type="button" onclick="selectType('Apartment')" class="type-btn active bg-blue-600 text-white border-blue-500 p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-building text-sm"></i>
+                                <span class="text-[10px] font-bold">Apartment</span>
+                            </button>
+                            <button type="button" onclick="selectType('House')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-house-chimney text-sm"></i>
+                                <span class="text-[10px] font-bold">House</span>
+                            </button>
+                            <button type="button" onclick="selectType('Office')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-briefcase text-sm"></i>
+                                <span class="text-[10px] font-bold">Office</span>
+                            </button>
+                            <button type="button" onclick="selectType('Shop')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-store text-sm"></i>
+                                <span class="text-[10px] font-bold">Shop</span>
+                            </button>
+                            <button type="button" onclick="selectType('Hotel')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-hotel text-sm"></i>
+                                <span class="text-[10px] font-bold">Hotel</span>
+                            </button>
+                            <button type="button" onclick="selectType('Air-Bnb')" class="type-btn bg-[#14223d] text-gray-400 border-[#233863] p-2.5 rounded-xl border text-center flex flex-col items-center gap-1 transition">
+                                <i class="fa-solid fa-bed text-sm"></i>
+                                <span class="text-[10px] font-bold">Air-Bnb</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="groups-container" class="space-y-4"></div>
+                    <button type="button" onclick="addGroupCard()" class="w-full py-3 border-2 border-dashed border-[#233863] hover:border-blue-500 rounded-2xl text-blue-400 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition bg-[#0d172d]/50">
+                        <i class="fa-solid fa-circle-plus text-sm"></i> + Add Another Group
+                    </button>
+                </form>
+            </div>
 
-      <div class="border-t pt-4 flex justify-between items-center text-xs text-slate-500">
-        <p>Asante kwa kuchagua huduma zetu!</p>
-        <p class="font-bold text-slate-700">Imetolewa na KeyArch Management System</p>
-      </div>
+            <div class="p-4 border-t border-[#182848] bg-[#0d172d] sticky bottom-0 z-10">
+                <button type="button" onclick="document.getElementById('form-property-wizard').requestSubmit()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-xs uppercase tracking-wider shadow-xl transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up text-sm"></i> Save Property & All Units &rarr;
+                </button>
+            </div>
+        </div>
     </div>
-  </div>
-</div>
+
+    <!-- MODAL 2: REGISTER UNIT -->
+    <div id="modal-unit" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-unit')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Register Unit</h3>
+            <form id="form-unit" class="space-y-3">
+                <select id="unit-prop-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required></select>
+                <input type="text" id="unit-no" placeholder="Unit Number (e.g. 101) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="number" id="unit-rent" placeholder="Rent Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Unit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 3: TENANT ONBOARDING (UPDATED WITH PROPERTY SELECTION, OPTIONAL LEASE END/PAID AMOUNT & AUTO DUE CALCULATOR) -->
+    <div id="modal-tenant" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-xl rounded-2xl p-6 relative my-8 shadow-2xl">
+            <button onclick="closeModal('modal-tenant')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4 flex items-center gap-2"><i class="fa-solid fa-user-plus text-emerald-400"></i> Tenant Onboarding</h3>
+            <form id="form-tenant-onboard" onsubmit="handleTenantSubmit(event)" class="space-y-4">
+                
+                <div class="border-b border-[#182848] pb-3">
+                    <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">1. Personal Details</div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input type="text" id="tenant-full-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                        <input type="text" id="tenant-nida" placeholder="NIDA / Passport *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                        <input type="tel" id="tenant-phone" placeholder="Phone Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs sm:col-span-2" required>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">2. Lease & Financial Details</div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Select Property *</label>
+                            <select id="tenant-property-id" onchange="loadPropertyUnits(this.value)" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                                <option value="">-- Select Property --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Select Unit *</label>
+                            <select id="tenant-unit-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                                <option value="">-- Select Property First --</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Lease Start *</label>
+                            <input type="date" id="tenant-start-date" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Lease End (Optional)</label>
+                            <input type="date" id="tenant-end-date" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Agreed Rent (TZS) *</label>
+                            <input type="number" id="tenant-rent" oninput="calculateAmountDue()" placeholder="1,000,000" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-400 mb-1">Paid Amount (Optional)</label>
+                            <input type="number" id="tenant-paid" oninput="calculateAmountDue()" placeholder="0" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                        </div>
+                    </div>
+                    <div class="mt-3 bg-[#14223d] p-3 rounded-xl border border-[#233863] flex justify-between items-center">
+                        <span class="text-xs font-bold text-gray-400">Amount Due (Auto-calculated):</span>
+                        <span id="tenant-due-display" class="text-sm font-black text-rose-400">TZS 0</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3.5 rounded-xl text-white font-bold text-xs shadow-lg transition">
+                    Save Tenant & Generate Auto Invoice &rarr;
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 4: INVOICE (MANUAL & VIEW) -->
+    <div id="modal-invoice" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-invoice')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Issue Invoice</h3>
+            <form id="form-invoice" class="space-y-3">
+                <select id="inv-lease-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                    <option value="">Select Active Lease...</option>
+                </select>
+                <input type="number" id="inv-amount" placeholder="Amount Due (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="date" id="inv-due" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Generate Invoice</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PRINTABLE INVOICE TEMPLATE (AUTO GENERATED STANDARDS) -->
+    <div id="modal-invoice-print" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white text-slate-900 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+            <div class="px-6 py-3 bg-slate-900 text-white flex justify-between items-center no-print">
+                <h3 class="text-sm font-bold flex items-center gap-2"><i class="fa-solid fa-file-invoice-dollar text-emerald-400"></i> Official Invoice Preview</h3>
+                <div class="flex gap-2">
+                    <button onclick="window.print()" class="px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600 flex items-center gap-1"><i class="fa-solid fa-print"></i> Download / Print PDF</button>
+                    <button onclick="closeModal('modal-invoice-print')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-times text-lg"></i></button>
+                </div>
+            </div>
+
+            <div id="invoice-printable-area" class="p-8 overflow-y-auto space-y-6 text-slate-800 bg-white">
+                <div class="flex justify-between items-start border-b pb-6">
+                    <div>
+                        <h2 id="inv-company-name" class="text-2xl font-black text-slate-900 tracking-tight">HUGO TECH ESTATE</h2>
+                        <p class="text-xs text-slate-500 mt-1">Official Property Lease & Rent Invoice</p>
+                    </div>
+                    <div class="text-right">
+                        <span id="inv-status-badge" class="px-3 py-1 rounded-full text-xs font-extrabold uppercase bg-emerald-100 text-emerald-800">PAID</span>
+                        <p id="inv-number" class="text-sm font-bold text-slate-700 mt-2">INV-2026-100001</p>
+                        <p id="inv-date" class="text-xs text-slate-500">Date: 2026-11-05</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-8 text-xs">
+                    <div>
+                        <p class="font-bold text-slate-400 uppercase tracking-wider mb-1">Billed To (Tenant)</p>
+                        <p id="inv-tenant-name" class="font-extrabold text-slate-900 text-sm">Hugo Mlula</p>
+                        <p id="inv-tenant-phone" class="text-slate-600">+255 700 000 000</p>
+                        <p id="inv-tenant-nida" class="text-slate-600">NIDA: 19921223XXXXX</p>
+                    </div>
+                    <div>
+                        <p class="font-bold text-slate-400 uppercase tracking-wider mb-1">Property & Location</p>
+                        <p id="inv-property-name" class="font-extrabold text-slate-900 text-sm">Mikadi Beach Apartments</p>
+                        <p id="inv-unit-number" class="text-slate-600">Unit: G1-1</p>
+                        <p id="inv-lease-period" class="text-slate-600">Period: 2026-11-05 to 2027-11-05</p>
+                    </div>
+                </div>
+
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 border-b border-t border-slate-200 text-slate-700 uppercase font-bold">
+                            <th class="py-2.5 px-3">Description</th>
+                            <th class="py-2.5 px-3 text-right">Agreed Rent</th>
+                            <th class="py-2.5 px-3 text-right">Paid Amount</th>
+                            <th class="py-2.5 px-3 text-right">Remaining Due</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <tr>
+                            <td class="py-3 px-3 font-semibold text-slate-800">Rental Lease Fee (Agreement)</td>
+                            <td id="inv-table-agreed" class="py-3 px-3 text-right font-bold text-slate-900">TZS 1,200,000</td>
+                            <td id="inv-table-paid" class="py-3 px-3 text-right font-bold text-emerald-600">TZS 1,200,000</td>
+                            <td id="inv-table-due" class="py-3 px-3 text-right font-bold text-rose-600">TZS 0</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="border-t pt-4 flex justify-between items-center text-xs text-slate-500">
+                    <p>Asante kwa kuchagua huduma zetu!</p>
+                    <p class="font-bold text-slate-700">Imetolewa na KeyArch Management System</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: EXPENSE -->
+    <div id="modal-expense" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-expense')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Record Expense</h3>
+            <form id="form-expense" class="space-y-3">
+                <select id="exp-category" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="REPAIR">Repair & Maintenance</option>
+                    <option value="UTILITY">Utility Bills</option>
+                    <option value="SALARY">Staff Salary</option>
+                </select>
+                <input type="text" id="exp-desc" placeholder="Description *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="number" id="exp-amount" placeholder="Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Expense</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 6: TICKET -->
+    <div id="modal-ticket" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-ticket')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Create Maintenance Ticket</h3>
+            <form id="form-ticket" class="space-y-3">
+                <select id="tkt-unit-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                    <option value="">Select Affected Unit...</option>
+                </select>
+                <input type="text" id="tkt-title" placeholder="Issue Title *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <textarea id="tkt-desc" placeholder="Issue Description" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs h-20"></textarea>
+                <select id="tkt-priority" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="LOW">LOW</option>
+                    <option value="MEDIUM" selected>MEDIUM</option>
+                    <option value="HIGH">HIGH</option>
+                    <option value="URGENT">URGENT</option>
+                </select>
+                <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Create Ticket</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 7: REGISTER STAFF -->
+    <div id="modal-register" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-register')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Register Staff Member</h3>
+            <form id="form-register" class="space-y-3">
+                <input type="text" id="reg-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="email" id="reg-email" placeholder="Email Address *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="password" id="reg-password" placeholder="Password (Min 6 chars) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <select id="reg-role" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                    <option value="PROPERTY_MANAGER">Property Manager</option>
+                    <option value="ACCOUNTANT">Accountant</option>
+                    <option value="TECHNICIAN">Technician</option>
+                </select>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Register Staff Member</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 8: VEND LUKU -->
+    <div id="modal-luku" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-luku')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4">Vend Luku Token</h3>
+            <form id="form-luku" class="space-y-3">
+                <input type="text" id="luku-meter" placeholder="Meter Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" id="luku-tenant" placeholder="Tenant Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="number" id="luku-amount" placeholder="Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Generate Token</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 9: LUKU RESULT -->
+    <div id="modal-luku-result" style="display: none;" class="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-amber-500/50 w-full max-w-md rounded-3xl p-8 text-center shadow-[0_0_40px_rgba(245,158,11,0.2)]">
+            <div class="mx-auto w-16 h-16 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-3xl mb-4">
+                <i class="fa-solid fa-bolt"></i>
+            </div>
+            <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-1">Luku Token Generated</h3>
+            <div id="res-token" class="text-3xl font-black text-amber-400 tracking-widest bg-[#14223d] py-4 rounded-xl border border-[#1e2f52] my-4 select-all">
+                0000-0000-0000-0000
+            </div>
+            <div class="grid grid-cols-2 gap-4 text-left bg-[#14223d] p-4 rounded-xl border border-[#1e2f52] mb-6">
+                <div><span class="text-[10px] text-gray-500 block uppercase">Meter</span><span id="res-meter" class="text-sm font-bold text-white">0</span></div>
+                <div><span class="text-[10px] text-gray-500 block uppercase">Units (kWh)</span><span id="res-kwh" class="text-sm font-bold text-cyan-400">0.0</span></div>
+                <div class="col-span-2"><span class="text-[10px] text-gray-500 block uppercase">Amount</span><span id="res-amount" class="text-sm font-bold text-emerald-400">TZS 0</span></div>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="copyLukuToken()" class="flex-1 bg-[#14223d] hover:bg-[#1e2f52] border border-[#233863] py-3 rounded-xl text-white font-bold text-xs"><i class="fa-solid fa-copy"></i> Copy</button>
+                <button onclick="closeModal('modal-luku-result')" class="flex-1 bg-amber-600 hover:bg-amber-700 py-3 rounded-xl text-white font-bold text-xs">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedPropertyType = 'Apartment';
+        let groupCounter = 0;
+        let currentTenantsList = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('keyarch_token')) showAppView();
+
+            addGroupCard();
+
+            document.getElementById('form-login').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: document.getElementById('login-email').value,
+                        password: document.getElementById('login-password').value
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    localStorage.setItem('keyarch_token', data.token);
+                    localStorage.setItem('keyarch_user', JSON.stringify(data.user));
+                    showAppView();
+                } else alert(data.error || 'Login Failed!');
+            });
+
+            document.getElementById('form-portal-register').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const res = await fetch('/api/auth/register-company', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        company_name: document.getElementById('p-reg-company').value,
+                        admin_full_name: document.getElementById('p-reg-name').value,
+                        email: document.getElementById('p-reg-email').value,
+                        phone_number: document.getElementById('p-reg-phone').value,
+                        password: document.getElementById('p-reg-password').value
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert('Congratulations! Your company has been registered successfully. You can now sign in.');
+                    switchAuthTab('login');
+                    document.getElementById('login-email').value = document.getElementById('p-reg-email').value;
+                    document.getElementById('form-portal-register').reset();
+                } else {
+                    alert('Registration Failed: ' + (data.error || 'Server error'));
+                }
+            });
+
+            document.getElementById('form-unit').addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendPost('/api/units', { property_id: parseInt(document.getElementById('unit-prop-id').value), unit_number: document.getElementById('unit-no').value, rent_amount: parseFloat(document.getElementById('unit-rent').value) }, 'modal-unit', 'form-unit');
+            });
+
+            document.getElementById('form-invoice').addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendPost('/api/invoices/issue', { lease_id: parseInt(document.getElementById('inv-lease-id').value), amount_due: parseFloat(document.getElementById('inv-amount').value), due_date: document.getElementById('inv-due').value }, 'modal-invoice', 'form-invoice');
+            });
+
+            document.getElementById('form-ticket').addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendPost('/api/tickets/create', { unit_id: parseInt(document.getElementById('tkt-unit-id').value), title: document.getElementById('tkt-title').value, description: document.getElementById('tkt-desc').value, priority: document.getElementById('tkt-priority').value }, 'modal-ticket', 'form-ticket');
+            });
+
+            document.getElementById('form-expense').addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendPost('/api/finance/expenses', { category: document.getElementById('exp-category').value, description: document.getElementById('exp-desc').value, amount: parseFloat(document.getElementById('exp-amount').value) }, 'modal-expense', 'form-expense');
+            });
+
+            document.getElementById('form-register').addEventListener('submit', (e) => {
+                e.preventDefault();
+                sendPost('/api/auth/register-staff', { full_name: document.getElementById('reg-name').value, email: document.getElementById('reg-email').value, password: document.getElementById('reg-password').value, role: document.getElementById('reg-role').value }, 'modal-register', 'form-register');
+            });
+
+            document.getElementById('form-luku').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const token = localStorage.getItem('keyarch_token');
+                const res = await fetch('/api/finance/luku/vend', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify({ meter_number: document.getElementById('luku-meter').value, tenant_name: document.getElementById('luku-tenant').value, amount: parseFloat(document.getElementById('luku-amount').value) })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    document.getElementById('form-luku').reset();
+                    closeModal('modal-luku');
+                    document.getElementById('res-token').innerText = data.token_number;
+                    document.getElementById('res-meter').innerText = data.meter_number;
+                    document.getElementById('res-kwh').innerText = data.kwh_units;
+                    document.getElementById('res-amount').innerText = 'TZS ' + parseFloat(data.amount).toLocaleString();
+                    openModal('modal-luku-result');
+                    loadAllData();
+                } else alert('Error: ' + data.error);
+            });
+        });
+
+        // AUTO-CALCULATE AMOUNT DUE
+        function calculateAmountDue() {
+            const rent = parseFloat(document.getElementById('tenant-rent').value || 0);
+            const paid = parseFloat(document.getElementById('tenant-paid').value || 0);
+            const due = Math.max(0, rent - paid);
+            document.getElementById('tenant-due-display').innerText = `TZS ${due.toLocaleString()}`;
+        }
+
+        // LOAD PROPERTIES & UNITS DYNAMICALLY
+        async function populateTenantPropertyDropdown() {
+            try {
+                const token = localStorage.getItem('keyarch_token');
+                const res = await fetch('/api/properties', { headers: { 'Authorization': `Bearer ${token}` } });
+                const props = await res.json();
+                const select = document.getElementById('tenant-property-id');
+                select.innerHTML = '<option value="">-- Select Property --</option>';
+                props.forEach(p => {
+                    select.innerHTML += `<option value="${p.property_id}">${p.property_name}</option>`;
+                });
+            } catch (err) { console.error('Error loading properties:', err); }
+        }
+
+        async function loadPropertyUnits(propertyId) {
+            const select = document.getElementById('tenant-unit-id');
+            if (!propertyId) {
+                select.innerHTML = '<option value="">-- Select Property First --</option>';
+                return;
+            }
+            try {
+                const token = localStorage.getItem('keyarch_token');
+                const res = await fetch(`/api/units/by-property/${propertyId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const units = await res.json();
+                select.innerHTML = '<option value="">-- Select Vacant Unit --</option>';
+                units.forEach(u => {
+                    select.innerHTML += `<option value="${u.unit_id}">${u.unit_number} (TZS ${parseFloat(u.rent_amount).toLocaleString()})</option>`;
+                });
+            } catch (err) { console.error('Error loading units:', err); }
+        }
+
+        // TENANT SUBMISSION & AUTO INVOICE STAGE 2
+        async function handleTenantSubmit(e) {
+            e.preventDefault();
+            const payload = {
+                full_name: document.getElementById('tenant-full-name').value,
+                nida_passport_no: document.getElementById('tenant-nida').value,
+                phone_number: document.getElementById('tenant-phone').value,
+                property_id: document.getElementById('tenant-property-id').value,
+                unit_id: document.getElementById('tenant-unit-id').value,
+                start_date: document.getElementById('tenant-start-date').value,
+                end_date: document.getElementById('tenant-end-date').value,
+                agreed_rent: document.getElementById('tenant-rent').value,
+                paid_amount: document.getElementById('tenant-paid').value
+            };
+
+            try {
+                const token = localStorage.getItem('keyarch_token');
+                const res = await fetch('/api/tenants/onboard', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+
+                closeModal('modal-tenant');
+                document.getElementById('form-tenant-onboard').reset();
+                calculateAmountDue();
+                loadAllData();
+
+                if (data.invoice) {
+                    showInvoiceModal(data.invoice.invoice_id);
+                }
+            } catch (err) {
+                alert('Onboarding Error: ' + err.message);
+            }
+        }
+
+        async function showInvoiceModal(invoiceId) {
+            try {
+                const token = localStorage.getItem('keyarch_token');
+                const res = await fetch(`/api/invoices/${invoiceId}/print`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const inv = await res.json();
+
+                document.getElementById('inv-company-name').innerText = inv.company_name;
+                document.getElementById('inv-number').innerText = inv.invoice_number;
+                document.getElementById('inv-date').innerText = `Date: ${new Date(inv.created_at).toLocaleDateString()}`;
+                document.getElementById('inv-status-badge').innerText = inv.status;
+
+                document.getElementById('inv-tenant-name').innerText = inv.tenant_name;
+                document.getElementById('inv-tenant-phone').innerText = inv.tenant_phone;
+                document.getElementById('inv-tenant-nida').innerText = `NIDA/Pass: ${inv.nida_passport_no}`;
+
+                document.getElementById('inv-property-name').innerText = inv.property_name;
+                document.getElementById('inv-unit-number').innerText = `Unit: ${inv.unit_number}`;
+                document.getElementById('inv-lease-period').innerText = `Period: ${inv.start_date.split('T')[0]} to ${inv.end_date.split('T')[0]}`;
+
+                document.getElementById('inv-table-agreed').innerText = `TZS ${parseFloat(inv.agreed_rent).toLocaleString()}`;
+                document.getElementById('inv-table-paid').innerText = `TZS ${parseFloat(inv.paid_amount).toLocaleString()}`;
+                document.getElementById('inv-table-due').innerText = `TZS ${parseFloat(inv.remaining_due).toLocaleString()}`;
+
+                openModal('modal-invoice-print');
+            } catch (err) {
+                alert('Error loading invoice: ' + err.message);
+            }
+        }
+
+        function filterTenants(query) {
+            const q = query.toLowerCase();
+            const filtered = currentTenantsList.filter(t => 
+                t.full_name.toLowerCase().includes(q) || 
+                t.property_name.toLowerCase().includes(q) ||
+                t.unit_number.toLowerCase().includes(q)
+            );
+            renderTenantsTable(filtered);
+        }
+
+        function renderTenantsTable(tenants) {
+            const tbody = document.getElementById('tenants-table-body');
+            if (!tbody) return;
+
+            const currentUser = JSON.parse(localStorage.getItem('keyarch_user') || '{}');
+            const canEdit = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'COMPANY_ADMIN' || currentUser.can_edit_tenants;
+
+            if (tenants.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500">No matching tenants found.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = tenants.map(t => `
+                <tr class="hover:bg-[#14223d]/50 border-b border-[#182848] text-xs">
+                    <td class="p-3 font-bold text-white">${t.full_name}<br><span class="text-gray-400 font-normal">${t.phone_number}</span></td>
+                    <td class="p-3 text-cyan-300 font-semibold">${t.property_name} (${t.unit_number})</td>
+                    <td class="p-3 font-bold text-gray-200">TZS ${parseFloat(t.agreed_rent).toLocaleString()}</td>
+                    <td class="p-3 font-bold text-emerald-400">TZS ${parseFloat(t.amount_paid).toLocaleString()}</td>
+                    <td class="p-3 font-bold text-rose-400">TZS ${parseFloat(t.amount_due).toLocaleString()}</td>
+                    <td class="p-3 text-gray-400">${new Date(t.end_date).toLocaleDateString()}</td>
+                    <td class="p-3">
+                        ${canEdit ? `<button onclick="editTenantPrompt(${t.tenant_id})" class="px-2.5 py-1 bg-amber-600/30 text-amber-300 border border-amber-500/50 font-bold rounded hover:bg-amber-600 hover:text-white transition">Edit</button>` : `<span class="text-gray-500 italic">View Only</span>`}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function addGroupCard() {
+            groupCounter++;
+            const container = document.getElementById('groups-container');
+            const cardId = `group-card-${groupCounter}`;
+
+            const cardHTML = `
+                <div id="${cardId}" class="group-card bg-[#0e1930] border border-[#1d325c] rounded-2xl p-4 space-y-3 relative" data-group-id="${groupCounter}">
+                    <div class="flex justify-between items-center border-b border-[#182848] pb-2">
+                        <h4 class="text-xs font-bold text-white uppercase tracking-wider group-title">${selectedPropertyType} Group ${groupCounter}</h4>
+                        ${groupCounter > 1 ? `<button type="button" onclick="removeGroupCard('${cardId}')" class="text-red-400 hover:text-red-300 text-xs flex items-center gap-1"><i class="fa-solid fa-trash-can"></i> Remove Group</button>` : ''}
+                    </div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Group Name *</label>
+                            <input type="text" class="grp-name w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="Group ${groupCounter}" required>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Units in Group *</label>
+                            <input type="number" class="grp-units w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="1" min="1" required>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-300 mb-1">Bedrooms</label>
+                                <input type="number" class="grp-bedrooms w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="1" min="0">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-semibold text-gray-300 mb-1">Bathrooms</label>
+                                <input type="number" class="grp-bathrooms w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="1" min="0">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Rent Timeline *</label>
+                            <div class="grid grid-cols-4 gap-1.5 grp-timeline-btn-group">
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Per Day" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Per Day</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Per Week" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Per Week</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Per Month" class="badge-btn active-badge py-2 text-[10px] font-bold rounded-xl bg-blue-600 text-white border border-blue-500">Per Month</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Per Year" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Per Year</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Currency *</label>
+                            <div class="grid grid-cols-4 gap-1.5 grp-currency-btn-group">
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="USD" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">USD</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="TSH" class="badge-btn active-badge py-2 text-[10px] font-bold rounded-xl bg-blue-600 text-white border border-blue-500">TSH</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Euro" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Euro</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Pound" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Pound</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Rent Amount *</label>
+                            <input type="number" class="grp-rent-amount w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" placeholder="0" required>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Payment Method *</label>
+                            <div class="grid grid-cols-3 gap-2 grp-payment-btn-group">
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Mobile Money" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Mobile Money</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Bank" class="badge-btn py-2 text-[10px] font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863]">Bank</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Cash" class="badge-btn active-badge py-2 text-[10px] font-bold rounded-xl bg-blue-600 text-white border border-blue-500">Cash</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-300 mb-1">Furnishing Status</label>
+                            <div class="grid grid-cols-2 gap-2 grp-furnishing-btn-group">
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Unfurnished" class="badge-btn active-badge py-2.5 text-xs font-bold rounded-xl bg-blue-600 text-white border border-blue-500 flex items-center justify-center gap-1.5"><i class="fa-solid fa-house"></i> Unfurnished</button>
+                                <button type="button" onclick="selectBadgeInCard(this)" data-val="Furnished" class="badge-btn py-2.5 text-xs font-bold rounded-xl bg-[#14223d] text-gray-400 border border-[#233863] flex items-center justify-center gap-1.5"><i class="fa-solid fa-couch"></i> Furnished</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', cardHTML);
+        }
+
+        function removeGroupCard(cardId) {
+            const card = document.getElementById(cardId);
+            if (card) card.remove();
+        }
+
+        function selectType(type) {
+            selectedPropertyType = type;
+            document.querySelectorAll('#wiz-prop-type-group .type-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-500');
+                btn.classList.add('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
+            });
+            event.currentTarget.classList.remove('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
+            event.currentTarget.classList.add('bg-blue-600', 'text-white', 'border-blue-500');
+            
+            document.querySelectorAll('.group-title').forEach((title, idx) => {
+                title.innerText = `${type} Group ${idx + 1}`;
+            });
+        }
+
+        function selectBadgeInCard(element) {
+            const parentGroup = element.parentElement;
+            parentGroup.querySelectorAll('.badge-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-500', 'active-badge');
+                btn.classList.add('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
+            });
+            element.classList.remove('bg-[#14223d]', 'text-gray-400', 'border-[#233863]');
+            element.classList.add('bg-blue-600', 'text-white', 'border-blue-500', 'active-badge');
+        }
+
+        async function collectAndSubmitWizard(e) {
+            e.preventDefault();
+
+            const groupCards = document.querySelectorAll('.group-card');
+            const collectedGroups = [];
+            let calculatedTotalUnits = 0;
+
+            groupCards.forEach(card => {
+                const name = card.querySelector('.grp-name').value;
+                const units = parseInt(card.querySelector('.grp-units').value) || 1;
+                const bedrooms = parseInt(card.querySelector('.grp-bedrooms').value) || 0;
+                const bathrooms = parseInt(card.querySelector('.grp-bathrooms').value) || 0;
+                const rentAmount = parseFloat(card.querySelector('.grp-rent-amount').value) || 0;
+
+                const timeline = card.querySelector('.grp-timeline-btn-group .active-badge')?.getAttribute('data-val') || 'Per Month';
+                const currency = card.querySelector('.grp-currency-btn-group .active-badge')?.getAttribute('data-val') || 'TSH';
+                const payment = card.querySelector('.grp-payment-btn-group .active-badge')?.getAttribute('data-val') || 'Cash';
+                const furnishing = card.querySelector('.grp-furnishing-btn-group .active-badge')?.getAttribute('data-val') || 'Unfurnished';
+
+                calculatedTotalUnits += units;
+
+                collectedGroups.push({
+                    group_name: name,
+                    units_in_group: units,
+                    bedrooms: bedrooms,
+                    bathrooms: bathrooms,
+                    rent_timeline: timeline,
+                    currency: currency,
+                    rent_amount: rentAmount,
+                    payment_method: payment,
+                    furnishing_status: furnishing
+                });
+            });
+
+            const payload = {
+                property_name: document.getElementById('wiz-prop-name').value,
+                address: document.getElementById('wiz-address').value,
+                property_type: selectedPropertyType,
+                number_of_units: calculatedTotalUnits,
+                groups: collectedGroups
+            };
+
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch('/api/properties/wizard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert(`Property "${payload.property_name}" and all ${calculatedTotalUnits} units saved successfully!`);
+                closeModal('modal-property-wizard');
+                document.getElementById('form-property-wizard').reset();
+                document.getElementById('groups-container').innerHTML = '';
+                groupCounter = 0;
+                addGroupCard();
+                loadAllData();
+            } else {
+                const data = await res.json();
+                alert('Failed: ' + (data.error || 'Server error'));
+            }
+        }
+
+        function switchAuthTab(type) {
+            const loginForm = document.getElementById('form-login');
+            const regForm = document.getElementById('form-portal-register');
+            const tabLogin = document.getElementById('tab-auth-login');
+            const tabReg = document.getElementById('tab-auth-register');
+
+            if (type === 'login') {
+                loginForm.classList.remove('hidden');
+                regForm.classList.add('hidden');
+                tabLogin.classList.add('bg-blue-600', 'text-white');
+                tabLogin.classList.remove('text-gray-400');
+                tabReg.classList.remove('bg-blue-600', 'text-white');
+                tabReg.classList.add('text-gray-400');
+            } else {
+                loginForm.classList.add('hidden');
+                regForm.classList.remove('hidden');
+                tabReg.classList.add('bg-blue-600', 'text-white');
+                tabReg.classList.remove('text-gray-400');
+                tabLogin.classList.remove('bg-blue-600', 'text-white');
+                tabLogin.classList.add('text-gray-400');
+            }
+        }
+
+        async function sendPost(url, bodyData, modalId, formId) {
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(bodyData)
+            });
+            if (res.ok) {
+                if(formId) document.getElementById(formId).reset();
+                closeModal(modalId);
+                loadAllData();
+                alert('Action completed successfully.');
+            } else {
+                const data = await res.json();
+                alert('Failed: ' + (data.error || 'Server error'));
+            }
+        }
+
+        function copyLukuToken() {
+            navigator.clipboard.writeText(document.getElementById('res-token').innerText);
+            alert('Token copied!');
+        }
+
+        function showAppView() {
+            document.getElementById('view-login').style.display = 'none';
+            document.getElementById('view-app').style.display = 'flex';
+            
+            const user = JSON.parse(localStorage.getItem('keyarch_user') || '{}');
+            document.getElementById('user-role-badge').innerText = user.role || 'COMPANY_ADMIN';
+            document.getElementById('user-company-display').innerText = user.company_name || 'Hugo Tech';
+            document.getElementById('user-name-display').innerText = '• ' + (user.full_name || '');
+
+            if (user.role === 'SUPER_ADMIN' || user.role === 'COMPANY_ADMIN') {
+                document.getElementById('btn-admin-register').style.display = 'inline-block';
+            } else {
+                document.getElementById('btn-admin-register').style.display = 'none';
+            }
+
+            loadAllData();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('border-b-2', 'border-blue-500', 'text-blue-400');
+                el.classList.add('text-gray-400');
+            });
+
+            document.getElementById(tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('btn-' + tabId);
+            if(activeBtn) {
+                activeBtn.classList.add('border-b-2', 'border-blue-500', 'text-blue-400');
+                activeBtn.classList.remove('text-gray-400');
+            }
+        }
+
+        function loadAllData() {
+            loadDashboardMetrics();
+            loadReminders();
+            loadDropdowns();
+            populateTenantPropertyDropdown();
+            loadTablesData();
+        }
+
+        async function loadDashboardMetrics() {
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch('/api/dashboard/metrics', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('stat-properties').innerText = data.totalProperties || 0;
+                document.getElementById('stat-units').innerText = data.totalUnits || 0;
+                document.getElementById('stat-occupancy').innerText = (data.occupancyRate || 0) + '%';
+                document.getElementById('stat-tenants').innerText = data.activeTenants || 0;
+                document.getElementById('stat-tickets').innerText = data.pendingTickets || 0;
+                document.getElementById('stat-income').innerText = 'TZS ' + (data.monthlyIncome || 0).toLocaleString();
+                document.getElementById('stat-profit').innerText = 'TZS ' + (data.netProfit || 0).toLocaleString();
+            }
+        }
+
+        async function loadReminders() {
+            const token = localStorage.getItem('keyarch_token');
+            const res = await fetch('/api/dashboard/reminders', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('rem-expired').innerText = data.expired || 0;
+                document.getElementById('rem-week').innerText = data.dueThisWeek || 0;
+                document.getElementById('rem-month').innerText = data.dueThisMonth || 0;
+            }
+        }
+
+        async function loadDropdowns() {
+            const token = localStorage.getItem('keyarch_token');
+            const headers = { 'Authorization': `Bearer ${token}` };
+            
+            const propSelect = document.getElementById('unit-prop-id');
+            if (propSelect) {
+                const propRes = await fetch('/api/properties', { headers });
+                if (propRes.ok) {
+                    const props = await propRes.json();
+                    propSelect.innerHTML = props.map(p => `<option value="${p.property_id}">${p.property_name}</option>`).join('');
+                }
+            }
+            
+            const unitRes = await fetch('/api/units', { headers });
+            if (unitRes.ok) {
+                const units = await unitRes.json();
+                const tktUnitSelect = document.getElementById('tkt-unit-id');
+                if (tktUnitSelect) {
+                    tktUnitSelect.innerHTML = units.map(u => `<option value="${u.unit_id}">${u.property_name} - ${u.unit_number}</option>`).join('');
+                }
+            }
+
+            const leaseSelect = document.getElementById('inv-lease-id');
+            if (leaseSelect) {
+                const leaseRes = await fetch('/api/leases', { headers });
+                if (leaseRes.ok) {
+                    const leases = await leaseRes.json();
+                    const activeLeases = leases.filter(l => l.status === 'ACTIVE');
+                    leaseSelect.innerHTML = activeLeases.map(l => `<option value="${l.lease_id}">${l.tenant_name} (${l.unit_number})</option>`).join('');
+                }
+            }
+        }
+
+        async function loadTablesData() {
+            const token = localStorage.getItem('keyarch_token');
+            const headers = { 'Authorization': `Bearer ${token}` };
+
+            // LOAD PROPERTIES
+            const propRes = await fetch('/api/properties', { headers });
+            if(propRes.ok) {
+                const props = await propRes.json();
+                const tbody = document.getElementById('table-properties-body');
+                if(props.length > 0) {
+                    tbody.innerHTML = props.map(p => `
+                        <tr class="hover:bg-[#14223d]/50">
+                            <td class="p-3 font-mono text-gray-400">#${p.property_id}</td>
+                            <td class="p-3 font-bold text-white">${p.property_name}</td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-blue-900/40 text-blue-300 border border-blue-500/30">${p.category}</span></td>
+                            <td class="p-3 text-gray-400">${p.address}</td>
+                            <td class="p-3 font-bold text-cyan-400">${p.total_units_count || 0}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-500">No properties registered under your company yet.</td></tr>`;
+                }
+            }
+
+            // LOAD TENANTS
+            const tenRes = await fetch('/api/tenants', { headers });
+            if(tenRes.ok) {
+                currentTenantsList = await tenRes.json();
+                renderTenantsTable(currentTenantsList);
+            }
+
+            // LOAD INVOICES
+            const invRes = await fetch('/api/invoices', { headers });
+            if(invRes.ok) {
+                const invoices = await invRes.json();
+                const tbody = document.getElementById('table-invoices-body');
+                if(invoices.length > 0) {
+                    tbody.innerHTML = invoices.map(i => `
+                        <tr class="hover:bg-[#14223d]/50 border-b border-[#182848]">
+                            <td class="p-3 font-mono font-bold text-purple-400">${i.invoice_number}</td>
+                            <td class="p-3 font-bold text-white">${i.tenant_name}</td>
+                            <td class="p-3 font-bold text-emerald-400">TZS ${parseFloat(i.amount_due).toLocaleString()}</td>
+                            <td class="p-3 text-gray-400">${new Date(i.due_date).toLocaleDateString()}</td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] ${i.status === 'PAID' ? 'bg-emerald-900/40 text-emerald-300 border border-emerald-500/30' : 'bg-amber-900/40 text-amber-300 border border-amber-500/30'}">${i.status}</span></td>
+                            <td class="p-3">
+                                <button onclick="showInvoiceModal(${i.invoice_id})" class="px-2.5 py-1 bg-cyan-600/30 text-cyan-300 border border-cyan-500/50 rounded font-bold hover:bg-cyan-600 hover:text-white transition flex items-center gap-1"><i class="fa-solid fa-print"></i> Print</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No invoices issued yet.</td></tr>`;
+                }
+            }
+
+            // LOAD TICKETS
+            const tktRes = await fetch('/api/tickets', { headers });
+            if(tktRes.ok) {
+                const tickets = await tktRes.json();
+                const tbody = document.getElementById('table-tickets-body');
+                if(tickets.length > 0) {
+                    tbody.innerHTML = tickets.map(t => `
+                        <tr class="hover:bg-[#14223d]/50">
+                            <td class="p-3 font-mono text-gray-400">#${t.ticket_id}</td>
+                            <td class="p-3 font-bold text-white">${t.title}</td>
+                            <td class="p-3">Unit ${t.unit_number || 'N/A'}</td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-orange-900/40 text-orange-300 border border-orange-500/30">${t.priority}</span></td>
+                            <td class="p-3 text-gray-400">${t.technician_name || 'Unassigned'}</td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-blue-900/40 text-blue-300 border border-blue-500/30">${t.status}</span></td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No work orders recorded yet.</td></tr>`;
+                }
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('keyarch_token');
+            localStorage.removeItem('keyarch_user');
+            window.location.reload();
+        }
+
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    </script>
+</body>
+</html>
