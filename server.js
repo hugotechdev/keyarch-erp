@@ -115,6 +115,126 @@ function payStatusOf(toPay, paid) {
     return paid > 0 ? 'PARTIAL' : 'UNPAID';
 }
 
+// ============================================================
+// PLANS, FEATURES AND ACCESS (Standard / Pro)
+// Change the numbers below to change what each plan allows.
+// ============================================================
+const GRACE_DAYS = 0; // extra days of access after a subscription ends
+const SUPPORT = { name: 'HUGO TECH', whatsapp: '+255785799530', email: 'info@hugotech.co.tz' };
+
+const PLAN_DEFAULTS = {
+    STANDARD: { luku: false, tickets: false, reports_advanced: false, backup_full: false, max_properties: 5, max_staff: 3 },
+    PRO:      { luku: true,  tickets: true,  reports_advanced: true,  backup_full: true,  max_properties: null, max_staff: null }
+};
+const FEATURE_KEYS = ['luku', 'tickets', 'reports_advanced', 'backup_full'];
+const LIMIT_KEYS = ['max_properties', 'max_staff'];
+
+// plan defaults + the special settings the Super Admin gave to one company (0 = unlimited)
+function effectiveFeatures(plan, overrides) {
+    const eff = { ...(PLAN_DEFAULTS[plan] || PLAN_DEFAULTS.STANDARD) };
+    if (overrides && typeof overrides === 'object') {
+        FEATURE_KEYS.forEach(k => { if (typeof overrides[k] === 'boolean') eff[k] = overrides[k]; });
+        LIMIT_KEYS.forEach(k => {
+            if (typeof overrides[k] === 'number') eff[k] = overrides[k] === 0 ? null : overrides[k];
+        });
+    }
+    return eff;
+}
+
+function sanitizeFeatures(input) {
+    const out = {};
+    if (!input || typeof input !== 'object') return out;
+    FEATURE_KEYS.forEach(k => { if (typeof input[k] === 'boolean') out[k] = input[k]; });
+    LIMIT_KEYS.forEach(k => { const n = parseInt(input[k]); if (!isNaN(n) && n >= 0) out[k] = n; });
+    return out;
+}
+
+const accessCache = new Map();
+function clearAccessCache(companyId) { accessCache.delete(String(companyId)); }
+
+async function getCompanyAccess(companyId) {
+    const key = String(companyId);
+    const hit = accessCache.get(key);
+    if (hit && Date.now() - hit.at < 30000) return hit.data;
+    try {
+        const r = await pool.query(
+            `SELECT company_id, company_name, is_active, plan, access_status, billing_type, features,
+                    to_char(paid_until, 'YYYY-MM-DD') AS paid_until,
+                    (paid_until::date - CURRENT_DATE) AS days_left,
+                    (billing_type = 'SUBSCRIPTION' AND (paid_until IS NULL OR paid_until::date < CURRENT_DATE - $2::int)) AS expired
+             FROM companies WHERE company_id = $1`,
+            [companyId, GRACE_DAYS]
+        );
+        const data = r.rows[0] || null;
+        accessCache.set(key, { at: Date.now(), data });
+        return data;
+    } catch (err) {
+        console.error('Access check warning (allowing access):', err.message);
+        return null;
+    }
+}
+
+function accessBlock(a) {
+    if (!a) return null;
+    if (a.is_active === false || a.access_status === 'SUSPENDED') {
+        return { code: 'ACCOUNT_SUSPENDED', message: 'Your account is suspended. Please contact ' + SUPPORT.name + ' to restore access.' };
+    }
+    if (a.access_status === 'PENDING') {
+        return { code: 'ACCOUNT_PENDING', message: 'Your company is registered but not active yet. Access starts after your payment is confirmed.' };
+    }
+    if (a.expired) {
+        return { code: 'SUBSCRIPTION_EXPIRED', message: 'Your subscription has ended. Please renew to continue using the system.' };
+    }
+    return null;
+}
+
+function companyInfo(a) {
+    const plan = (a && a.plan) || 'STANDARD';
+    return {
+        company_id: a ? a.company_id : null,
+        company_name: a ? a.company_name : null,
+        plan,
+        access_status: a ? a.access_status : 'ACTIVE',
+        billing_type: a ? a.billing_type : null,
+        paid_until: a ? a.paid_until : null,
+        days_left: a && a.days_left !== null && a.days_left !== undefined ? Number(a.days_left) : null,
+        features: effectiveFeatures(plan, a ? a.features : null),
+        support: SUPPORT
+    };
+}
+
+function superAdminCompanyInfo(name) {
+    return {
+        company_name: name, plan: 'PRO', access_status: 'ACTIVE', billing_type: 'ONE_TIME', paid_until: null, days_left: null,
+        features: effectiveFeatures('PRO', {}), support: SUPPORT
+    };
+}
+
+// use on routes that belong to Pro features:  app.get('/x', authenticateToken, requireFeature('luku'), ...)
+function requireFeature(key) {
+    return async (req, res, next) => {
+        if (req.user.role === 'SUPER_ADMIN') return next();
+        const a = await getCompanyAccess(req.user.company_id);
+        if (!effectiveFeatures(a ? a.plan : 'STANDARD', a ? a.features : null)[key]) {
+            return res.status(403).json({ error: 'This feature is available on the Pro plan. Please contact ' + SUPPORT.name + ' to upgrade.', code: 'FEATURE_LOCKED' });
+        }
+        next();
+    };
+}
+
+// returns a message when the company reached its plan limit, otherwise null
+async function checkLimit(user, limitKey, countSql, what) {
+    if (user.role === 'SUPER_ADMIN') return null;
+    const a = await getCompanyAccess(user.company_id);
+    const limit = effectiveFeatures(a ? a.plan : 'STANDARD', a ? a.features : null)[limitKey];
+    if (limit === null || limit === undefined) return null;
+    const count = parseInt((await pool.query(countSql, [user.company_id])).rows[0].count);
+    if (count >= limit) {
+        return `Your plan allows up to ${limit} ${what}. Please contact ${SUPPORT.name} to upgrade.`;
+    }
+    return null;
+}
+
 async function initDatabase() {
     try {
         if (!process.env.DATABASE_URL) return;
@@ -226,6 +346,32 @@ async function initDatabase() {
             CREATE INDEX IF NOT EXISTS idx_leases_tenant ON leases (tenant_id);
         `);
 
+        // NEW: plans, access control and platform payments (Super Admin panel)
+        await pool.query(`
+            ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan VARCHAR(12) DEFAULT 'PRO';
+            ALTER TABLE companies ADD COLUMN IF NOT EXISTS access_status VARCHAR(12) DEFAULT 'ACTIVE';
+            ALTER TABLE companies ADD COLUMN IF NOT EXISTS billing_type VARCHAR(12) DEFAULT 'ONE_TIME';
+            ALTER TABLE companies ADD COLUMN IF NOT EXISTS paid_until DATE;
+            ALTER TABLE companies ADD COLUMN IF NOT EXISTS activated_at TIMESTAMP;
+            ALTER TABLE companies ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '{}'::jsonb;
+            ALTER TABLE companies ADD COLUMN IF NOT EXISTS notes TEXT;
+            ALTER TABLE companies ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
+            CREATE TABLE IF NOT EXISTS platform_payments (
+                payment_id   SERIAL PRIMARY KEY,
+                company_id   INTEGER,
+                payment_type VARCHAR(20),
+                amount       NUMERIC(14,2),
+                method       VARCHAR(40),
+                reference    VARCHAR(80),
+                months       INTEGER,
+                period_until DATE,
+                notes        TEXT,
+                recorded_by  INTEGER,
+                paid_at      TIMESTAMP DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_platform_payments_company ON platform_payments (company_id);
+        `);
+
         await pool.query("CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000");
 
         // Seed Master Admin
@@ -266,9 +412,16 @@ function authenticateToken(req, res, next) {
     const token = authHeader && authHeader.split(' ')[1];
     if (!token) return res.status(401).json({ error: 'Access denied. Missing authentication token.' });
 
-    jwt.verify(token, JWT_SECRET, (err, user) => {
+    jwt.verify(token, JWT_SECRET, async (err, user) => {
         if (err) return res.status(403).json({ error: 'Session expired or invalid token. Please log in again.' });
         req.user = user;
+
+        // every request checks that the company is paid and active
+        if (user.role !== 'SUPER_ADMIN') {
+            const access = await getCompanyAccess(user.company_id);
+            const block = accessBlock(access);
+            if (block) return res.status(403).json({ error: block.message, code: block.code });
+        }
         next();
     });
 }
@@ -289,7 +442,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
 
     try {
         const userQuery = await pool.query(
-            `SELECT u.*, c.company_name, c.is_active as company_active
+            `SELECT u.*, c.company_name
              FROM users u
              LEFT JOIN companies c ON u.company_id = c.company_id
              WHERE LOWER(u.email) = LOWER($1)`,
@@ -298,13 +451,20 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         if (userQuery.rows.length === 0) return res.status(401).json({ error: 'Invalid Email or Password.' });
 
         const user = userQuery.rows[0];
-        if (!user.is_active) return res.status(403).json({ error: 'Account suspended.' });
-        if (user.role !== 'SUPER_ADMIN' && user.company_active === false) {
-            return res.status(403).json({ error: 'Company account is inactive or suspended.' });
-        }
-
         const isPasswordValid = await bcrypt.compare(password, user.password_hash);
         if (!isPasswordValid) return res.status(401).json({ error: 'Invalid Email or Password.' });
+
+        if (!user.is_active) return res.status(403).json({ error: 'Account suspended.', code: 'ACCOUNT_SUSPENDED' });
+
+        let company;
+        if (user.role === 'SUPER_ADMIN') {
+            company = superAdminCompanyInfo(user.company_name);
+        } else {
+            const access = await getCompanyAccess(user.company_id);
+            const block = accessBlock(access);
+            if (block) return res.status(403).json({ error: block.message, code: block.code });
+            company = companyInfo(access);
+        }
 
         const token = jwt.sign(
             { user_id: user.user_id, company_id: user.company_id, email: user.email, role: user.role, full_name: user.full_name, can_edit_tenants: user.can_edit_tenants },
@@ -317,12 +477,25 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         res.json({
             message: 'Login successful',
             token,
-            user: { user_id: user.user_id, company_id: user.company_id, company_name: user.company_name, full_name: user.full_name, email: user.email, role: user.role, can_edit_tenants: user.can_edit_tenants }
+            user: { user_id: user.user_id, company_id: user.company_id, company_name: user.company_name, full_name: user.full_name, email: user.email, role: user.role, can_edit_tenants: user.can_edit_tenants },
+            company
         });
     } catch (err) {
         console.error('Login Error:', err);
         res.status(500).json({ error: 'Server error during login: ' + err.message });
     }
+});
+
+// Fresh plan / features / subscription info (the page asks for this when it opens)
+app.get('/api/me', authenticateToken, async (req, res) => {
+    try {
+        if (req.user.role === 'SUPER_ADMIN') {
+            const c = await pool.query('SELECT company_name FROM companies WHERE company_id = $1', [req.user.company_id]);
+            return res.json({ company: superAdminCompanyInfo(c.rows[0] ? c.rows[0].company_name : 'Platform') });
+        }
+        const access = await getCompanyAccess(req.user.company_id);
+        res.json({ company: companyInfo(access) });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // PROPERTIES & UNITS FOR SELECTORS
@@ -359,6 +532,9 @@ app.post('/api/properties/wizard', authenticateToken, allowRoles('SUPER_ADMIN', 
     if (!property_name || !address || !property_type || !groups || !Array.isArray(groups)) {
         return res.status(400).json({ error: 'Please provide valid property details and group array.' });
     }
+
+    const propLimit = await checkLimit(req.user, 'max_properties', 'SELECT COUNT(*) FROM properties WHERE company_id = $1', 'properties');
+    if (propLimit) return res.status(403).json({ error: propLimit, code: 'LIMIT_REACHED' });
 
     let client;
     try {
@@ -956,7 +1132,7 @@ app.post('/api/auth/register-company', registerLimiter, async (req, res) => {
         if (exists.rows.length > 0) throw new Error('This email is already registered.');
 
         const comp = await client.query(
-            "INSERT INTO companies (company_name, subscription_plan) VALUES ($1, 'BASIC') RETURNING company_id",
+            "INSERT INTO companies (company_name, subscription_plan, plan, access_status, billing_type) VALUES ($1, 'BASIC', 'STANDARD', 'PENDING', NULL) RETURNING company_id",
             [String(company_name).trim()]
         );
         const companyId = comp.rows[0].company_id;
@@ -969,7 +1145,7 @@ app.post('/api/auth/register-company', registerLimiter, async (req, res) => {
 
         await createAuditLog(client, companyId, null, 'Company Registered', 'AUTH', req.ip, { email: cleanEmail });
         await client.query('COMMIT');
-        res.status(201).json({ message: 'Company registered successfully.' });
+        res.status(201).json({ message: 'Company registered. Access starts after your payment is confirmed.' });
     } catch (err) {
         if (client) await client.query('ROLLBACK');
         res.status(400).json({ error: err.message });
@@ -984,6 +1160,8 @@ app.post('/api/auth/register-staff', authenticateToken, allowRoles('SUPER_ADMIN'
     if (!full_name || !email || !password) return res.status(400).json({ error: 'Please fill in all required fields.' });
     if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
     if (!allowed.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
+    const staffLimit = await checkLimit(req.user, 'max_staff', "SELECT COUNT(*) FROM users WHERE company_id = $1 AND role <> 'COMPANY_ADMIN'", 'staff members');
+    if (staffLimit) return res.status(403).json({ error: staffLimit, code: 'LIMIT_REACHED' });
 
     const cleanEmail = String(email).trim().toLowerCase();
     try {
@@ -1300,6 +1478,158 @@ app.get('/api/dashboard/overview', authenticateToken, async (req, res) => {
         console.error('Overview Error:', err);
         res.status(500).json({ error: err.message });
     }
+});
+
+// ============================================================
+// PLATFORM ADMIN (only the Super Admin: all client companies)
+// ============================================================
+const PLATFORM_COMPANIES_SQL = `
+    SELECT c.company_id, c.company_name, c.plan, c.access_status, c.billing_type, c.features, c.notes, c.is_active,
+           to_char(c.paid_until, 'YYYY-MM-DD') AS paid_until,
+           (c.paid_until::date - CURRENT_DATE) AS days_left,
+           (c.billing_type = 'SUBSCRIPTION' AND (c.paid_until IS NULL OR c.paid_until::date < CURRENT_DATE - $1::int)) AS expired,
+           c.created_at, c.activated_at,
+           o.full_name AS owner_name, o.email AS owner_email, o.phone_number AS owner_phone,
+           (SELECT COUNT(*) FROM properties p WHERE p.company_id = c.company_id) AS properties,
+           (SELECT COUNT(*) FROM units u WHERE u.company_id = c.company_id) AS units,
+           (SELECT COUNT(DISTINCT l.tenant_id) FROM leases l WHERE l.company_id = c.company_id AND l.lease_state = 'CURRENT') AS tenants,
+           (SELECT COUNT(*) FROM users x WHERE x.company_id = c.company_id AND x.role <> 'COMPANY_ADMIN') AS staff,
+           (SELECT MAX(pp.paid_at) FROM platform_payments pp WHERE pp.company_id = c.company_id) AS last_payment
+    FROM companies c
+    LEFT JOIN LATERAL (
+        SELECT full_name, email, phone_number FROM users
+        WHERE company_id = c.company_id AND role = 'COMPANY_ADMIN' ORDER BY user_id ASC LIMIT 1
+    ) o ON true
+    WHERE c.company_id <> $2
+    ORDER BY c.company_id DESC`;
+
+app.get('/api/platform/companies', authenticateToken, allowRoles('SUPER_ADMIN'), async (req, res) => {
+    try {
+        const rows = (await pool.query(PLATFORM_COMPANIES_SQL, [GRACE_DAYS, req.user.company_id])).rows;
+        const received = (await pool.query(
+            "SELECT COALESCE(SUM(amount), 0) AS total FROM platform_payments WHERE paid_at >= date_trunc('month', CURRENT_DATE)"
+        )).rows[0].total;
+
+        res.json({
+            received_this_month: parseFloat(received),
+            companies: rows.map(r => ({
+                ...r,
+                features: r.features || {},
+                effective_features: effectiveFeatures(r.plan, r.features),
+                properties: parseInt(r.properties), units: parseInt(r.units),
+                tenants: parseInt(r.tenants), staff: parseInt(r.staff)
+            }))
+        });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/platform/companies/:id/payments', authenticateToken, allowRoles('SUPER_ADMIN'), async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT payment_type, amount, method, reference, months, to_char(period_until, 'YYYY-MM-DD') AS period_until, notes, paid_at
+             FROM platform_payments WHERE company_id = $1 ORDER BY paid_at DESC`,
+            [req.params.id]
+        );
+        res.json(r.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// change status, plan, billing, expiry date, special features and notes
+app.put('/api/platform/companies/:id', authenticateToken, allowRoles('SUPER_ADMIN'), async (req, res) => {
+    const { plan, access_status, billing_type, paid_until, features, notes } = req.body;
+    if (!['STANDARD', 'PRO'].includes(plan)) return res.status(400).json({ error: 'Invalid plan.' });
+    if (!['PENDING', 'ACTIVE', 'SUSPENDED'].includes(access_status)) return res.status(400).json({ error: 'Invalid status.' });
+    const billing = billing_type || null;
+    if (billing !== null && !['SUBSCRIPTION', 'ONE_TIME'].includes(billing)) return res.status(400).json({ error: 'Invalid billing type.' });
+    const until = paid_until || null;
+    if (until !== null && !/^\d{4}-\d{2}-\d{2}$/.test(until)) return res.status(400).json({ error: 'Invalid date.' });
+
+    try {
+        const r = await pool.query(
+            `UPDATE companies SET plan = $1, access_status = $2, billing_type = $3, paid_until = $4,
+                    features = $5::jsonb, notes = $6,
+                    activated_at = CASE WHEN $2 = 'ACTIVE' AND activated_at IS NULL THEN NOW() ELSE activated_at END
+             WHERE company_id = $7 AND company_id <> $8 RETURNING company_id`,
+            [plan, access_status, billing, until, JSON.stringify(sanitizeFeatures(features)), notes || null, req.params.id, req.user.company_id]
+        );
+        if (r.rows.length === 0) return res.status(404).json({ error: 'Company not found.' });
+        clearAccessCache(req.params.id);
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Platform: updated company', 'PLATFORM', req.ip, { company_id: req.params.id, plan, access_status });
+        res.json({ message: 'Company updated.' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// record a payment you received from a client (this also switches access on)
+app.post('/api/platform/companies/:id/payments', authenticateToken, allowRoles('SUPER_ADMIN'), async (req, res) => {
+    const { payment_type, amount, method, reference, months, plan, notes } = req.body;
+    const types = ['SUBSCRIPTION', 'ONE_TIME', 'MAINTENANCE', 'FEATURE'];
+    const amt = parseFloat(amount);
+    if (!types.includes(payment_type)) return res.status(400).json({ error: 'Invalid payment type.' });
+    if (!(amt > 0)) return res.status(400).json({ error: 'Please enter the amount received.' });
+    if (plan && !['STANDARD', 'PRO'].includes(plan)) return res.status(400).json({ error: 'Invalid plan.' });
+
+    const companyId = req.params.id;
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query('BEGIN');
+
+        const comp = (await client.query('SELECT company_id FROM companies WHERE company_id = $1 AND company_id <> $2 FOR UPDATE', [companyId, req.user.company_id])).rows[0];
+        if (!comp) throw new Error('Company not found.');
+
+        let m = null, periodUntil = null;
+        if (payment_type === 'SUBSCRIPTION') {
+            m = Math.max(1, parseInt(months) || 1);
+            const upd = await client.query(
+                `UPDATE companies SET billing_type = 'SUBSCRIPTION', access_status = 'ACTIVE',
+                        plan = COALESCE($2, plan),
+                        paid_until = (GREATEST(COALESCE(paid_until, CURRENT_DATE), CURRENT_DATE) + make_interval(months => $3))::date,
+                        activated_at = COALESCE(activated_at, NOW())
+                 WHERE company_id = $1 RETURNING to_char(paid_until, 'YYYY-MM-DD') AS paid_until`,
+                [companyId, plan || null, m]
+            );
+            periodUntil = upd.rows[0].paid_until;
+        } else if (payment_type === 'ONE_TIME') {
+            await client.query(
+                `UPDATE companies SET billing_type = 'ONE_TIME', access_status = 'ACTIVE', paid_until = NULL,
+                        plan = COALESCE($2, 'PRO'), activated_at = COALESCE(activated_at, NOW())
+                 WHERE company_id = $1`,
+                [companyId, plan || null]
+            );
+        }
+
+        await client.query(
+            `INSERT INTO platform_payments (company_id, payment_type, amount, method, reference, months, period_until, notes, recorded_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [companyId, payment_type, amt, method || null, reference || null, m, periodUntil, notes || null, req.user.user_id]
+        );
+
+        await createAuditLog(client, req.user.company_id, req.user.user_id, `Platform: recorded ${payment_type} payment`, 'PLATFORM', req.ip, { company_id: companyId, amount: amt });
+        await client.query('COMMIT');
+        clearAccessCache(companyId);
+        res.status(201).json({ message: 'Payment recorded.', paid_until: periodUntil });
+    } catch (err) {
+        if (client) await client.query('ROLLBACK');
+        res.status(400).json({ error: err.message });
+    } finally {
+        if (client) client.release();
+    }
+});
+
+// set a new password for the owner of a company (they forgot it)
+app.post('/api/platform/companies/:id/reset-password', authenticateToken, allowRoles('SUPER_ADMIN'), async (req, res) => {
+    const { password } = req.body;
+    if (!password || String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    try {
+        const owner = (await pool.query(
+            "SELECT user_id, email FROM users WHERE company_id = $1 AND role = 'COMPANY_ADMIN' ORDER BY user_id ASC LIMIT 1", [req.params.id]
+        )).rows[0];
+        if (!owner) return res.status(404).json({ error: 'Owner account not found.' });
+        const hashed = await bcrypt.hash(String(password), 10);
+        await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [hashed, owner.user_id]);
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Platform: reset owner password', 'PLATFORM', req.ip, { company_id: req.params.id });
+        res.json({ message: 'Password changed for ' + owner.email });
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
