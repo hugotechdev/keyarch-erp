@@ -239,6 +239,19 @@
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
         }
+        /* phones and tablets: one flat colour, no shapes, no blur: smooth scrolling */
+        @media (max-width: 1023px), (pointer: coarse) {
+            .ka-blobs { display: none !important; }
+            html[data-theme="light"], html[data-theme="light"] body { background-image: none; background-attachment: scroll; }
+            html[data-theme="dark"], html[data-theme="dark"] body { background-image: none; background-attachment: scroll; }
+            html[data-theme="coffee"], html[data-theme="coffee"] body { background-image: none; background-attachment: scroll; }
+            html[data-theme="light"] { background-color: #E9EEF8; }
+            html[data-theme="dark"] { background-color: #0B1328; }
+            html[data-theme="coffee"] { background-color: #16110D; }
+            html[data-theme] *, html[data-theme] *::before, html[data-theme] *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+            .app-page:not(.hidden) > * { animation: none !important; }
+            .bg-\[\#0d172d\].p-4.rounded-2xl:hover { transform: none; }
+        }
         @media print { .ka-blobs { display: none !important; } }
 
         html[data-theme="light"] .bg-clip-text { background-image: linear-gradient(90deg, #1D4ED8, #6D28D9, #0891B2); }
@@ -3223,7 +3236,7 @@
         // ============================================================
         // VERSIONS + DATABASE SETUP CHECK
         // ============================================================
-        const PAGE_VERSION = 'v7.2 - 2026-11-05 - Coffee and Gold style, mobile background fix';
+        const PAGE_VERSION = 'v7.3 - 2026-11-05 - flat mobile background';
 
         async function checkVersions() {
             let serverVersion = 'unknown (old server.js?)';
