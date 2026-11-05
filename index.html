@@ -396,7 +396,7 @@
             <form id="form-unit" class="space-y-3">
                 <select id="unit-prop-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required></select>
                 <input type="text" id="unit-no" placeholder="Unit Number (e.g. 101) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="number" id="unit-rent" placeholder="Rent Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" inputmode="decimal" autocomplete="off" id="unit-rent" placeholder="Rent Amount (TZS) *" class="money-input w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
                 <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Unit</button>
             </form>
         </div>
@@ -499,7 +499,7 @@
                             <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="block text-[11px] font-semibold text-gray-400 mb-1">Rent Price (TZS) *</label>
-                                    <input type="number" min="0" id="tenant-rent" oninput="calculateAmountDue()" placeholder="150,000" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
+                                    <input type="text" inputmode="decimal" autocomplete="off" id="tenant-rent" oninput="calculateAmountDue()" placeholder="150,000" class="money-input w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
                                 </div>
                                 <div>
                                     <label class="block text-[11px] font-semibold text-gray-400 mb-1">Charged</label>
@@ -516,11 +516,11 @@
                                 </div>
                                 <div>
                                     <label class="block text-[11px] font-semibold text-gray-400 mb-1">Discount (TZS)</label>
-                                    <input type="number" min="0" id="tenant-discount" oninput="calculateAmountDue()" placeholder="0" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
+                                    <input type="text" inputmode="decimal" autocomplete="off" id="tenant-discount" oninput="calculateAmountDue()" placeholder="0" class="money-input w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
                                 </div>
                                 <div class="col-span-2">
                                     <label class="block text-[11px] font-semibold text-gray-400 mb-1">Amount Paid (TZS)</label>
-                                    <input type="number" min="0" id="tenant-paid" oninput="calculateAmountDue()" placeholder="0" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
+                                    <input type="text" inputmode="decimal" autocomplete="off" id="tenant-paid" oninput="calculateAmountDue()" placeholder="0" class="money-input w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
                                 </div>
 
                                 <!-- PAYMENT SUMMARY -->
@@ -558,7 +558,7 @@
                 <select id="inv-lease-id" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
                     <option value="">Select Active Lease...</option>
                 </select>
-                <input type="number" id="inv-amount" placeholder="Amount Due (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" inputmode="decimal" autocomplete="off" id="inv-amount" placeholder="Amount Due (TZS) *" class="money-input w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
                 <input type="date" id="inv-due" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
                 <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Generate Invoice</button>
             </form>
@@ -634,7 +634,7 @@
                     <option value="SALARY">Staff Salary</option>
                 </select>
                 <input type="text" id="exp-desc" placeholder="Description *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="number" id="exp-amount" placeholder="Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" inputmode="decimal" autocomplete="off" id="exp-amount" placeholder="Amount (TZS) *" class="money-input w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
                 <button type="submit" class="w-full bg-red-600 hover:bg-red-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Expense</button>
             </form>
         </div>
@@ -689,7 +689,7 @@
             <form id="form-luku" class="space-y-3">
                 <input type="text" id="luku-meter" placeholder="Meter Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
                 <input type="text" id="luku-tenant" placeholder="Tenant Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
-                <input type="number" id="luku-amount" placeholder="Amount (TZS) *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                <input type="text" inputmode="decimal" autocomplete="off" id="luku-amount" placeholder="Amount (TZS) *" class="money-input w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
                 <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Generate Token</button>
             </form>
         </div>
@@ -726,8 +726,39 @@
         function esc(value) {
             return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
-        function money(n) { return 'TZS ' + (Number(n) || 0).toLocaleString(); }
+        function money(n) { return 'TZS ' + (Number(n) || 0).toLocaleString('en-US'); }
         function fmtDate(d) { return d ? new Date(d).toLocaleDateString() : 'No end date'; }
+
+        // AMOUNT FIELDS: typing 1300000 shows 1,300,000 and is read as one million three hundred thousand
+        function parseMoney(v) { return parseFloat(String(v ?? '').replace(/,/g, '')) || 0; }
+        function formatMoney(n) {
+            const num = Number(n);
+            if (!isFinite(num) || num === 0) return '';
+            return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+        }
+        function formatMoneyInput(el) {
+            const old = el.value;
+            const caret = el.selectionStart ?? old.length;
+            const digitsBeforeCaret = old.slice(0, caret).replace(/[^\d]/g, '').length;
+
+            let raw = old.replace(/[^\d.]/g, '');
+            const parts = raw.split('.');
+            let intPart = parts[0].replace(/^0+(?=\d)/, '');
+            const decPart = parts.length > 1 ? '.' + parts.slice(1).join('').slice(0, 2) : '';
+            el.value = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + decPart;
+
+            if (document.activeElement === el) {
+                let pos = 0, seen = 0;
+                while (pos < el.value.length && seen < digitsBeforeCaret) {
+                    if (/\d/.test(el.value[pos])) seen++;
+                    pos++;
+                }
+                el.setSelectionRange(pos, pos);
+            }
+        }
+        document.addEventListener('input', (e) => {
+            if (e.target.classList && e.target.classList.contains('money-input')) formatMoneyInput(e.target);
+        }, true);
 
         document.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('keyarch_token')) showAppView();
@@ -794,12 +825,12 @@
 
             document.getElementById('form-unit').addEventListener('submit', (e) => {
                 e.preventDefault();
-                sendPost('/api/units', { property_id: parseInt(document.getElementById('unit-prop-id').value), unit_number: document.getElementById('unit-no').value, rent_amount: parseFloat(document.getElementById('unit-rent').value) }, 'modal-unit', 'form-unit');
+                sendPost('/api/units', { property_id: parseInt(document.getElementById('unit-prop-id').value), unit_number: document.getElementById('unit-no').value, rent_amount: parseMoney(document.getElementById('unit-rent').value) }, 'modal-unit', 'form-unit');
             });
 
             document.getElementById('form-invoice').addEventListener('submit', (e) => {
                 e.preventDefault();
-                sendPost('/api/invoices/issue', { lease_id: parseInt(document.getElementById('inv-lease-id').value), amount_due: parseFloat(document.getElementById('inv-amount').value), due_date: document.getElementById('inv-due').value }, 'modal-invoice', 'form-invoice');
+                sendPost('/api/invoices/issue', { lease_id: parseInt(document.getElementById('inv-lease-id').value), amount_due: parseMoney(document.getElementById('inv-amount').value), due_date: document.getElementById('inv-due').value }, 'modal-invoice', 'form-invoice');
             });
 
             document.getElementById('form-ticket').addEventListener('submit', (e) => {
@@ -809,7 +840,7 @@
 
             document.getElementById('form-expense').addEventListener('submit', (e) => {
                 e.preventDefault();
-                sendPost('/api/finance/expenses', { category: document.getElementById('exp-category').value, description: document.getElementById('exp-desc').value, amount: parseFloat(document.getElementById('exp-amount').value) }, 'modal-expense', 'form-expense');
+                sendPost('/api/finance/expenses', { category: document.getElementById('exp-category').value, description: document.getElementById('exp-desc').value, amount: parseMoney(document.getElementById('exp-amount').value) }, 'modal-expense', 'form-expense');
             });
 
             document.getElementById('form-register').addEventListener('submit', (e) => {
@@ -823,7 +854,7 @@
                 const res = await fetch('/api/finance/luku/vend', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ meter_number: document.getElementById('luku-meter').value, tenant_name: document.getElementById('luku-tenant').value, amount: parseFloat(document.getElementById('luku-amount').value) })
+                    body: JSON.stringify({ meter_number: document.getElementById('luku-meter').value, tenant_name: document.getElementById('luku-tenant').value, amount: parseMoney(document.getElementById('luku-amount').value) })
                 });
                 const data = await res.json();
                 if (res.ok) {
@@ -832,7 +863,7 @@
                     document.getElementById('res-token').innerText = data.token_number;
                     document.getElementById('res-meter').innerText = data.meter_number;
                     document.getElementById('res-kwh').innerText = data.kwh_units;
-                    document.getElementById('res-amount').innerText = 'TZS ' + parseFloat(data.amount).toLocaleString();
+                    document.getElementById('res-amount').innerText = 'TZS ' + parseFloat(data.amount).toLocaleString('en-US');
                     openModal('modal-luku-result');
                     loadAllData();
                 } else alert('Error: ' + data.error);
@@ -898,7 +929,7 @@
             // Fill the rent price from the unit (user can still change it)
             const rentInput = document.getElementById('tenant-rent');
             if (rentAmount) {
-                rentInput.value = rentAmount;
+                rentInput.value = formatMoney(rentAmount);
             }
             calculateAmountDue();
         }
@@ -948,11 +979,11 @@
                 }
 
                 container.innerHTML = units.map(u => {
-                    const displayText = `${u.unit_number} (TZS ${parseFloat(u.rent_amount).toLocaleString()})`;
+                    const displayText = `${u.unit_number} (TZS ${parseFloat(u.rent_amount).toLocaleString('en-US')})`;
                     return `
                         <div data-id="${esc(u.unit_id)}" data-text="${esc(displayText)}" data-rent="${esc(u.rent_amount)}" onclick="selectUnitOption(this.dataset.id, this.dataset.text, parseFloat(this.dataset.rent))" class="dropdown-item p-2 hover:bg-[#1e2f52] rounded-lg cursor-pointer text-xs text-gray-200 transition flex justify-between items-center">
                             <span class="font-semibold text-white">Unit ${esc(u.unit_number)}</span>
-                            <span class="text-[11px] text-emerald-400 font-bold">TZS ${parseFloat(u.rent_amount).toLocaleString()}</span>
+                            <span class="text-[11px] text-emerald-400 font-bold">TZS ${parseFloat(u.rent_amount).toLocaleString('en-US')}</span>
                         </div>
                     `;
                 }).join('');
@@ -1061,12 +1092,12 @@
         }
 
         function getPaymentFigures() {
-            const rate = parseFloat(document.getElementById('tenant-rent').value) || 0;
+            const rate = parseMoney(document.getElementById('tenant-rent').value);
             const periods = parseFloat(document.getElementById('tenant-periods').value) || 0;
             const totalRent = Math.round(rate * periods);
-            const discount = Math.min(Math.max(parseFloat(document.getElementById('tenant-discount').value) || 0, 0), totalRent);
+            const discount = Math.min(Math.max(parseMoney(document.getElementById('tenant-discount').value), 0), totalRent);
             const totalToPay = totalRent - discount;
-            const paid = parseFloat(document.getElementById('tenant-paid').value) || 0;
+            const paid = parseMoney(document.getElementById('tenant-paid').value);
             return { rate, periods, totalRent, discount, totalToPay, paid, balance: totalToPay - paid };
         }
 
@@ -1328,7 +1359,7 @@
                         </div>
                         <div>
                             <label class="block text-[11px] font-semibold text-gray-300 mb-1">Rent Amount *</label>
-                            <input type="number" class="grp-rent-amount w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" placeholder="0" required>
+                            <input type="text" inputmode="decimal" autocomplete="off" class="money-input grp-rent-amount w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" placeholder="0" required>
                         </div>
                         <div>
                             <label class="block text-[11px] font-semibold text-gray-300 mb-1">Payment Method *</label>
@@ -1394,7 +1425,7 @@
                 const units = parseInt(card.querySelector('.grp-units').value) || 1;
                 const bedrooms = parseInt(card.querySelector('.grp-bedrooms').value) || 0;
                 const bathrooms = parseInt(card.querySelector('.grp-bathrooms').value) || 0;
-                const rentAmount = parseFloat(card.querySelector('.grp-rent-amount').value) || 0;
+                const rentAmount = parseMoney(card.querySelector('.grp-rent-amount').value);
 
                 const timeline = card.querySelector('.grp-timeline-btn-group .active-badge')?.getAttribute('data-val') || 'Per Month';
                 const currency = card.querySelector('.grp-currency-btn-group .active-badge')?.getAttribute('data-val') || 'TSH';
@@ -1542,8 +1573,8 @@
                 document.getElementById('stat-occupancy').innerText = (data.occupancyRate || 0) + '%';
                 document.getElementById('stat-tenants').innerText = data.activeTenants || 0;
                 document.getElementById('stat-tickets').innerText = data.pendingTickets || 0;
-                document.getElementById('stat-income').innerText = 'TZS ' + (data.monthlyIncome || 0).toLocaleString();
-                document.getElementById('stat-profit').innerText = 'TZS ' + (data.netProfit || 0).toLocaleString();
+                document.getElementById('stat-income').innerText = 'TZS ' + (data.monthlyIncome || 0).toLocaleString('en-US');
+                document.getElementById('stat-profit').innerText = 'TZS ' + (data.netProfit || 0).toLocaleString('en-US');
             }
         }
 
@@ -1632,7 +1663,7 @@
                         <tr class="hover:bg-[#14223d]/50 border-b border-[#182848]">
                             <td class="p-3 font-mono font-bold text-purple-400">${esc(i.invoice_number)}</td>
                             <td class="p-3 font-bold text-white">${esc(i.tenant_name)}</td>
-                            <td class="p-3 font-bold text-emerald-400">TZS ${parseFloat(i.amount_due).toLocaleString()}</td>
+                            <td class="p-3 font-bold text-emerald-400">TZS ${parseFloat(i.amount_due).toLocaleString('en-US')}</td>
                             <td class="p-3 text-gray-400">${new Date(i.due_date).toLocaleDateString()}</td>
                             <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] ${i.status === 'PAID' ? 'bg-emerald-900/40 text-emerald-300 border border-emerald-500/30' : 'bg-amber-900/40 text-amber-300 border border-amber-500/30'}">${esc(i.status)}</span></td>
                             <td class="p-3">
