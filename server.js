@@ -53,6 +53,7 @@ async function createAuditLog(clientOrPool, companyId, userId, action, moduleAff
 //   Balance < 0  -> tenant paid extra   (EXTRA_PAID)
 // ============================================================
 const ALLOWED_RENT_PERIODS = ['Day', 'Week', 'Month', 'Year'];
+const ALLOWED_ID_TYPES = ['NIDA', 'PASSPORT', 'DRIVING_LICENSE', 'VOTER_ID'];
 
 function calculatePayment({ rent_price, number_of_periods, discount, paid_amount }) {
     const price = parseFloat(rent_price);
@@ -237,7 +238,7 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
             `SELECT u.*, c.company_name, c.is_active as company_active
              FROM users u
              LEFT JOIN companies c ON u.company_id = c.company_id
-             WHERE u.email = $1`,
+             WHERE LOWER(u.email) = LOWER($1)`,
             [email]
         );
         if (userQuery.rows.length === 0) return res.status(401).json({ error: 'Invalid Email or Password.' });
@@ -355,7 +356,7 @@ app.post('/api/properties/wizard', authenticateToken, allowRoles('SUPER_ADMIN', 
 app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
     let client;
     try {
-        const { full_name, nida_passport_no, phone_number, property_id, unit_id, start_date, end_date, discount, paid_amount, agreed_rent } = req.body;
+        const { full_name, nida_passport_no, identity_type, phone_number, property_id, unit_id, start_date, end_date, discount, paid_amount, agreed_rent } = req.body;
         let { rent_price, rent_period, number_of_periods } = req.body;
         const companyId = req.user.company_id;
 
@@ -387,8 +388,8 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
         if (unitCheck.rows[0].status === 'OCCUPIED') throw new Error('This unit already has a tenant.');
 
         const tenantRes = await client.query(
-            'INSERT INTO tenants (company_id, full_name, nida_passport_no, phone_number) VALUES ($1, $2, $3, $4) RETURNING *',
-            [companyId, full_name, nida_passport_no, phone_number]
+            'INSERT INTO tenants (company_id, full_name, identity_type, nida_passport_no, phone_number) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [companyId, full_name, ALLOWED_ID_TYPES.includes(identity_type) ? identity_type : 'NIDA', nida_passport_no, phone_number]
         );
         const tenant = tenantRes.rows[0];
 
@@ -558,7 +559,7 @@ app.get('/api/invoices/:id/print', authenticateToken, async (req, res) => {
                     l.rent_price, l.rent_period, l.number_of_periods, l.total_rent, COALESCE(l.discount, 0) as discount,
                     COALESCE(l.total_to_pay, l.agreed_rent) as total_to_pay,
                     COALESCE(l.amount_paid, 0) as paid_amount, COALESCE(l.amount_due, 0) as remaining_due,
-                    t.full_name as tenant_name, t.phone_number as tenant_phone, t.nida_passport_no,
+                    t.full_name as tenant_name, t.phone_number as tenant_phone, t.nida_passport_no, t.identity_type,
                     u.unit_number, COALESCE(p.property_name, p.title) as property_name, p.address as property_address,
                     c.company_name
              FROM invoices inv
@@ -598,6 +599,378 @@ app.get('/api/dashboard/metrics', authenticateToken, async (req, res) => {
             activeTenants: parseInt(activeTenants.rows[0]?.count || 0)
         });
     } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================================
+// REGISTRATION (company + staff)
+// ============================================================
+const registerLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    message: { error: 'Too many registrations. Please try again later.' }
+});
+
+app.post('/api/auth/register-company', registerLimiter, async (req, res) => {
+    const { company_name, admin_full_name, email, phone_number, password } = req.body;
+    if (!company_name || !admin_full_name || !email || !phone_number || !password) {
+        return res.status(400).json({ error: 'Please fill in all required fields.' });
+    }
+    if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query('BEGIN');
+
+        const exists = await client.query('SELECT 1 FROM users WHERE LOWER(email) = $1', [cleanEmail]);
+        if (exists.rows.length > 0) throw new Error('This email is already registered.');
+
+        const comp = await client.query(
+            "INSERT INTO companies (company_name, subscription_plan) VALUES ($1, 'BASIC') RETURNING company_id",
+            [String(company_name).trim()]
+        );
+        const companyId = comp.rows[0].company_id;
+
+        const hashed = await bcrypt.hash(String(password), 10);
+        await client.query(
+            'INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active, can_edit_tenants) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+            [companyId, String(admin_full_name).trim(), cleanEmail, hashed, phone_number, 'COMPANY_ADMIN', true, true]
+        );
+
+        await createAuditLog(client, companyId, null, 'Company Registered', 'AUTH', req.ip, { email: cleanEmail });
+        await client.query('COMMIT');
+        res.status(201).json({ message: 'Company registered successfully.' });
+    } catch (err) {
+        if (client) await client.query('ROLLBACK');
+        res.status(400).json({ error: err.message });
+    } finally {
+        if (client) client.release();
+    }
+});
+
+app.post('/api/auth/register-staff', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN'), async (req, res) => {
+    const { full_name, email, password, role } = req.body;
+    const allowed = ['PROPERTY_MANAGER', 'ACCOUNTANT', 'TECHNICIAN'];
+    if (!full_name || !email || !password) return res.status(400).json({ error: 'Please fill in all required fields.' });
+    if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    if (!allowed.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    try {
+        const exists = await pool.query('SELECT 1 FROM users WHERE LOWER(email) = $1', [cleanEmail]);
+        if (exists.rows.length > 0) return res.status(400).json({ error: 'This email is already registered.' });
+
+        const hashed = await bcrypt.hash(String(password), 10);
+        await pool.query(
+            'INSERT INTO users (company_id, full_name, email, password_hash, role, is_active, can_edit_tenants) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [req.user.company_id, String(full_name).trim(), cleanEmail, hashed, role, true, role === 'PROPERTY_MANAGER']
+        );
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, `Registered staff (${role})`, 'USERS', req.ip, { email: cleanEmail });
+        res.status(201).json({ message: 'Staff registered successfully.' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/staff', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT user_id, full_name, email, role, is_active FROM users WHERE company_id = $1 ORDER BY full_name ASC',
+            [req.user.company_id]
+        );
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================================
+// UNITS & LEASES (selectors)
+// ============================================================
+app.get('/api/units', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT u.*, COALESCE(p.property_name, p.title) AS property_name
+             FROM units u JOIN properties p ON u.property_id = p.property_id
+             WHERE u.company_id = $1 ORDER BY p.property_id, u.unit_number`,
+            [req.user.company_id]
+        );
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/units', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
+    const { property_id, unit_number, rent_amount } = req.body;
+    if (!property_id || !unit_number || !(parseFloat(rent_amount) >= 0)) {
+        return res.status(400).json({ error: 'Property, unit number and rent amount are required.' });
+    }
+    try {
+        const prop = await pool.query('SELECT 1 FROM properties WHERE property_id = $1 AND company_id = $2', [property_id, req.user.company_id]);
+        if (prop.rows.length === 0) return res.status(404).json({ error: 'Property not found.' });
+
+        await pool.query(
+            "INSERT INTO units (company_id, property_id, unit_number, rent_amount, currency, status, is_furnished) VALUES ($1, $2, $3, $4, 'TSH', 'VACANT', false)",
+            [req.user.company_id, property_id, String(unit_number).trim(), parseFloat(rent_amount)]
+        );
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Added Unit', 'UNITS', req.ip, { property_id, unit_number });
+        res.status(201).json({ message: 'Unit saved.' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/leases', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT l.*, t.full_name AS tenant_name, u.unit_number
+             FROM leases l JOIN tenants t ON l.tenant_id = t.tenant_id JOIN units u ON l.unit_id = u.unit_id
+             WHERE l.company_id = $1 ORDER BY l.lease_id DESC`,
+            [req.user.company_id]
+        );
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ============================================================
+// INVOICES, PAYMENTS
+// balance = invoice total - sum of its payments
+// ============================================================
+const INVOICE_BALANCES_SQL = `
+    SELECT inv.invoice_id, inv.invoice_number, inv.status, inv.due_date, inv.amount_due,
+           COALESCE(pay.paid, 0) AS paid,
+           inv.amount_due - COALESCE(pay.paid, 0) AS balance,
+           (inv.due_date::date - CURRENT_DATE) AS days_left,
+           l.lease_id, t.full_name AS tenant_name, t.phone_number AS tenant_phone,
+           u.unit_number, p.property_id, COALESCE(p.property_name, p.title) AS property_name
+    FROM invoices inv
+    JOIN leases l ON inv.lease_id = l.lease_id
+    JOIN tenants t ON l.tenant_id = t.tenant_id
+    JOIN units u ON l.unit_id = u.unit_id
+    JOIN properties p ON u.property_id = p.property_id
+    LEFT JOIN (SELECT invoice_id, SUM(amount_paid) AS paid FROM payments WHERE company_id = $1 GROUP BY invoice_id) pay
+           ON pay.invoice_id = inv.invoice_id
+    WHERE inv.company_id = $1`;
+
+app.get('/api/invoices', authenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(`${INVOICE_BALANCES_SQL} ORDER BY inv.invoice_id DESC`, [req.user.company_id]);
+        res.json(result.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/invoices/issue', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT'), async (req, res) => {
+    const { lease_id, amount_due, due_date } = req.body;
+    const amount = parseFloat(amount_due);
+    if (!lease_id || !(amount > 0) || !due_date) return res.status(400).json({ error: 'Lease, amount and due date are required.' });
+
+    try {
+        const lease = await pool.query('SELECT 1 FROM leases WHERE lease_id = $1 AND company_id = $2', [lease_id, req.user.company_id]);
+        if (lease.rows.length === 0) return res.status(404).json({ error: 'Lease not found.' });
+
+        const seq = await pool.query("SELECT nextval('invoice_seq')");
+        const number = `INV-${new Date().getFullYear()}-${seq.rows[0].nextval}`;
+        const inv = await pool.query(
+            "INSERT INTO invoices (company_id, lease_id, invoice_number, amount_due, due_date, status) VALUES ($1, $2, $3, $4, $5, 'PENDING') RETURNING *",
+            [req.user.company_id, lease_id, number, amount, due_date]
+        );
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Issued Invoice', 'INVOICES', req.ip, { invoice_id: inv.rows[0].invoice_id });
+        res.status(201).json(inv.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// RECORD A PAYMENT AGAINST AN INVOICE (updates invoice, lease balance and status)
+app.post('/api/payments/record', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT'), async (req, res) => {
+    const { invoice_id, amount, payment_method } = req.body;
+    const amt = Math.round(parseFloat(amount) * 100) / 100;
+    if (!invoice_id || !(amt > 0)) return res.status(400).json({ error: 'Invoice and a valid amount are required.' });
+
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query('BEGIN');
+        const companyId = req.user.company_id;
+
+        const invRes = await client.query(
+            'SELECT invoice_id, lease_id, amount_due FROM invoices WHERE invoice_id = $1 AND company_id = $2 FOR UPDATE',
+            [invoice_id, companyId]
+        );
+        if (invRes.rows.length === 0) throw new Error('Invoice not found.');
+        const inv = invRes.rows[0];
+
+        await client.query(
+            'INSERT INTO payments (company_id, invoice_id, amount_paid, payment_date, payment_method) VALUES ($1, $2, $3, NOW(), $4)',
+            [companyId, invoice_id, amt, payment_method || 'Cash']
+        );
+
+        const sum = await client.query('SELECT COALESCE(SUM(amount_paid), 0) AS paid FROM payments WHERE invoice_id = $1 AND company_id = $2', [invoice_id, companyId]);
+        const paidOnInvoice = parseFloat(sum.rows[0].paid);
+        const invStatus = paidOnInvoice >= parseFloat(inv.amount_due) ? 'PAID' : 'PARTIAL';
+        await client.query('UPDATE invoices SET status = $1 WHERE invoice_id = $2 AND company_id = $3', [invStatus, invoice_id, companyId]);
+
+        // keep the lease totals in step with the payment
+        const leaseRes = await client.query(
+            `UPDATE leases SET amount_paid = COALESCE(amount_paid, 0) + $1
+             WHERE lease_id = $2 AND company_id = $3
+             RETURNING COALESCE(total_to_pay, agreed_rent) AS to_pay, amount_paid`,
+            [amt, inv.lease_id, companyId]
+        );
+        let leaseStatus = null;
+        if (leaseRes.rows.length > 0) {
+            const toPay = parseFloat(leaseRes.rows[0].to_pay || 0);
+            const paid = parseFloat(leaseRes.rows[0].amount_paid || 0);
+            const balance = Math.round((toPay - paid) * 100) / 100;
+            leaseStatus = balance < 0 ? 'EXTRA_PAID' : (balance === 0 ? 'PAID' : (paid > 0 ? 'PARTIAL' : 'UNPAID'));
+            await client.query(
+                'UPDATE leases SET amount_due = $1, payment_status = $2 WHERE lease_id = $3 AND company_id = $4',
+                [Math.max(0, balance), leaseStatus, inv.lease_id, companyId]
+            );
+        }
+
+        await createAuditLog(client, companyId, req.user.user_id, 'Recorded Payment', 'PAYMENTS', req.ip, { invoice_id, amount: amt });
+        await client.query('COMMIT');
+        res.status(201).json({ message: 'Payment recorded.', invoice_status: invStatus, payment_status: leaseStatus });
+    } catch (err) {
+        if (client) await client.query('ROLLBACK');
+        res.status(400).json({ error: err.message });
+    } finally {
+        if (client) client.release();
+    }
+});
+
+// ============================================================
+// DASHBOARD OVERVIEW (one call for the whole dashboard)
+// Tickets and expenses use safe queries: if a column name is
+// different in your database they return null instead of crashing.
+// ============================================================
+async function safeRows(sql, params) {
+    try { return (await pool.query(sql, params)).rows; }
+    catch (err) { console.error('Overview warning:', err.message); return null; }
+}
+
+app.get('/api/dashboard/overview', authenticateToken, async (req, res) => {
+    const cId = req.user.company_id;
+    try {
+        const counts = (await pool.query(
+            `SELECT
+                (SELECT COUNT(*) FROM properties WHERE company_id = $1) AS properties,
+                (SELECT COUNT(*) FROM units WHERE company_id = $1) AS units,
+                (SELECT COUNT(*) FROM units WHERE company_id = $1 AND status = 'OCCUPIED') AS occupied,
+                (SELECT COUNT(DISTINCT tenant_id) FROM leases WHERE company_id = $1 AND status = 'ACTIVE') AS tenants`,
+            [cId]
+        )).rows[0];
+
+        const unitsTotal = parseInt(counts.units);
+        const unitsOccupied = parseInt(counts.occupied);
+
+        // everything that is still owed, by invoice
+        const owed = (await pool.query(
+            `${INVOICE_BALANCES_SQL} AND inv.amount_due - COALESCE(pay.paid, 0) > 0 ORDER BY inv.due_date ASC`,
+            [cId]
+        )).rows;
+
+        const bucket = (rows) => ({
+            count: rows.length,
+            amount: rows.reduce((sum, r) => sum + parseFloat(r.balance), 0),
+            items: rows.slice(0, 50)
+        });
+        const due = {
+            overdue: bucket(owed.filter(r => r.days_left < 0)),
+            week: bucket(owed.filter(r => r.days_left >= 0 && r.days_left <= 7)),
+            month: bucket(owed.filter(r => r.days_left > 7 && r.days_left <= 30))
+        };
+        const outstanding = owed.reduce((sum, r) => sum + parseFloat(r.balance), 0);
+
+        // top balances per tenant
+        const byTenant = {};
+        owed.forEach(r => {
+            const key = `${r.lease_id}`;
+            if (!byTenant[key]) byTenant[key] = { tenant_name: r.tenant_name, property_name: r.property_name, unit_number: r.unit_number, balance: 0 };
+            byTenant[key].balance += parseFloat(r.balance);
+        });
+        const debtors = Object.values(byTenant).sort((a, b) => b.balance - a.balance).slice(0, 5);
+
+        const collectedRow = (await pool.query(
+            "SELECT COALESCE(SUM(amount_paid), 0) AS total FROM payments WHERE company_id = $1 AND payment_date >= date_trunc('month', CURRENT_DATE)",
+            [cId]
+        )).rows[0];
+        const collectedThisMonth = parseFloat(collectedRow.total);
+
+        const leaseRow = (await pool.query(
+            `SELECT
+                COUNT(*) FILTER (WHERE end_date < CURRENT_DATE) AS expired,
+                COUNT(*) FILTER (WHERE end_date >= CURRENT_DATE AND end_date <= CURRENT_DATE + 7) AS week,
+                COUNT(*) FILTER (WHERE end_date > CURRENT_DATE + 7 AND end_date <= CURRENT_DATE + 30) AS month
+             FROM leases WHERE company_id = $1 AND status = 'ACTIVE'`,
+            [cId]
+        )).rows[0];
+
+        // property performance = half occupancy + half collection rate
+        const perfRows = (await pool.query(
+            `SELECT p.property_id, COALESCE(p.property_name, p.title) AS property_name,
+                    (SELECT COUNT(*) FROM units u WHERE u.property_id = p.property_id) AS units,
+                    (SELECT COUNT(*) FROM units u WHERE u.property_id = p.property_id AND u.status = 'OCCUPIED') AS occupied,
+                    COALESCE(b.billed, 0) AS billed, COALESCE(b.collected, 0) AS collected
+             FROM properties p
+             LEFT JOIN (
+                 SELECT u.property_id,
+                        SUM(inv.amount_due) AS billed,
+                        SUM(LEAST(COALESCE(pay.paid, 0), inv.amount_due)) AS collected
+                 FROM invoices inv
+                 JOIN leases l ON inv.lease_id = l.lease_id
+                 JOIN units u ON l.unit_id = u.unit_id
+                 LEFT JOIN (SELECT invoice_id, SUM(amount_paid) AS paid FROM payments WHERE company_id = $1 GROUP BY invoice_id) pay
+                        ON pay.invoice_id = inv.invoice_id
+                 WHERE inv.company_id = $1
+                 GROUP BY u.property_id
+             ) b ON b.property_id = p.property_id
+             WHERE p.company_id = $1`,
+            [cId]
+        )).rows;
+
+        const properties = perfRows.map(r => {
+            const units = parseInt(r.units), occupied = parseInt(r.occupied);
+            const billed = parseFloat(r.billed), collected = parseFloat(r.collected);
+            const occupancy = units > 0 ? Math.round((occupied / units) * 100) : 0;
+            const collection = billed > 0 ? Math.round((collected / billed) * 100) : null;
+            const score = collection === null ? occupancy : (occupancy + collection) / 2;
+            return {
+                property_id: r.property_id, property_name: r.property_name,
+                units, occupied, occupancy_rate: occupancy,
+                billed, collected, collection_rate: collection, score
+            };
+        }).sort((a, b) => b.score - a.score);
+
+        // optional parts (names of columns in your tables may differ, so they fail safely)
+        const ticketRows = await safeRows(
+            "SELECT COUNT(*) AS c FROM work_orders WHERE company_id = $1 AND UPPER(status) NOT IN ('COMPLETED','CLOSED','RESOLVED','DONE','CANCELLED')",
+            [cId]
+        );
+        const expenseRows = await safeRows(
+            "SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE company_id = $1 AND created_at >= date_trunc('month', CURRENT_DATE)",
+            [cId]
+        );
+        const expensesThisMonth = expenseRows ? parseFloat(expenseRows[0].total) : null;
+
+        res.json({
+            totals: {
+                properties: parseInt(counts.properties),
+                units: unitsTotal,
+                occupied: unitsOccupied,
+                vacant: unitsTotal - unitsOccupied,
+                tenants: parseInt(counts.tenants),
+                occupancyRate: unitsTotal > 0 ? Math.round((unitsOccupied / unitsTotal) * 100) : 0
+            },
+            money: {
+                collectedThisMonth,
+                outstanding,
+                expensesThisMonth,
+                profit: expensesThisMonth === null ? null : collectedThisMonth - expensesThisMonth
+            },
+            due,
+            leases: { expired: parseInt(leaseRow.expired), week: parseInt(leaseRow.week), month: parseInt(leaseRow.month) },
+            properties,
+            debtors,
+            tickets: { pending: ticketRows ? parseInt(ticketRows[0].c) : null }
+        });
+    } catch (err) {
+        console.error('Overview Error:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
