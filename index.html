@@ -14,9 +14,14 @@
             #modal-invoice-print { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: white !important; color: black !important; }
             .no-print { display: none !important; }
         }
+        @media print {
+            body.printing-report * { visibility: hidden; }
+            body.printing-report #report-area, body.printing-report #report-area * { visibility: visible; color: black !important; border-color: #ddd !important; }
+            body.printing-report #report-area { position: absolute; left: 0; top: 0; width: 100%; background: white !important; padding: 24px; }
+        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between bg-[#060c18] text-gray-100 font-sans pb-16">
+<body class="min-h-screen flex flex-col justify-between bg-[#060c18] text-gray-100 font-sans">
 
     <!-- VIEW 1: AUTHENTICATION PORTAL -->
     <div id="view-login" class="flex-grow flex items-center justify-center p-4">
@@ -86,221 +91,374 @@
         </div>
     </div>
 
-    <!-- VIEW 2: MAIN DASHBOARD -->
-    <div id="view-app" style="display: none;" class="flex-col min-h-screen justify-between">
-        <header class="bg-[#0a1224]/90 backdrop-blur-md border-b border-[#182848] px-6 py-4 sticky top-0 z-40 shadow-2xl flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <span id="user-role-badge" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-900/80 border border-blue-500 text-blue-300 uppercase">COMPANY_ADMIN</span>
-                <span id="user-company-display" class="text-xs font-bold text-cyan-400 hidden sm:inline border-l border-[#182848] pl-3">Hugo Tech</span>
-                <span id="user-name-display" class="text-xs font-semibold text-gray-300 hidden md:inline">• User</span>
-            </div>
-            <h1 class="text-xl md:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
-                KEY ARCH <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300">ERP</span>
-            </h1>
-            <button onclick="logout()" class="bg-red-900/40 hover:bg-red-800/60 border border-red-500/50 px-3 py-1.5 rounded-xl text-xs font-bold text-red-300 flex items-center gap-1.5">
-                <i class="fa-solid fa-power-off"></i> <span class="hidden md:inline">Sign Out</span>
-            </button>
-        </header>
+    <!-- VIEW 2: APP (SIDEBAR + HEADER + PAGES) -->
+    <div id="view-app" style="display: none;" class="w-full min-h-screen">
 
-        <main class="container mx-auto p-4 md:p-6 max-w-7xl flex-grow space-y-6">
-            <div class="p-5 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                <div>
-                    <h2 class="text-lg font-bold text-white">System Operations Center</h2>
-                    <p class="text-xs text-gray-400">Enterprise property, finance, and maintenance management.</p>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="openModal('modal-property-wizard')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-building"></i> + Property</button>
-                    <button onclick="openModal('modal-unit')" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-door-open"></i> + Unit</button>
-                    <button onclick="openModal('modal-tenant')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-user-plus"></i> + Onboard Tenant</button>
-                    <button onclick="openModal('modal-invoice')" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-file-invoice-dollar"></i> + Invoice</button>
-                    <button onclick="openModal('modal-luku')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-bolt"></i> + Vend Luku</button>
-                    <button onclick="openModal('modal-expense')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-money-bill-transfer"></i> + Expense</button>
-                    <button onclick="openModal('modal-ticket')" class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-screwdriver-wrench"></i> + Ticket</button>
-                    <button id="btn-admin-register" onclick="openModal('modal-register')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-user-gear"></i> + Staff</button>
-                </div>
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 w-60 bg-[#0a1224] border-r border-[#182848] z-40 flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-200">
+            <div class="px-5 py-5 border-b border-[#182848]">
+                <h1 class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
+                    KEY ARCH <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 align-middle">ERP</span>
+                </h1>
+                <p id="sidebar-company" class="text-[11px] text-gray-500 mt-1 truncate">Hugo Tech</p>
             </div>
-
-            <!-- METRICS & REMINDERS -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="p-4 bg-[#0d172d] border-l-4 border-red-500 rounded-2xl flex justify-between items-center shadow-lg">
-                    <div>
-                        <div class="text-xs text-gray-400 font-semibold uppercase">Expired Leases</div>
-                        <div id="rem-expired" class="text-2xl font-black text-red-400">0</div>
-                    </div>
-                    <i class="fa-solid fa-file-circle-exclamation text-red-500/30 text-3xl"></i>
-                </div>
-                <div class="p-4 bg-[#0d172d] border-l-4 border-amber-500 rounded-2xl flex justify-between items-center shadow-lg">
-                    <div>
-                        <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Week</div>
-                        <div id="rem-week" class="text-2xl font-black text-amber-400">0</div>
-                    </div>
-                    <i class="fa-solid fa-clock-rotate-left text-amber-500/30 text-3xl"></i>
-                </div>
-                <div class="p-4 bg-[#0d172d] border-l-4 border-blue-500 rounded-2xl flex justify-between items-center shadow-lg">
-                    <div>
-                        <div class="text-xs text-gray-400 font-semibold uppercase">Expiring This Month</div>
-                        <div id="rem-month" class="text-2xl font-black text-blue-400">0</div>
-                    </div>
-                    <i class="fa-solid fa-calendar-check text-blue-500/30 text-3xl"></i>
-                </div>
+            <nav class="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar">
+                <button data-page="dashboard" onclick="showPage('dashboard')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold bg-blue-600/20 text-blue-300 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-gauge-high w-4 text-center"></i> Dashboard</button>
+                <button data-page="properties" onclick="showPage('properties')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-building w-4 text-center"></i> Properties & Units</button>
+                <button data-page="tenants" onclick="showPage('tenants')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-users w-4 text-center"></i> Tenants & Leases</button>
+                <button data-page="invoices" onclick="showPage('invoices')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-file-invoice-dollar w-4 text-center"></i> Invoices & Payments</button>
+                <button data-page="luku" onclick="showPage('luku')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-bolt w-4 text-center"></i> Luku</button>
+                <button data-page="maintenance" onclick="showPage('maintenance')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition">
+                    <i class="fa-solid fa-screwdriver-wrench w-4 text-center"></i> <span class="flex-1 text-left">Maintenance</span>
+                    <span id="nav-badge-tickets" class="hidden px-1.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black">0</span>
+                </button>
+                <button data-page="expenses" onclick="showPage('expenses')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-money-bill-transfer w-4 text-center"></i> Expenses</button>
+                <button data-page="reports" onclick="showPage('reports')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-chart-line w-4 text-center"></i> Reports</button>
+            </nav>
+            <div class="p-3 border-t border-[#182848]">
+                <button data-page="settings" onclick="showPage('settings')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-gear w-4 text-center"></i> Settings</button>
             </div>
+        </aside>
+        <div id="sidebar-backdrop" class="hidden fixed inset-0 bg-black/60 z-30 lg:hidden" onclick="closeSidebar()"></div>
 
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 text-center">
-                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
-                    <div class="text-[10px] text-gray-400 uppercase">Properties</div>
-                    <div id="stat-properties" class="text-lg font-bold text-blue-400">0</div>
+        <div class="lg:ml-60 min-h-screen flex flex-col">
+
+            <!-- HEADER -->
+            <header class="bg-[#0a1224]/90 backdrop-blur-md border-b border-[#182848] px-4 md:px-6 py-3 sticky top-0 z-30 flex items-center gap-3">
+                <button onclick="toggleSidebar()" class="lg:hidden w-9 h-9 rounded-xl bg-[#14223d] text-gray-300 flex items-center justify-center"><i class="fa-solid fa-bars"></i></button>
+                <div class="min-w-0">
+                    <h2 id="page-title" class="text-base md:text-lg font-black text-white leading-tight truncate">Dashboard</h2>
+                    <p id="page-subtitle" class="text-[11px] text-gray-500 truncate">Hugo Tech</p>
                 </div>
-                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
-                    <div class="text-[10px] text-gray-400 uppercase">Total Units</div>
-                    <div id="stat-units" class="text-lg font-bold text-cyan-400">0</div>
-                </div>
-                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
-                    <div class="text-[10px] text-gray-400 uppercase">Occupancy</div>
-                    <div id="stat-occupancy" class="text-lg font-bold text-emerald-400">0%</div>
-                </div>
-                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
-                    <div class="text-[10px] text-gray-400 uppercase">Active Tenants</div>
-                    <div id="stat-tenants" class="text-lg font-bold text-emerald-400">0</div>
-                </div>
-                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-md">
-                    <div class="text-[10px] text-gray-400 uppercase">Pending Tickets</div>
-                    <div id="stat-tickets" class="text-lg font-bold text-orange-400">0</div>
-                </div>
-                <div class="p-3 bg-[#0d172d] border border-[#182848] rounded-2xl col-span-3 shadow-md">
-                    <div class="text-[10px] text-gray-400 uppercase">Monthly Performance</div>
-                    <div class="flex justify-around items-center mt-1">
-                        <div><span class="text-[10px] text-gray-500 block">Income</span><span id="stat-income" class="text-sm font-bold text-emerald-400">TZS 0</span></div>
-                        <div><span class="text-[10px] text-gray-500 block">Profit</span><span id="stat-profit" class="text-sm font-bold text-cyan-400">TZS 0</span></div>
+
+                <div class="flex-1 hidden sm:flex justify-center px-4">
+                    <div class="relative w-full max-w-md">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-500 text-xs"></i>
+                        <input id="global-search" type="text" onkeydown="if(event.key==='Enter') globalSearch(this.value)" placeholder="Search tenant, unit, property... (Enter)" class="w-full pl-9 pr-3 py-2 bg-[#14223d] border border-[#233863] rounded-xl text-xs text-white outline-none focus:border-blue-500">
                     </div>
                 </div>
-            </div>
+                <div class="flex-1 sm:hidden"></div>
 
-            <!-- TABBED DATA DIRECTORY -->
-            <div class="bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl overflow-hidden">
-                <div class="flex border-b border-[#182848] bg-[#0a1224]/50 overflow-x-auto scrollbar-none">
-                    <button onclick="switchTab('tab-properties')" id="btn-tab-properties" class="tab-btn active border-b-2 border-blue-500 text-blue-400 px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
-                        <i class="fa-solid fa-building"></i> Properties & Units
-                    </button>
-                    <button onclick="switchTab('tab-tenants')" id="btn-tab-tenants" class="tab-btn text-gray-400 hover:text-white px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
-                        <i class="fa-solid fa-users"></i> Tenants & Leases
-                    </button>
-                    <button onclick="switchTab('tab-finance')" id="btn-tab-finance" class="tab-btn text-gray-400 hover:text-white px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
-                        <i class="fa-solid fa-file-invoice-dollar"></i> Financials & Luku
-                    </button>
-                    <button onclick="switchTab('tab-tickets')" id="btn-tab-tickets" class="tab-btn text-gray-400 hover:text-white px-5 py-3.5 text-xs font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-2">
-                        <i class="fa-solid fa-screwdriver-wrench"></i> Maintenance Tickets
-                    </button>
+                <!-- + NEW -->
+                <div class="relative" data-menu>
+                    <button onclick="toggleMenu('menu-new')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5"><i class="fa-solid fa-plus"></i> <span class="hidden sm:inline">New</span> <i class="fa-solid fa-chevron-down text-[9px]"></i></button>
+                    <div id="menu-new" class="hidden absolute right-0 mt-2 w-52 bg-[#101b33] border border-[#233863] rounded-xl shadow-2xl p-1.5 z-50 text-xs">
+                        <button onclick="closeMenus(); openModal('modal-property-wizard')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-building w-4 text-blue-400"></i> Property</button>
+                        <button onclick="closeMenus(); openModal('modal-unit')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-door-open w-4 text-cyan-400"></i> Unit</button>
+                        <button onclick="closeMenus(); openModal('modal-tenant')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-user-plus w-4 text-emerald-400"></i> Tenant</button>
+                        <button onclick="closeMenus(); openModal('modal-invoice')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-file-invoice-dollar w-4 text-purple-400"></i> Invoice</button>
+                        <button onclick="closeMenus(); openPaymentModal()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-hand-holding-dollar w-4 text-emerald-400"></i> Record Payment</button>
+                        <button onclick="closeMenus(); openModal('modal-luku')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-bolt w-4 text-amber-400"></i> Luku Token</button>
+                        <button onclick="closeMenus(); openModal('modal-expense')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-money-bill-transfer w-4 text-red-400"></i> Expense</button>
+                        <button onclick="closeMenus(); openModal('modal-ticket')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-screwdriver-wrench w-4 text-orange-400"></i> Ticket</button>
+                    </div>
                 </div>
 
-                <div class="p-5">
-                    <!-- TAB 1: PROPERTIES -->
-                    <div id="tab-properties" class="tab-content block space-y-4">
-                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Properties Directory</h3>
-                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
-                            <table class="w-full text-left text-xs text-gray-300">
-                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
-                                    <tr>
-                                        <th class="p-3">ID</th>
-                                        <th class="p-3">Property Name</th>
-                                        <th class="p-3">Category</th>
-                                        <th class="p-3">Address</th>
-                                        <th class="p-3">Total Units</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-properties-body" class="divide-y divide-[#182848]">
-                                    <tr><td colspan="5" class="p-4 text-center text-gray-500">No properties loaded yet.</td></tr>
-                                </tbody>
-                            </table>
+                <!-- BELL -->
+                <div class="relative" data-menu>
+                    <button onclick="toggleMenu('menu-bell')" class="relative w-9 h-9 rounded-xl bg-[#14223d] text-gray-300 hover:text-white flex items-center justify-center">
+                        <i class="fa-solid fa-bell"></i>
+                        <span id="bell-count" class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center">0</span>
+                    </button>
+                    <div id="menu-bell" class="hidden absolute right-0 mt-2 w-72 bg-[#101b33] border border-[#233863] rounded-xl shadow-2xl p-2 z-50 text-xs">
+                        <div class="px-2 py-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Needs your attention</div>
+                        <div id="bell-list" class="space-y-1"><div class="p-3 text-center text-gray-500">Nothing urgent</div></div>
+                    </div>
+                </div>
+
+                <!-- USER -->
+                <div class="relative" data-menu>
+                    <button onclick="toggleMenu('menu-user')" class="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-[#14223d]">
+                        <span id="user-avatar" class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-xs font-black flex items-center justify-center">U</span>
+                        <i class="fa-solid fa-chevron-down text-[9px] text-gray-400 hidden md:inline"></i>
+                    </button>
+                    <div id="menu-user" class="hidden absolute right-0 mt-2 w-56 bg-[#101b33] border border-[#233863] rounded-xl shadow-2xl p-2 z-50 text-xs">
+                        <div class="px-2 py-2 border-b border-[#233863] mb-1">
+                            <div id="user-name-display" class="font-bold text-white truncate">User</div>
+                            <div id="user-company-display" class="text-[11px] text-cyan-400 truncate">Company</div>
+                            <span id="user-role-badge" class="inline-block mt-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-900/80 border border-blue-500 text-blue-300 uppercase">COMPANY_ADMIN</span>
+                        </div>
+                        <button onclick="closeMenus(); showPage('settings')" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid fa-gear w-4 text-gray-400"></i> Settings</button>
+                        <button onclick="logout()" class="w-full text-left px-3 py-2 rounded-lg hover:bg-red-900/40 text-red-300 flex items-center gap-2"><i class="fa-solid fa-power-off w-4"></i> Sign Out</button>
+                    </div>
+                </div>
+            </header>
+
+            <main class="p-4 md:p-6 max-w-7xl w-full mx-auto flex-grow space-y-6">
+
+                <!-- ============ PAGE: DASHBOARD ============ -->
+                <section id="page-dashboard" class="app-page space-y-5">
+
+                    <!-- QUICK ACTIONS -->
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="openModal('modal-property-wizard')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-2"><i class="fa-solid fa-building"></i> Add Property</button>
+                        <button onclick="openModal('modal-tenant')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-2"><i class="fa-solid fa-user-plus"></i> Add Tenant</button>
+                        <button onclick="openPaymentModal()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-2"><i class="fa-solid fa-hand-holding-dollar"></i> Record Payment</button>
+                        <button onclick="showPage('reports')" class="bg-[#14223d] hover:bg-[#1e2f52] border border-[#233863] text-gray-200 text-xs font-bold px-3.5 py-2.5 rounded-xl flex items-center gap-2"><i class="fa-solid fa-chart-line"></i> Report</button>
+                    </div>
+
+                    <!-- OVERVIEW NUMBERS -->
+                    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                        <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                            <div class="text-[10px] text-gray-400 uppercase font-semibold">Properties</div>
+                            <div id="kpi-properties" class="text-2xl font-black text-blue-400 mt-1">0</div>
+                        </div>
+                        <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                            <div class="text-[10px] text-gray-400 uppercase font-semibold">Units Occupied</div>
+                            <div id="kpi-units" class="text-2xl font-black text-cyan-400 mt-1">0 / 0</div>
+                        </div>
+                        <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                            <div class="text-[10px] text-gray-400 uppercase font-semibold">Active Tenants</div>
+                            <div id="kpi-tenants" class="text-2xl font-black text-emerald-400 mt-1">0</div>
+                        </div>
+                        <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
+                            <div class="text-[10px] text-gray-400 uppercase font-semibold">Occupancy</div>
+                            <div id="kpi-occupancy" class="text-2xl font-black text-emerald-400 mt-1">0%</div>
+                        </div>
+                        <div class="p-4 bg-[#0d172d] border border-emerald-500/30 rounded-2xl">
+                            <div class="text-[10px] text-gray-400 uppercase font-semibold">Rent Collected (This Month)</div>
+                            <div id="kpi-collected" class="text-lg font-black text-emerald-400 mt-1">TZS 0</div>
+                        </div>
+                        <div class="p-4 bg-[#0d172d] border border-rose-500/30 rounded-2xl">
+                            <div class="text-[10px] text-gray-400 uppercase font-semibold">Total Owed To You</div>
+                            <div id="kpi-outstanding" class="text-lg font-black text-rose-400 mt-1">TZS 0</div>
                         </div>
                     </div>
 
-                    <!-- TAB 2: TENANTS -->
-                    <div id="tab-tenants" class="tab-content hidden space-y-4">
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Active Leases & Tenant History</h3>
-                            <div class="relative w-full md:w-72">
-                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
-                                <input type="text" oninput="filterTenants(this.value)" placeholder="Search tenant, property, unit..." class="w-full pl-9 pr-3 py-2 bg-[#14223d] border border-[#233863] rounded-xl text-xs text-white outline-none focus:border-blue-500">
+                    <!-- DUE PAYMENTS -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <button onclick="openDueList('overdue')" class="text-left p-4 bg-[#0d172d] border-l-4 border-red-500 rounded-2xl shadow-lg hover:bg-[#101d38] transition">
+                            <div class="text-xs text-gray-400 font-semibold uppercase">Overdue</div>
+                            <div class="flex items-end justify-between mt-1">
+                                <div id="due-overdue-count" class="text-3xl font-black text-red-400">0</div>
+                                <div id="due-overdue-amount" class="text-sm font-bold text-red-300">TZS 0</div>
+                            </div>
+                        </button>
+                        <button onclick="openDueList('week')" class="text-left p-4 bg-[#0d172d] border-l-4 border-amber-500 rounded-2xl shadow-lg hover:bg-[#101d38] transition">
+                            <div class="text-xs text-gray-400 font-semibold uppercase">Due In 1 Week</div>
+                            <div class="flex items-end justify-between mt-1">
+                                <div id="due-week-count" class="text-3xl font-black text-amber-400">0</div>
+                                <div id="due-week-amount" class="text-sm font-bold text-amber-300">TZS 0</div>
+                            </div>
+                        </button>
+                        <button onclick="openDueList('month')" class="text-left p-4 bg-[#0d172d] border-l-4 border-blue-500 rounded-2xl shadow-lg hover:bg-[#101d38] transition">
+                            <div class="text-xs text-gray-400 font-semibold uppercase">Due In 1 Month</div>
+                            <div class="flex items-end justify-between mt-1">
+                                <div id="due-month-count" class="text-3xl font-black text-blue-400">0</div>
+                                <div id="due-month-amount" class="text-sm font-bold text-blue-300">TZS 0</div>
+                            </div>
+                        </button>
+                    </div>
+                    <p id="lease-expiry-line" class="text-[11px] text-gray-500 -mt-2"></p>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+                        <!-- PROPERTY PERFORMANCE -->
+                        <div class="xl:col-span-2 bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl overflow-hidden">
+                            <div class="px-5 py-4 border-b border-[#182848] flex justify-between items-center">
+                                <h3 class="text-sm font-bold text-white uppercase tracking-wider">Property Performance</h3>
+                                <span class="text-[10px] text-gray-500">Best first · rent collected + occupancy</span>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs text-gray-300">
+                                    <thead class="bg-[#14223d] text-gray-400 uppercase font-bold">
+                                        <tr><th class="p-3">#</th><th class="p-3">Property</th><th class="p-3">Occupied</th><th class="p-3">Collected</th><th class="p-3 w-40">Collection</th></tr>
+                                    </thead>
+                                    <tbody id="perf-body" class="divide-y divide-[#182848]">
+                                        <tr><td colspan="5" class="p-4 text-center text-gray-500">No data yet.</td></tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
-                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
-                            <table class="w-full text-left text-xs text-gray-300">
-                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
-                                    <tr>
-                                        <th class="p-3">Tenant Details</th>
-                                        <th class="p-3">Property / Unit</th>
-                                        <th class="p-3">Total To Pay</th>
-                                        <th class="p-3">Amount Paid</th>
-                                        <th class="p-3">Balance</th>
-                                        <th class="p-3">End Date</th>
-                                        <th class="p-3">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="tenants-table-body" class="divide-y divide-[#182848]">
-                                    <tr><td colspan="7" class="p-4 text-center text-gray-500">No active tenants loaded yet.</td></tr>
-                                </tbody>
-                            </table>
+
+                        <!-- WHO OWES -->
+                        <div class="bg-[#0d172d] border border-[#182848] rounded-2xl shadow-xl overflow-hidden">
+                            <div class="px-5 py-4 border-b border-[#182848]">
+                                <h3 class="text-sm font-bold text-white uppercase tracking-wider">Biggest Balances</h3>
+                            </div>
+                            <div id="debtors-list" class="p-3 space-y-2 text-xs">
+                                <div class="p-3 text-center text-gray-500">Nobody owes money right now.</div>
+                            </div>
                         </div>
                     </div>
+                </section>
 
-                    <!-- TAB 3: FINANCIALS -->
-                    <div id="tab-finance" class="tab-content hidden space-y-4">
-                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Issued Invoices</h3>
-                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
-                            <table class="w-full text-left text-xs text-gray-300">
-                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
-                                    <tr>
-                                        <th class="p-3">Invoice #</th>
-                                        <th class="p-3">Tenant Name</th>
-                                        <th class="p-3">Amount Due</th>
-                                        <th class="p-3">Due Date</th>
-                                        <th class="p-3">Status</th>
-                                        <th class="p-3">Print / View</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="table-invoices-body" class="divide-y divide-[#182848]">
-                                    <tr><td colspan="6" class="p-4 text-center text-gray-500">No invoices generated yet.</td></tr>
-                                </tbody>
-                            </table>
+                <!-- ============ PAGE: PROPERTIES ============ -->
+                <section id="page-properties" class="app-page hidden space-y-4">
+                    <div class="flex flex-wrap justify-between items-center gap-2">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Properties Directory</h3>
+                        <div class="flex gap-2">
+                            <button onclick="openModal('modal-property-wizard')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-building"></i> + Property</button>
+                            <button onclick="openModal('modal-unit')" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-door-open"></i> + Unit</button>
                         </div>
                     </div>
+                    <div class="overflow-x-auto rounded-xl border border-[#182848] bg-[#0d172d]">
+                        <table class="w-full text-left text-xs text-gray-300">
+                            <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
+                                <tr><th class="p-3">ID</th><th class="p-3">Property Name</th><th class="p-3">Category</th><th class="p-3">Address</th><th class="p-3">Total Units</th></tr>
+                            </thead>
+                            <tbody id="table-properties-body" class="divide-y divide-[#182848]">
+                                <tr><td colspan="5" class="p-4 text-center text-gray-500">No properties loaded yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
 
-                    <!-- TAB 4: TICKETS -->
-                    <div id="tab-tickets" class="tab-content hidden space-y-4">
+                <!-- ============ PAGE: TENANTS ============ -->
+                <section id="page-tenants" class="app-page hidden space-y-4">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Active Leases & Tenant History</h3>
+                        <div class="flex gap-2 w-full md:w-auto">
+                            <div class="relative flex-1 md:w-72">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+                                <input type="text" id="tenant-search" oninput="filterTenants(this.value)" placeholder="Search tenant, property, unit..." class="w-full pl-9 pr-3 py-2 bg-[#14223d] border border-[#233863] rounded-xl text-xs text-white outline-none focus:border-blue-500">
+                            </div>
+                            <button onclick="openModal('modal-tenant')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl whitespace-nowrap"><i class="fa-solid fa-user-plus"></i> + Tenant</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl border border-[#182848] bg-[#0d172d]">
+                        <table class="w-full text-left text-xs text-gray-300">
+                            <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
+                                <tr>
+                                    <th class="p-3">Tenant Details</th><th class="p-3">Property / Unit</th><th class="p-3">Total To Pay</th>
+                                    <th class="p-3">Amount Paid</th><th class="p-3">Balance</th><th class="p-3">End Date</th><th class="p-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tenants-table-body" class="divide-y divide-[#182848]">
+                                <tr><td colspan="7" class="p-4 text-center text-gray-500">No active tenants loaded yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- ============ PAGE: INVOICES & PAYMENTS ============ -->
+                <section id="page-invoices" class="app-page hidden space-y-4">
+                    <div class="flex flex-wrap justify-between items-center gap-2">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Invoices & Payments</h3>
+                        <div class="flex gap-2">
+                            <button onclick="openPaymentModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-hand-holding-dollar"></i> Record Payment</button>
+                            <button onclick="openModal('modal-invoice')" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-file-invoice-dollar"></i> + Invoice</button>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl border border-[#182848] bg-[#0d172d]">
+                        <table class="w-full text-left text-xs text-gray-300">
+                            <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
+                                <tr>
+                                    <th class="p-3">Invoice #</th><th class="p-3">Tenant</th><th class="p-3">Total</th><th class="p-3">Paid</th>
+                                    <th class="p-3">Balance</th><th class="p-3">Due Date</th><th class="p-3">Status</th><th class="p-3">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-invoices-body" class="divide-y divide-[#182848]">
+                                <tr><td colspan="8" class="p-4 text-center text-gray-500">No invoices generated yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- ============ PAGE: LUKU ============ -->
+                <section id="page-luku" class="app-page hidden space-y-4">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider">Luku (Prepaid Electricity)</h3>
+                    <div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-white">Generate a Luku token for a tenant</div>
+                            <p class="text-xs text-gray-400 mt-1">Enter the meter number, tenant name and amount to get the token.</p>
+                        </div>
+                        <button onclick="openModal('modal-luku')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-3 rounded-xl whitespace-nowrap"><i class="fa-solid fa-bolt"></i> Vend Luku Token</button>
+                    </div>
+                </section>
+
+                <!-- ============ PAGE: MAINTENANCE ============ -->
+                <section id="page-maintenance" class="app-page hidden space-y-4">
+                    <div class="flex flex-wrap justify-between items-center gap-2">
                         <h3 class="text-sm font-bold text-white uppercase tracking-wider">Work Orders & Maintenance Tickets</h3>
-                        <div class="overflow-x-auto rounded-xl border border-[#182848]">
+                        <button onclick="openModal('modal-ticket')" class="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-screwdriver-wrench"></i> + Ticket</button>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl border border-[#182848] bg-[#0d172d]">
+                        <table class="w-full text-left text-xs text-gray-300">
+                            <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
+                                <tr><th class="p-3">Ticket ID</th><th class="p-3">Issue Title</th><th class="p-3">Unit</th><th class="p-3">Priority</th><th class="p-3">Technician</th><th class="p-3">Status</th></tr>
+                            </thead>
+                            <tbody id="table-tickets-body" class="divide-y divide-[#182848]">
+                                <tr><td colspan="6" class="p-4 text-center text-gray-500">No work orders recorded yet.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- ============ PAGE: EXPENSES ============ -->
+                <section id="page-expenses" class="app-page hidden space-y-4">
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider">Expenses</h3>
+                    <div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <div class="text-sm font-bold text-white">Record repairs, utility bills and salaries</div>
+                            <p class="text-xs text-gray-400 mt-1">Expenses are subtracted from rent collected to show your profit.</p>
+                        </div>
+                        <button onclick="openModal('modal-expense')" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-3 rounded-xl whitespace-nowrap"><i class="fa-solid fa-money-bill-transfer"></i> + Expense</button>
+                    </div>
+                </section>
+
+                <!-- ============ PAGE: REPORTS ============ -->
+                <section id="page-reports" class="app-page hidden space-y-4">
+                    <div class="flex flex-wrap justify-between items-center gap-2">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Reports</h3>
+                        <button onclick="printReport()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-print"></i> Print / Save PDF</button>
+                    </div>
+                    <div id="report-area" class="bg-[#0d172d] border border-[#182848] rounded-2xl p-6 space-y-5">
+                        <div>
+                            <div class="text-lg font-black text-white">Summary Report</div>
+                            <div id="rep-subtitle" class="text-xs text-gray-400"></div>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                            <div class="p-3 rounded-xl border border-[#182848]"><div class="text-gray-400 uppercase text-[10px]">Properties</div><div id="rep-properties" class="text-lg font-black text-white">0</div></div>
+                            <div class="p-3 rounded-xl border border-[#182848]"><div class="text-gray-400 uppercase text-[10px]">Units Occupied</div><div id="rep-units" class="text-lg font-black text-white">0 / 0</div></div>
+                            <div class="p-3 rounded-xl border border-[#182848]"><div class="text-gray-400 uppercase text-[10px]">Active Tenants</div><div id="rep-tenants" class="text-lg font-black text-white">0</div></div>
+                            <div class="p-3 rounded-xl border border-[#182848]"><div class="text-gray-400 uppercase text-[10px]">Occupancy</div><div id="rep-occupancy" class="text-lg font-black text-white">0%</div></div>
+                            <div class="p-3 rounded-xl border border-[#182848]"><div class="text-gray-400 uppercase text-[10px]">Rent Collected (Month)</div><div id="rep-collected" class="text-lg font-black text-white">TZS 0</div></div>
+                            <div class="p-3 rounded-xl border border-[#182848]"><div class="text-gray-400 uppercase text-[10px]">Total Owed</div><div id="rep-outstanding" class="text-lg font-black text-white">TZS 0</div></div>
+                            <div class="p-3 rounded-xl border border-[#182848]"><div class="text-gray-400 uppercase text-[10px]">Expenses (Month)</div><div id="rep-expenses" class="text-lg font-black text-white">-</div></div>
+                            <div class="p-3 rounded-xl border border-[#182848]"><div class="text-gray-400 uppercase text-[10px]">Profit (Month)</div><div id="rep-profit" class="text-lg font-black text-white">-</div></div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-white mb-2">Property Performance</div>
                             <table class="w-full text-left text-xs text-gray-300">
-                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold border-b border-[#182848]">
-                                    <tr>
-                                        <th class="p-3">Ticket ID</th>
-                                        <th class="p-3">Issue Title</th>
-                                        <th class="p-3">Unit</th>
-                                        <th class="p-3">Priority</th>
-                                        <th class="p-3">Technician</th>
-                                        <th class="p-3">Status</th>
-                                    </tr>
+                                <thead class="uppercase font-bold text-gray-400 border-b border-[#182848]">
+                                    <tr><th class="py-2 pr-3">Property</th><th class="py-2 pr-3">Occupied</th><th class="py-2 pr-3">Billed</th><th class="py-2 pr-3">Collected</th><th class="py-2">Collection</th></tr>
                                 </thead>
-                                <tbody id="table-tickets-body" class="divide-y divide-[#182848]">
-                                    <tr><td colspan="6" class="p-4 text-center text-gray-500">No work orders recorded yet.</td></tr>
+                                <tbody id="rep-perf-body" class="divide-y divide-[#182848]"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ============ PAGE: SETTINGS ============ -->
+                <section id="page-settings" class="app-page hidden space-y-5">
+                    <div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-5 space-y-3">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider">Company & Account</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                            <div class="p-3 rounded-xl bg-[#14223d]"><div class="text-gray-500 text-[10px] uppercase">Company</div><div id="set-company" class="font-bold text-white">-</div></div>
+                            <div class="p-3 rounded-xl bg-[#14223d]"><div class="text-gray-500 text-[10px] uppercase">Your Name</div><div id="set-name" class="font-bold text-white">-</div></div>
+                            <div class="p-3 rounded-xl bg-[#14223d]"><div class="text-gray-500 text-[10px] uppercase">Email / Role</div><div id="set-email" class="font-bold text-white break-all">-</div></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#0d172d] border border-[#182848] rounded-2xl overflow-hidden">
+                        <div class="px-5 py-4 border-b border-[#182848] flex justify-between items-center">
+                            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Staff</h3>
+                            <button id="btn-admin-register" onclick="openModal('modal-register')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-user-gear"></i> + Staff</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-gray-300">
+                                <thead class="bg-[#14223d] text-gray-400 uppercase font-bold">
+                                    <tr><th class="p-3">Name</th><th class="p-3">Email</th><th class="p-3">Role</th><th class="p-3">Status</th></tr>
+                                </thead>
+                                <tbody id="table-staff-body" class="divide-y divide-[#182848]">
+                                    <tr><td colspan="4" class="p-4 text-center text-gray-500">No staff loaded.</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                </div>
-            </div>
-        </main>
-
-        <footer class="fixed bottom-0 left-0 right-0 bg-[#0a1224]/95 backdrop-blur-md border-t border-[#182848] py-2 px-6 z-40 shadow-2xl flex justify-between items-center text-xs text-gray-400">
-            <div class="flex items-center space-x-6">
-                <button onclick="openModal('modal-property-wizard')" class="hover:text-blue-400 transition flex items-center gap-1.5"><i class="fa-solid fa-building"></i> Properties</button>
-                <button onclick="openModal('modal-tenant')" class="hover:text-emerald-400 transition flex items-center gap-1.5"><i class="fa-solid fa-users"></i> Tenants</button>
-                <button onclick="openModal('modal-ticket')" class="hover:text-orange-400 transition flex items-center gap-1.5"><i class="fa-solid fa-screwdriver-wrench"></i> Tickets</button>
-                <button onclick="openModal('modal-luku')" class="hover:text-amber-400 transition flex items-center gap-1.5"><i class="fa-solid fa-bolt"></i> Vend Luku</button>
-            </div>
-            <div class="flex items-center space-x-4">
-                <span class="text-[11px] font-mono text-gray-500 hidden sm:inline">&copy; 2026 KEY ARCH ERP • Hugo Tech</span>
-            </div>
-        </footer>
+                </section>
+            </main>
+        </div>
     </div>
 
     <!-- MODAL 1: PROPERTY WIZARD -->
@@ -426,8 +584,14 @@
                                 <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">1. Tenant</div>
                                 <div class="grid grid-cols-2 gap-3">
                                     <input type="text" id="tenant-full-name" placeholder="Full Name *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
-                                    <input type="text" id="tenant-nida" placeholder="NIDA / Passport *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
-                                    <input type="tel" id="tenant-phone" placeholder="Phone Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs col-span-2 focus:border-emerald-500 outline-none" required>
+                                    <input type="tel" id="tenant-phone" placeholder="Phone Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
+                                    <select id="tenant-id-type" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none">
+                                        <option value="NIDA" selected>ID Type: NIDA</option>
+                                        <option value="PASSPORT">ID Type: Passport</option>
+                                        <option value="DRIVING_LICENSE">ID Type: Driving License</option>
+                                        <option value="VOTER_ID">ID Type: Voter ID</option>
+                                    </select>
+                                    <input type="text" id="tenant-nida" placeholder="ID Number *" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs focus:border-emerald-500 outline-none" required>
                                 </div>
                             </div>
 
@@ -714,6 +878,45 @@
                 <button onclick="copyLukuToken()" class="flex-1 bg-[#14223d] hover:bg-[#1e2f52] border border-[#233863] py-3 rounded-xl text-white font-bold text-xs"><i class="fa-solid fa-copy"></i> Copy</button>
                 <button onclick="closeModal('modal-luku-result')" class="flex-1 bg-amber-600 hover:bg-amber-700 py-3 rounded-xl text-white font-bold text-xs">Close</button>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL: RECORD PAYMENT -->
+    <div id="modal-payment" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-payment')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white mb-4 flex items-center gap-2"><i class="fa-solid fa-hand-holding-dollar text-emerald-400"></i> Record Payment</h3>
+            <form id="form-payment" class="space-y-3">
+                <div>
+                    <label class="block text-[11px] font-semibold text-gray-400 mb-1">Invoice *</label>
+                    <select id="pay-invoice-id" onchange="updatePaymentHint(true)" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required></select>
+                </div>
+                <div id="pay-hint" class="text-[11px] text-gray-400 bg-[#14223d] rounded-xl p-2.5"></div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-gray-400 mb-1">Amount Received (TZS) *</label>
+                    <input type="text" inputmode="decimal" autocomplete="off" id="pay-amount" placeholder="0" class="money-input w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs" required>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-semibold text-gray-400 mb-1">Paid By</label>
+                    <select id="pay-method" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs">
+                        <option value="Cash">Cash</option>
+                        <option value="Mobile Money">Mobile Money</option>
+                        <option value="Bank">Bank</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Payment</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: LIST (OVERDUE / DUE SOON) -->
+    <div id="modal-list" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-2xl rounded-2xl flex flex-col max-h-[90vh] shadow-2xl overflow-hidden">
+            <div class="px-5 py-3.5 border-b border-[#182848] bg-[#0a1224] flex justify-between items-center shrink-0">
+                <h3 id="list-title" class="font-bold text-white">Payments</h3>
+                <button onclick="closeModal('modal-list')" class="w-8 h-8 rounded-full bg-[#14223d] text-gray-400 hover:text-white hover:bg-red-600 transition flex items-center justify-center text-lg">&times;</button>
+            </div>
+            <div id="list-body" class="p-4 overflow-y-auto space-y-2 custom-scrollbar"></div>
         </div>
     </div>
 
@@ -1152,6 +1355,7 @@
             const payload = {
                 full_name: document.getElementById('tenant-full-name').value,
                 nida_passport_no: document.getElementById('tenant-nida').value,
+                identity_type: document.getElementById('tenant-id-type').value,
                 phone_number: document.getElementById('tenant-phone').value,
                 property_id: propId,
                 unit_id: unitId,
@@ -1212,7 +1416,8 @@
 
                 document.getElementById('inv-tenant-name').innerText = inv.tenant_name;
                 document.getElementById('inv-tenant-phone').innerText = inv.tenant_phone;
-                document.getElementById('inv-tenant-nida').innerText = `NIDA/Pass: ${inv.nida_passport_no}`;
+                const idLabels = { NIDA: 'NIDA', PASSPORT: 'Passport', DRIVING_LICENSE: 'Driving License', VOTER_ID: 'Voter ID' };
+                document.getElementById('inv-tenant-nida').innerText = `${idLabels[inv.identity_type] || 'ID'}: ${inv.nida_passport_no}`;
 
                 document.getElementById('inv-property-name').innerText = inv.property_name;
                 document.getElementById('inv-unit-number').innerText = `Unit: ${inv.unit_number}`;
@@ -1522,74 +1727,7 @@
             alert('Token copied!');
         }
 
-        function showAppView() {
-            document.getElementById('view-login').style.display = 'none';
-            document.getElementById('view-app').style.display = 'flex';
-
-            const user = JSON.parse(localStorage.getItem('keyarch_user') || '{}');
-            document.getElementById('user-role-badge').innerText = user.role || 'COMPANY_ADMIN';
-            document.getElementById('user-company-display').innerText = user.company_name || 'Hugo Tech';
-            document.getElementById('user-name-display').innerText = '• ' + (user.full_name || '');
-
-            if (user.role === 'SUPER_ADMIN' || user.role === 'COMPANY_ADMIN') {
-                document.getElementById('btn-admin-register').style.display = 'inline-flex';
-            } else {
-                document.getElementById('btn-admin-register').style.display = 'none';
-            }
-
-            loadAllData();
-        }
-
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(el => {
-                el.classList.remove('border-b-2', 'border-blue-500', 'text-blue-400');
-                el.classList.add('text-gray-400');
-            });
-
-            document.getElementById(tabId).classList.remove('hidden');
-            const activeBtn = document.getElementById('btn-' + tabId);
-            if (activeBtn) {
-                activeBtn.classList.add('border-b-2', 'border-blue-500', 'text-blue-400');
-                activeBtn.classList.remove('text-gray-400');
-            }
-        }
-
-        function loadAllData() {
-            loadDashboardMetrics();
-            loadReminders();
-            loadDropdowns();
-            populateTenantPropertyDropdown();
-            loadTablesData();
-        }
-
-        async function loadDashboardMetrics() {
-            const token = localStorage.getItem('keyarch_token');
-            const res = await fetch('/api/dashboard/metrics', { headers: { 'Authorization': `Bearer ${token}` } });
-            if (res.ok) {
-                const data = await res.json();
-                document.getElementById('stat-properties').innerText = data.totalProperties || 0;
-                document.getElementById('stat-units').innerText = data.totalUnits || 0;
-                document.getElementById('stat-occupancy').innerText = (data.occupancyRate || 0) + '%';
-                document.getElementById('stat-tenants').innerText = data.activeTenants || 0;
-                document.getElementById('stat-tickets').innerText = data.pendingTickets || 0;
-                document.getElementById('stat-income').innerText = 'TZS ' + (data.monthlyIncome || 0).toLocaleString('en-US');
-                document.getElementById('stat-profit').innerText = 'TZS ' + (data.netProfit || 0).toLocaleString('en-US');
-            }
-        }
-
-        async function loadReminders() {
-            const token = localStorage.getItem('keyarch_token');
-            const res = await fetch('/api/dashboard/reminders', { headers: { 'Authorization': `Bearer ${token}` } });
-            if (res.ok) {
-                const data = await res.json();
-                document.getElementById('rem-expired').innerText = data.expired || 0;
-                document.getElementById('rem-week').innerText = data.dueThisWeek || 0;
-                document.getElementById('rem-month').innerText = data.dueThisMonth || 0;
-            }
-        }
-
-        async function loadDropdowns() {
+                                                async function loadDropdowns() {
             const token = localStorage.getItem('keyarch_token');
             const headers = { 'Authorization': `Bearer ${token}` };
 
@@ -1653,28 +1791,8 @@
                 renderTenantsTable(currentTenantsList);
             }
 
-            // LOAD INVOICES
-            const invRes = await fetch('/api/invoices', { headers });
-            if (invRes.ok) {
-                const invoices = await invRes.json();
-                const tbody = document.getElementById('table-invoices-body');
-                if (invoices.length > 0) {
-                    tbody.innerHTML = invoices.map(i => `
-                        <tr class="hover:bg-[#14223d]/50 border-b border-[#182848]">
-                            <td class="p-3 font-mono font-bold text-purple-400">${esc(i.invoice_number)}</td>
-                            <td class="p-3 font-bold text-white">${esc(i.tenant_name)}</td>
-                            <td class="p-3 font-bold text-emerald-400">TZS ${parseFloat(i.amount_due).toLocaleString('en-US')}</td>
-                            <td class="p-3 text-gray-400">${new Date(i.due_date).toLocaleDateString()}</td>
-                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] ${i.status === 'PAID' ? 'bg-emerald-900/40 text-emerald-300 border border-emerald-500/30' : 'bg-amber-900/40 text-amber-300 border border-amber-500/30'}">${esc(i.status)}</span></td>
-                            <td class="p-3">
-                                <button onclick="showInvoiceModal(${Number(i.invoice_id)})" class="px-2.5 py-1 bg-cyan-600/30 text-cyan-300 border border-cyan-500/50 rounded font-bold hover:bg-cyan-600 hover:text-white transition flex items-center gap-1"><i class="fa-solid fa-print"></i> Print</button>
-                            </td>
-                        </tr>
-                    `).join('');
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No invoices issued yet.</td></tr>`;
-                }
-            }
+            // LOAD INVOICES (with paid / balance)
+            await loadInvoices(headers);
 
             // LOAD TICKETS
             const tktRes = await fetch('/api/tickets', { headers });
@@ -1696,6 +1814,351 @@
                     tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">No work orders recorded yet.</td></tr>`;
                 }
             }
+        }
+
+        // ============================================================
+        // APP SHELL: sidebar, header menus, pages
+        // ============================================================
+        let currentInvoices = [];
+        let overviewData = null;
+        const PAGE_TITLES = {
+            dashboard: 'Dashboard', properties: 'Properties & Units', tenants: 'Tenants & Leases',
+            invoices: 'Invoices & Payments', luku: 'Luku', maintenance: 'Maintenance',
+            expenses: 'Expenses', reports: 'Reports', settings: 'Settings'
+        };
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('sidebar-backdrop').classList.toggle('hidden');
+        }
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+            document.getElementById('sidebar-backdrop').classList.add('hidden');
+        }
+
+        function closeMenus() {
+            ['menu-new', 'menu-bell', 'menu-user'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+        }
+        function toggleMenu(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const wasHidden = el.classList.contains('hidden');
+            closeMenus();
+            if (wasHidden) el.classList.remove('hidden');
+        }
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('[data-menu]')) closeMenus();
+        });
+
+        function showPage(page) {
+            document.querySelectorAll('.app-page').forEach(el => el.classList.add('hidden'));
+            document.getElementById('page-' + page)?.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                const active = btn.dataset.page === page;
+                btn.classList.toggle('bg-blue-600/20', active);
+                btn.classList.toggle('text-blue-300', active);
+                btn.classList.toggle('text-gray-400', !active);
+            });
+
+            document.getElementById('page-title').innerText = PAGE_TITLES[page] || page;
+            closeMenus();
+            if (window.innerWidth < 1024) closeSidebar();
+            window.scrollTo(0, 0);
+        }
+
+        function globalSearch(value) {
+            showPage('tenants');
+            const box = document.getElementById('tenant-search');
+            if (box) box.value = value;
+            filterTenants(value);
+        }
+
+        function showAppView() {
+            document.getElementById('view-login').style.display = 'none';
+            document.getElementById('view-app').style.display = 'block';
+
+            const user = JSON.parse(localStorage.getItem('keyarch_user') || '{}');
+            const company = user.company_name || 'Hugo Tech';
+            const monthYear = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+            document.getElementById('user-role-badge').innerText = user.role || 'COMPANY_ADMIN';
+            document.getElementById('user-company-display').innerText = company;
+            document.getElementById('user-name-display').innerText = user.full_name || 'User';
+            document.getElementById('user-avatar').innerText = (user.full_name || 'U').trim().charAt(0).toUpperCase();
+            document.getElementById('sidebar-company').innerText = company;
+            document.getElementById('page-subtitle').innerText = `${company} · ${monthYear}`;
+            document.getElementById('set-company').innerText = company;
+            document.getElementById('set-name').innerText = user.full_name || '-';
+            document.getElementById('set-email').innerText = `${user.email || '-'} · ${user.role || ''}`;
+
+            const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'COMPANY_ADMIN';
+            document.getElementById('btn-admin-register').style.display = isAdmin ? 'inline-block' : 'none';
+
+            showPage('dashboard');
+            loadAllData();
+        }
+
+        function loadAllData() {
+            loadOverview();
+            loadDropdowns();
+            populateTenantPropertyDropdown();
+            loadTablesData();
+            loadStaff();
+        }
+
+        // ============================================================
+        // DASHBOARD OVERVIEW
+        // ============================================================
+        function setText(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.innerText = value;
+        }
+
+        async function loadOverview() {
+            try {
+                const token = localStorage.getItem('keyarch_token');
+                const res = await fetch('/api/dashboard/overview', { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!res.ok) return;
+                overviewData = await res.json();
+                renderOverview(overviewData);
+            } catch (err) { console.error('Overview error:', err); }
+        }
+
+        function renderOverview(d) {
+            const t = d.totals, m = d.money;
+
+            setText('kpi-properties', t.properties);
+            setText('kpi-units', `${t.occupied} / ${t.units}`);
+            setText('kpi-tenants', t.tenants);
+            setText('kpi-occupancy', `${t.occupancyRate}%`);
+            setText('kpi-collected', money(m.collectedThisMonth));
+            setText('kpi-outstanding', money(m.outstanding));
+
+            ['overdue', 'week', 'month'].forEach(k => {
+                setText(`due-${k}-count`, d.due[k].count);
+                setText(`due-${k}-amount`, money(d.due[k].amount));
+            });
+
+            setText('lease-expiry-line',
+                `Leases ending: ${d.leases.expired} already expired · ${d.leases.week} this week · ${d.leases.month} this month`);
+
+            // PROPERTY PERFORMANCE
+            const perfBody = document.getElementById('perf-body');
+            if (d.properties.length === 0) {
+                perfBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">No properties yet.</td></tr>';
+            } else {
+                perfBody.innerHTML = d.properties.map((p, i) => {
+                    const pct = p.collection_rate === null ? 0 : Math.min(100, p.collection_rate);
+                    const barColor = pct >= 80 ? 'bg-emerald-500' : (pct >= 50 ? 'bg-amber-500' : 'bg-rose-500');
+                    return `
+                    <tr class="hover:bg-[#14223d]/50">
+                        <td class="p-3 text-gray-500">${i + 1}</td>
+                        <td class="p-3 font-bold text-white">${esc(p.property_name)}${i === 0 && d.properties.length > 1 ? ' <span class="ml-1 px-1.5 py-0.5 rounded text-[9px] bg-emerald-900/50 text-emerald-300 border border-emerald-500/30">BEST</span>' : ''}</td>
+                        <td class="p-3">${p.occupied}/${p.units} <span class="text-gray-500">(${p.occupancy_rate}%)</span></td>
+                        <td class="p-3">${money(p.collected)}<div class="text-[10px] text-gray-500">of ${money(p.billed)}</div></td>
+                        <td class="p-3">
+                            <div class="h-1.5 rounded bg-[#14223d]"><div class="h-1.5 rounded ${barColor}" style="width:${pct}%"></div></div>
+                            <div class="text-[10px] text-gray-400 mt-1">${p.collection_rate === null ? 'No invoices yet' : p.collection_rate + '% collected'}</div>
+                        </td>
+                    </tr>`;
+                }).join('');
+            }
+
+            // BIGGEST BALANCES
+            const deb = document.getElementById('debtors-list');
+            if (d.debtors.length === 0) {
+                deb.innerHTML = '<div class="p-3 text-center text-gray-500">Nobody owes money right now.</div>';
+            } else {
+                deb.innerHTML = d.debtors.map(x => `
+                    <div class="flex justify-between items-center p-3 rounded-xl bg-[#14223d]">
+                        <div class="min-w-0">
+                            <div class="font-bold text-white truncate">${esc(x.tenant_name)}</div>
+                            <div class="text-[10px] text-gray-400 truncate">${esc(x.property_name)} (${esc(x.unit_number)})</div>
+                        </div>
+                        <div class="font-black text-rose-400 ml-2 whitespace-nowrap">${money(x.balance)}</div>
+                    </div>
+                `).join('');
+            }
+
+            // SIDEBAR TICKET BADGE
+            const badge = document.getElementById('nav-badge-tickets');
+            const pending = d.tickets && d.tickets.pending;
+            if (pending > 0) { badge.innerText = pending; badge.classList.remove('hidden'); }
+            else badge.classList.add('hidden');
+
+            renderBell(d);
+            renderReport(d);
+        }
+
+        function renderBell(d) {
+            const items = [];
+            if (d.due.overdue.count > 0) items.push({ icon: 'fa-circle-exclamation text-red-400', text: `${d.due.overdue.count} overdue payment(s) · ${money(d.due.overdue.amount)}`, act: "openDueList('overdue')" });
+            if (d.due.week.count > 0) items.push({ icon: 'fa-clock text-amber-400', text: `${d.due.week.count} payment(s) due this week`, act: "openDueList('week')" });
+            if (d.leases.expired > 0) items.push({ icon: 'fa-file-circle-exclamation text-red-400', text: `${d.leases.expired} lease(s) expired`, act: "showPage('tenants')" });
+            if (d.leases.week > 0) items.push({ icon: 'fa-calendar-xmark text-amber-400', text: `${d.leases.week} lease(s) ending this week`, act: "showPage('tenants')" });
+            if (d.tickets && d.tickets.pending > 0) items.push({ icon: 'fa-screwdriver-wrench text-orange-400', text: `${d.tickets.pending} pending ticket(s)`, act: "showPage('maintenance')" });
+
+            const countEl = document.getElementById('bell-count');
+            if (items.length > 0) { countEl.innerText = items.length; countEl.classList.remove('hidden'); countEl.classList.add('flex'); }
+            else { countEl.classList.add('hidden'); countEl.classList.remove('flex'); }
+
+            document.getElementById('bell-list').innerHTML = items.length === 0
+                ? '<div class="p-3 text-center text-gray-500">Nothing urgent</div>'
+                : items.map(i => `<button onclick="${i.act}" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[#1e2f52] flex items-center gap-2"><i class="fa-solid ${i.icon} w-4"></i> ${i.text}</button>`).join('');
+        }
+
+        function renderReport(d) {
+            const t = d.totals, m = d.money;
+            setText('rep-subtitle', `${document.getElementById('sidebar-company').innerText} · ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`);
+            setText('rep-properties', t.properties);
+            setText('rep-units', `${t.occupied} / ${t.units}`);
+            setText('rep-tenants', t.tenants);
+            setText('rep-occupancy', `${t.occupancyRate}%`);
+            setText('rep-collected', money(m.collectedThisMonth));
+            setText('rep-outstanding', money(m.outstanding));
+            setText('rep-expenses', m.expensesThisMonth === null ? 'Not available' : money(m.expensesThisMonth));
+            setText('rep-profit', m.profit === null ? 'Not available' : money(m.profit));
+
+            document.getElementById('rep-perf-body').innerHTML = d.properties.map(p => `
+                <tr>
+                    <td class="py-2 pr-3 font-bold text-white">${esc(p.property_name)}</td>
+                    <td class="py-2 pr-3">${p.occupied}/${p.units} (${p.occupancy_rate}%)</td>
+                    <td class="py-2 pr-3">${money(p.billed)}</td>
+                    <td class="py-2 pr-3">${money(p.collected)}</td>
+                    <td class="py-2">${p.collection_rate === null ? '-' : p.collection_rate + '%'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function printReport() {
+            document.body.classList.add('printing-report');
+            window.onafterprint = () => document.body.classList.remove('printing-report');
+            window.print();
+        }
+
+        // OVERDUE / DUE SOON LISTS
+        function openDueList(kind) {
+            const titles = { overdue: 'Overdue Payments', week: 'Payments Due In 1 Week', month: 'Payments Due In 1 Month' };
+            const items = (overviewData && overviewData.due[kind] && overviewData.due[kind].items) || [];
+            document.getElementById('list-title').innerText = titles[kind] || 'Payments';
+
+            document.getElementById('list-body').innerHTML = items.length === 0
+                ? '<div class="p-6 text-center text-gray-500 text-xs">Nothing here.</div>'
+                : items.map(i => {
+                    const days = Number(i.days_left);
+                    const when = days < 0 ? `${Math.abs(days)} day(s) late` : (days === 0 ? 'due today' : `in ${days} day(s)`);
+                    return `
+                    <div class="flex items-center justify-between gap-3 p-3 rounded-xl bg-[#14223d] text-xs">
+                        <div class="min-w-0">
+                            <div class="font-bold text-white truncate">${esc(i.tenant_name)} <span class="text-gray-500 font-normal">· ${esc(i.invoice_number)}</span></div>
+                            <div class="text-[11px] text-gray-400 truncate">${esc(i.property_name)} (${esc(i.unit_number)}) · ${when}</div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <div class="font-black ${days < 0 ? 'text-rose-400' : 'text-amber-300'}">${money(i.balance)}</div>
+                            <button onclick="openPaymentModal(${Number(i.invoice_id)})" class="mt-1 px-2 py-1 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-bold hover:bg-emerald-600 hover:text-white">Record Payment</button>
+                        </div>
+                    </div>`;
+                }).join('');
+            openModal('modal-list');
+        }
+
+        // ============================================================
+        // INVOICES & PAYMENTS
+        // ============================================================
+        async function loadInvoices(headers) {
+            const res = await fetch('/api/invoices', { headers });
+            if (!res.ok) return;
+            currentInvoices = await res.json();
+            renderInvoicesTable();
+        }
+
+        function renderInvoicesTable() {
+            const tbody = document.getElementById('table-invoices-body');
+            if (!tbody) return;
+            if (currentInvoices.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-500">No invoices issued yet.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = currentInvoices.map(i => {
+                const balance = Number(i.balance);
+                const status = balance <= 0 ? 'PAID' : (Number(i.paid) > 0 ? 'PARTIAL' : 'UNPAID');
+                const cls = status === 'PAID' ? 'bg-emerald-900/40 text-emerald-300 border-emerald-500/30'
+                          : status === 'PARTIAL' ? 'bg-amber-900/40 text-amber-300 border-amber-500/30'
+                          : 'bg-rose-900/40 text-rose-300 border-rose-500/30';
+                return `
+                <tr class="hover:bg-[#14223d]/50 border-b border-[#182848]">
+                    <td class="p-3 font-mono font-bold text-purple-400">${esc(i.invoice_number)}</td>
+                    <td class="p-3 font-bold text-white">${esc(i.tenant_name)}<div class="text-[10px] text-gray-500 font-normal">${esc(i.property_name)} (${esc(i.unit_number)})</div></td>
+                    <td class="p-3 font-bold text-gray-200">${money(i.amount_due)}</td>
+                    <td class="p-3 font-bold text-emerald-400">${money(i.paid)}</td>
+                    <td class="p-3 font-bold ${balance > 0 ? 'text-rose-400' : 'text-gray-400'}">${balance > 0 ? money(balance) : (balance < 0 ? 'Extra ' + money(-balance) : '-')}</td>
+                    <td class="p-3 text-gray-400">${fmtDate(i.due_date)}</td>
+                    <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] border ${cls}">${status}</span></td>
+                    <td class="p-3 whitespace-nowrap">
+                        ${balance > 0 ? `<button onclick="openPaymentModal(${Number(i.invoice_id)})" class="px-2.5 py-1 mr-1 bg-emerald-600/30 text-emerald-300 border border-emerald-500/50 rounded font-bold hover:bg-emerald-600 hover:text-white transition">Pay</button>` : ''}
+                        <button onclick="showInvoiceModal(${Number(i.invoice_id)})" class="px-2.5 py-1 bg-cyan-600/30 text-cyan-300 border border-cyan-500/50 rounded font-bold hover:bg-cyan-600 hover:text-white transition"><i class="fa-solid fa-print"></i></button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function openPaymentModal(invoiceId) {
+            const unpaid = currentInvoices.filter(i => Number(i.balance) > 0);
+            const select = document.getElementById('pay-invoice-id');
+            select.innerHTML = unpaid.length === 0
+                ? '<option value="">No unpaid invoices</option>'
+                : unpaid.map(i => `<option value="${esc(i.invoice_id)}">${esc(i.invoice_number)} - ${esc(i.tenant_name)} (owes ${money(i.balance)})</option>`).join('');
+            if (invoiceId) select.value = String(invoiceId);
+            document.getElementById('pay-amount').value = '';
+            updatePaymentHint(true);
+            closeModal('modal-list');
+            openModal('modal-payment');
+        }
+
+        function updatePaymentHint(prefill) {
+            const id = document.getElementById('pay-invoice-id').value;
+            const inv = currentInvoices.find(i => String(i.invoice_id) === id);
+            const hint = document.getElementById('pay-hint');
+            if (!inv) { hint.innerText = 'There are no unpaid invoices.'; return; }
+            hint.innerHTML = `${esc(inv.tenant_name)} · Total ${money(inv.amount_due)} · Paid ${money(inv.paid)} · <b class="text-rose-400">Balance ${money(inv.balance)}</b>`;
+            if (prefill) document.getElementById('pay-amount').value = formatMoney(inv.balance);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('form-payment').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const invoiceId = document.getElementById('pay-invoice-id').value;
+                const amount = parseMoney(document.getElementById('pay-amount').value);
+                if (!invoiceId) return alert('Please choose an invoice.');
+                if (!(amount > 0)) return alert('Please enter the amount received.');
+                sendPost('/api/payments/record', {
+                    invoice_id: parseInt(invoiceId),
+                    amount,
+                    payment_method: document.getElementById('pay-method').value
+                }, 'modal-payment', 'form-payment');
+            });
+        });
+
+        // ============================================================
+        // STAFF (Settings)
+        // ============================================================
+        async function loadStaff() {
+            try {
+                const token = localStorage.getItem('keyarch_token');
+                const res = await fetch('/api/staff', { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!res.ok) return;
+                const staff = await res.json();
+                document.getElementById('table-staff-body').innerHTML = staff.length === 0
+                    ? '<tr><td colspan="4" class="p-4 text-center text-gray-500">No staff yet.</td></tr>'
+                    : staff.map(s => `
+                        <tr class="hover:bg-[#14223d]/50">
+                            <td class="p-3 font-bold text-white">${esc(s.full_name)}</td>
+                            <td class="p-3 text-gray-400">${esc(s.email)}</td>
+                            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] bg-blue-900/40 text-blue-300 border border-blue-500/30">${esc(s.role)}</span></td>
+                            <td class="p-3 ${s.is_active ? 'text-emerald-400' : 'text-rose-400'}">${s.is_active ? 'Active' : 'Suspended'}</td>
+                        </tr>`).join('');
+            } catch (err) { console.error('Staff error:', err); }
         }
 
         function logout() {
