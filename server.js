@@ -83,8 +83,8 @@ async function initDatabase() {
             CREATE TABLE IF NOT EXISTS properties (
                 property_id SERIAL PRIMARY KEY,
                 company_id INT REFERENCES companies(company_id) ON DELETE CASCADE,
-                property_name VARCHAR(150) NOT NULL,
-                address TEXT NOT NULL,
+                property_name VARCHAR(150),
+                address TEXT,
                 category VARCHAR(50) DEFAULT 'RESIDENTIAL',
                 total_units INT DEFAULT 1,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -230,8 +230,40 @@ async function initDatabase() {
             );
         `);
 
-        // 2. AUTOMATIC TABLE MIGRATION & SAFETY CHECKS (INAHAKIKISHA COMPANY_ID IPO KWENYE TABLES ZOTE ZILIZOKUWEPO CATCHING EXISTING DBs)
-        const tablesToUpdate = ['properties', 'units', 'tenants', 'leases', 'invoices', 'payments', 'expenses', 'work_orders', 'luku_vouchers', 'audit_logs'];
+        // 2. SCHEMA RECONCILIATION & COLUMN MIGRATION (INAHAKIKISHA COLUMNS ZOTE ZIPO KWENYE TABLE YA PROPERTIES)
+        await pool.query(`
+            DO $$ 
+            BEGIN 
+                -- If old table used 'name' instead of 'property_name'
+                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='name') 
+                   AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='property_name') THEN 
+                    ALTER TABLE properties RENAME COLUMN name TO property_name;
+                END IF;
+
+                -- Ensure property_name exists
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='property_name') THEN 
+                    ALTER TABLE properties ADD COLUMN property_name VARCHAR(150);
+                END IF;
+
+                -- Ensure company_id exists
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='company_id') THEN 
+                    ALTER TABLE properties ADD COLUMN company_id INT REFERENCES companies(company_id) ON DELETE CASCADE;
+                END IF;
+
+                -- Ensure category exists
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='category') THEN 
+                    ALTER TABLE properties ADD COLUMN category VARCHAR(50) DEFAULT 'RESIDENTIAL';
+                END IF;
+
+                -- Ensure total_units exists
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='properties' AND column_name='total_units') THEN 
+                    ALTER TABLE properties ADD COLUMN total_units INT DEFAULT 1;
+                END IF;
+            END $$;
+        `);
+
+        // Ensure company_id across all related tables
+        const tablesToUpdate = ['units', 'tenants', 'leases', 'invoices', 'payments', 'expenses', 'work_orders', 'luku_vouchers', 'audit_logs'];
         for (const tbl of tablesToUpdate) {
             await pool.query(`
                 DO $$ 
@@ -248,7 +280,7 @@ async function initDatabase() {
 
         await pool.query("CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000");
 
-        // 3. SEED MASTER PLATFORM OWNER COMPANY (Hugo Tech)
+        // 3. SEED MASTER PLATFORM OWNER COMPANY
         const companyCheck = await pool.query("SELECT * FROM companies WHERE company_name = 'Hugo Tech Platform Master'");
         let masterCompanyId;
         if (companyCheck.rows.length === 0) {
@@ -269,7 +301,6 @@ async function initDatabase() {
             );
             console.log('✅ Platform Master Super Admin Seeded: admin@keyarch.co.tz');
         } else {
-            // Hakikisha user wa zamani pia anapewa master company_id kama ilikuwa null
             await pool.query("UPDATE users SET company_id = $1 WHERE email = 'admin@keyarch.co.tz' AND company_id IS NULL", [masterCompanyId]);
         }
 
@@ -347,7 +378,6 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
     }
 });
 
-// REGISTER COMPANY
 app.post('/api/auth/register-company', async (req, res) => {
     const { company_name, admin_full_name, email, password, phone_number } = req.body;
     
