@@ -125,6 +125,52 @@ async function initDatabase() {
             ALTER TABLE leases ADD COLUMN IF NOT EXISTS payment_status VARCHAR(20);
         `);
 
+        // NEW: every field of the Tenant Onboarding form has its own column
+        await pool.query(`
+            ALTER TABLE tenants ADD COLUMN IF NOT EXISTS full_name VARCHAR(150);
+            ALTER TABLE tenants ADD COLUMN IF NOT EXISTS nida_passport_no VARCHAR(60);
+            ALTER TABLE tenants ADD COLUMN IF NOT EXISTS phone_number VARCHAR(30);
+            ALTER TABLE tenants ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW();
+            ALTER TABLE leases ADD COLUMN IF NOT EXISTS start_date DATE;
+            ALTER TABLE leases ADD COLUMN IF NOT EXISTS end_date DATE;
+            ALTER TABLE leases ADD COLUMN IF NOT EXISTS duration_days INTEGER;
+        `);
+        await pool.query(`
+            DO $$
+            DECLARE pid_type text;
+            BEGIN
+                SELECT format_type(a.atttypid, a.atttypmod) INTO pid_type
+                FROM pg_attribute a
+                WHERE a.attrelid = 'public.properties'::regclass AND a.attname = 'property_id' AND NOT a.attisdropped;
+
+                IF pid_type IS NOT NULL AND NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'leases' AND column_name = 'property_id'
+                ) THEN
+                    EXECUTE format('ALTER TABLE leases ADD COLUMN property_id %s', pid_type);
+                END IF;
+            END $$;
+        `);
+        // Old leases: fill the new columns so old tenants display correctly
+        await pool.query(`
+            UPDATE leases l SET property_id = u.property_id FROM units u WHERE l.unit_id = u.unit_id AND l.property_id IS NULL;
+            UPDATE leases SET
+                rent_price = COALESCE(rent_price, agreed_rent),
+                rent_period = COALESCE(rent_period, 'Month'),
+                number_of_periods = COALESCE(number_of_periods, 1),
+                total_rent = COALESCE(total_rent, agreed_rent),
+                discount = COALESCE(discount, 0),
+                total_to_pay = COALESCE(total_to_pay, agreed_rent),
+                duration_days = COALESCE(duration_days, (end_date - start_date))
+            WHERE total_to_pay IS NULL OR rent_price IS NULL OR duration_days IS NULL;
+            UPDATE leases SET payment_status = CASE
+                WHEN COALESCE(amount_paid, 0) > total_to_pay THEN 'EXTRA_PAID'
+                WHEN COALESCE(amount_paid, 0) = total_to_pay THEN 'PAID'
+                WHEN COALESCE(amount_paid, 0) > 0 THEN 'PARTIAL'
+                ELSE 'UNPAID' END
+            WHERE payment_status IS NULL AND total_to_pay IS NOT NULL;
+        `);
+
         await pool.query("CREATE SEQUENCE IF NOT EXISTS invoice_seq START 100000");
 
         // Seed Master Admin
@@ -335,8 +381,9 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
         client = await pool.connect();
         await client.query('BEGIN');
 
-        const unitCheck = await client.query('SELECT status FROM units WHERE unit_id = $1 AND company_id = $2', [unit_id, companyId]);
+        const unitCheck = await client.query('SELECT status, property_id FROM units WHERE unit_id = $1 AND company_id = $2', [unit_id, companyId]);
         if (unitCheck.rows.length === 0) throw new Error('Unit not found.');
+        if (String(unitCheck.rows[0].property_id) !== String(property_id)) throw new Error('This unit does not belong to the selected property.');
         if (unitCheck.rows[0].status === 'OCCUPIED') throw new Error('This unit already has a tenant.');
 
         const tenantRes = await client.query(
@@ -347,14 +394,16 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
 
         const leaseEndDate = end_date || new Date(new Date(start_date).setFullYear(new Date(start_date).getFullYear() + 1)).toISOString().split('T')[0];
 
+        const durationDays = Math.max(0, Math.round((new Date(leaseEndDate) - new Date(start_date)) / 86400000));
+
         // agreed_rent keeps the "Total To Pay" so older reports that use it still work
         const leaseRes = await client.query(
             `INSERT INTO leases
-             (company_id, unit_id, tenant_id, start_date, end_date, agreed_rent, amount_paid, amount_due, payment_cycle, status,
+             (company_id, unit_id, tenant_id, property_id, start_date, end_date, duration_days, agreed_rent, amount_paid, amount_due, payment_cycle, status,
               rent_price, rent_period, number_of_periods, total_rent, discount, total_to_pay, payment_status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) RETURNING *`,
             [
-                companyId, unit_id, tenant.tenant_id, start_date, leaseEndDate, calc.totalToPay, calc.paid, calc.amountDue, 'MONTHLY', 'ACTIVE',
+                companyId, unit_id, tenant.tenant_id, property_id, start_date, leaseEndDate, durationDays, calc.totalToPay, calc.paid, calc.amountDue, 'MONTHLY', 'ACTIVE',
                 calc.price, rent_period, calc.periods, calc.totalRent, calc.discount, calc.totalToPay, calc.status
             ]
         );
