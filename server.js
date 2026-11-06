@@ -287,10 +287,10 @@ const GRACE_DAYS = 0; // extra days of access after a subscription ends
 const SUPPORT = { name: 'HUGO TECH', whatsapp: '+255785799530', email: 'info@hugotech.co.tz' };
 
 const PLAN_DEFAULTS = {
-    STANDARD: { luku: false, tickets: false, reports_advanced: false, backup_full: false, max_properties: 5, max_staff: 3 },
-    PRO:      { luku: true,  tickets: true,  reports_advanced: true,  backup_full: true,  max_properties: null, max_staff: null }
+    STANDARD: { luku: false, tickets: false, reports_advanced: false, backup_full: false, org: false, max_properties: 5, max_staff: 3 },
+    PRO:      { luku: true,  tickets: true,  reports_advanced: true,  backup_full: true,  org: true,  max_properties: null, max_staff: null }
 };
-const FEATURE_KEYS = ['luku', 'tickets', 'reports_advanced', 'backup_full'];
+const FEATURE_KEYS = ['luku', 'tickets', 'reports_advanced', 'backup_full', 'org'];
 const LIMIT_KEYS = ['max_properties', 'max_staff'];
 
 // plan defaults + the special settings the Super Admin gave to one company (0 = unlimited)
@@ -404,7 +404,7 @@ async function checkLimit(user, limitKey, countSql, what) {
 // Every step runs on its own: one problem never stops the others.
 // The Super Admin can also run it from Platform Admin > Run Database Setup.
 // ============================================================
-const SERVER_VERSION = 'v8.4 - 2026-11-06 - maintenance manager + workers';
+const SERVER_VERSION = 'v8.5 - 2026-11-06 - departments + project access (Pro)';
 
 const SETUP_STEPS = [
     { name: "Base columns (leases, users)", sql: `
@@ -772,6 +772,29 @@ const SETUP_STEPS = [
             WHERE w.worker_id IS NULL AND w.assigned_technician_id IS NOT NULL AND m.legacy_user_id = w.assigned_technician_id;
         UPDATE users SET role = 'MAINTENANCE_MANAGER' WHERE role = 'TECHNICIAN';
     ` }
+    ,{ name: "Organization structure (departments, project access)", sql: `
+        CREATE TABLE IF NOT EXISTS departments (
+            department_id SERIAL PRIMARY KEY,
+            company_id INTEGER NOT NULL,
+            name VARCHAR(80) NOT NULL,
+            default_role VARCHAR(30) DEFAULT 'VIEWER',
+            is_active BOOLEAN DEFAULT true,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_departments_name ON departments (company_id, LOWER(name));
+        CREATE TABLE IF NOT EXISTS user_properties (
+            user_id INTEGER NOT NULL,
+            property_id INTEGER NOT NULL,
+            PRIMARY KEY (user_id, property_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_user_properties_prop ON user_properties (property_id);
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS department_id INTEGER;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS scope_all BOOLEAN DEFAULT true;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS can_add_staff BOOLEAN DEFAULT false;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS created_by INTEGER;
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title VARCHAR(80);
+        ALTER TABLE properties ADD COLUMN IF NOT EXISTS created_by INTEGER;
+    ` }
 ];
 
 async function seedMasterAdmin() {
@@ -873,13 +896,20 @@ app.get('/admin/', sendHome);
 
 const userCache = new Map();
 function clearUserCache(userId) { userCache.delete(String(userId)); }
+function clearAllUserCache() { userCache.clear(); }
 async function getUserState(userId) {
     const key = String(userId);
     const hit = userCache.get(key);
     if (hit && Date.now() - hit.at < 20000) return hit.data;
     try {
-        const r = await pool.query('SELECT is_active, role, can_edit_tenants FROM users WHERE user_id = $1', [userId]);
+        const r = await pool.query('SELECT is_active, role, can_edit_tenants, COALESCE(scope_all, true) AS scope_all, COALESCE(can_add_staff, false) AS can_add_staff, department_id FROM users WHERE user_id = $1', [userId]);
         const data = r.rows[0] || null;
+        if (data) {
+            data.props = null;
+            if (!data.scope_all) {
+                data.props = (await pool.query('SELECT property_id FROM user_properties WHERE user_id = $1', [userId])).rows.map(x => x.property_id);
+            }
+        }
         userCache.set(key, { at: Date.now(), data });
         return data;
     } catch (err) { return null; }
@@ -907,6 +937,13 @@ function authenticateToken(req, res, next) {
                 const access = await getCompanyAccess(user.company_id);
                 const block = accessBlock(access);
                 if (block) return res.status(403).json({ error: block.message, code: block.code });
+                // Pro: which projects (properties) this person may see. null = all of them.
+                req.user.scope = null; req.user.can_add_staff = false; req.user.department_id = null;
+                if (state && effectiveFeatures(access ? (access.plan || 'STANDARD') : 'PRO', access ? access.features : null).org) {
+                    req.user.department_id = state.department_id || null;
+                    req.user.can_add_staff = state.role !== 'COMPANY_ADMIN' && state.can_add_staff === true;
+                    if (state.role !== 'COMPANY_ADMIN' && state.scope_all === false) req.user.scope = state.props || [];
+                }
             }
             next();
         } catch (e) {
@@ -923,6 +960,55 @@ function allowRoles(...allowedRoles) {
         }
         next();
     };
+}
+
+
+// ============================================================
+// PROJECT ACCESS (Pro): a person can be limited to some projects (properties)
+//   req.user.scope === null  -> sees everything in the company
+//   req.user.scope === [..]  -> sees only these property ids
+// ============================================================
+const scoped = req => Array.isArray(req.user.scope);
+// adds "AND <col> = ANY($n)" when the person is limited; params is the query parameter array
+function scopeSql(req, col, params) {
+    if (!scoped(req)) return '';
+    params.push(req.user.scope.length ? req.user.scope : [0]);
+    return ` AND ${col} = ANY($${params.length}::int[])`;
+}
+function inScope(req, propertyId) {
+    if (!scoped(req)) return true;
+    return propertyId !== null && propertyId !== undefined && req.user.scope.map(String).includes(String(propertyId));
+}
+// finds the property id(s) behind a record
+async function propertiesOf(kind, id, cId) {
+    const q = {
+        property: ['SELECT property_id FROM properties WHERE property_id = $1 AND company_id = $2'],
+        unit: ['SELECT property_id FROM units WHERE unit_id = $1 AND company_id = $2'],
+        lease: ['SELECT u.property_id FROM leases l JOIN units u ON u.unit_id = l.unit_id WHERE l.lease_id = $1 AND l.company_id = $2'],
+        tenant: ['SELECT DISTINCT u.property_id FROM leases l JOIN units u ON u.unit_id = l.unit_id WHERE l.tenant_id = $1 AND l.company_id = $2'],
+        invoice: ['SELECT u.property_id FROM invoices i JOIN leases l ON l.lease_id = i.lease_id JOIN units u ON u.unit_id = l.unit_id WHERE i.invoice_id = $1 AND i.company_id = $2'],
+        payment: ['SELECT u.property_id FROM payments py JOIN invoices i ON i.invoice_id = py.invoice_id JOIN leases l ON l.lease_id = i.lease_id JOIN units u ON u.unit_id = l.unit_id WHERE py.payment_id = $1 AND py.company_id = $2'],
+        expense: ['SELECT property_id FROM expenses WHERE expense_id = $1 AND company_id = $2'],
+        ticket: ['SELECT COALESCE(w.property_id, u.property_id) AS property_id FROM work_orders w LEFT JOIN units u ON u.unit_id = w.unit_id WHERE w.ticket_id = $1 AND COALESCE(w.company_id, u.company_id) = $2']
+    }[kind];
+    if (!q || id === undefined || id === null || id === '') return [];
+    const r = await pool.query(q[0], [id, cId]);
+    return r.rows.map(x => x.property_id);
+}
+// true when the person may touch this record. Sends the error itself when not.
+async function guard(req, res, kind, id) {
+    if (!scoped(req)) return true;
+    let ids;
+    try { ids = await propertiesOf(kind, id, req.user.company_id); } catch (e) { ids = []; }
+    // a record that belongs to no project at all (for example a general expense) is company level: not for limited people
+    if (ids.length && ids.every(p => inScope(req, p))) return true;
+    res.status(403).json({ error: 'You do not have access to this project.', code: 'OUT_OF_SCOPE' });
+    return false;
+}
+// routes that cannot be split by project: only people who see the whole company may use them
+function companyWide(req, res, next) {
+    if (scoped(req)) return res.status(403).json({ error: 'This page is for people who can see all projects.', code: 'OUT_OF_SCOPE' });
+    next();
 }
 
 // 1. AUTHENTICATION
@@ -1065,21 +1151,23 @@ app.get('/api/me', authenticateToken, async (req, res) => {
             return res.json({ company: superAdminCompanyInfo(c.rows[0] ? c.rows[0].company_name : 'Platform') });
         }
         const access = await getCompanyAccess(req.user.company_id);
-        res.json({ company: companyInfo(access) });
+        res.json({ company: companyInfo(access), access: { scoped: scoped(req), project_ids: scoped(req) ? req.user.scope : null, can_add_staff: !!req.user.can_add_staff, department_id: req.user.department_id || null } });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // PROPERTIES & UNITS FOR SELECTORS
 app.get('/api/properties', authenticateToken, async (req, res) => {
     try {
+        const params = [req.user.company_id];
+        const sc = scopeSql(req, 'p.property_id', params);
         const result = await pool.query(
             `SELECT p.*, COALESCE(p.property_name, p.title) as property_name, COUNT(u.unit_id) as total_units_count
              FROM properties p
              LEFT JOIN units u ON p.property_id = u.property_id
-             WHERE p.company_id = $1
+             WHERE p.company_id = $1 ${sc}
              GROUP BY p.property_id
              ORDER BY p.created_at DESC`,
-            [req.user.company_id]
+            params
         );
         res.json(result.rows);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -1087,6 +1175,7 @@ app.get('/api/properties', authenticateToken, async (req, res) => {
 
 app.get('/api/units/by-property/:property_id', authenticateToken, async (req, res) => {
     try {
+        if (!inScope(req, req.params.property_id)) return res.status(403).json({ error: 'You do not have access to this project.', code: 'OUT_OF_SCOPE' });
         const result = await pool.query(
             "SELECT * FROM units WHERE property_id = $1 AND company_id = $2 AND status = 'VACANT' ORDER BY unit_number ASC",
             [req.params.property_id, req.user.company_id]
@@ -1104,6 +1193,7 @@ app.post('/api/properties/wizard', authenticateToken, allowRoles('SUPER_ADMIN', 
         return res.status(400).json({ error: 'Please provide valid property details and group array.' });
     }
 
+    if (scoped(req) && !req.user.can_add_staff) return res.status(403).json({ error: 'You can work on your projects, but only a project manager can add a new one.', code: 'OUT_OF_SCOPE' });
     const propLimit = await checkLimit(req.user, 'max_properties', 'SELECT COUNT(*) FROM properties WHERE company_id = $1', 'properties');
     if (propLimit) return res.status(403).json({ error: propLimit, code: 'LIMIT_REACHED' });
 
@@ -1113,10 +1203,14 @@ app.post('/api/properties/wizard', authenticateToken, allowRoles('SUPER_ADMIN', 
         await client.query('BEGIN');
 
         const propRes = await client.query(
-            'INSERT INTO properties (company_id, property_name, title, address, category, total_units, service_charge_label) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-            [companyId, property_name, property_name, address, property_type, groups.reduce((n, g) => n + (parseInt(g.units_in_group) || 1), 0), String(req.body.service_charge_label || 'Service charge').slice(0, 60)]
+            'INSERT INTO properties (company_id, property_name, title, address, category, total_units, service_charge_label, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+            [companyId, property_name, property_name, address, property_type, groups.reduce((n, g) => n + (parseInt(g.units_in_group) || 1), 0), String(req.body.service_charge_label || 'Service charge').slice(0, 60), req.user.user_id]
         );
         const property = propRes.rows[0];
+        if (scoped(req)) {      // a project manager who opens a new project gets access to it automatically
+            await client.query('INSERT INTO user_properties (user_id, property_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.user.user_id, property.property_id]);
+            clearUserCache(req.user.user_id);
+        }
 
         for (let gIdx = 0; gIdx < groups.length; gIdx++) {
             const grp = groups[gIdx];
@@ -1160,6 +1254,7 @@ app.post('/api/properties/wizard', authenticateToken, allowRoles('SUPER_ADMIN', 
 
 // TENANT ONBOARDING WITH AUTO-INVOICE GENERATION
 app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
+    if (!inScope(req, req.body && req.body.property_id)) return res.status(403).json({ error: 'You do not have access to this project.', code: 'OUT_OF_SCOPE' });
     let client;
     try {
         const { full_name, nida_passport_no, identity_type, phone_number, property_id, unit_id, start_date, end_date, discount, paid_amount, agreed_rent } = req.body;
@@ -1322,6 +1417,8 @@ const LEASE_MANAGERS = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'];
 
 app.get('/api/tenants', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
     try {
+        const tparams = [req.user.company_id];
+        const tsc = scopeSql(req, 'p.property_id', tparams);
         const result = await pool.query(
             `SELECT * FROM (
                 SELECT DISTINCT ON (t.tenant_id)
@@ -1343,11 +1440,11 @@ app.get('/api/tenants', authenticateToken, allowRoles(...R_VIEW_MONEY), async (r
                 JOIN leases l ON t.tenant_id = l.tenant_id
                 JOIN units u ON l.unit_id = u.unit_id
                 JOIN properties p ON u.property_id = p.property_id
-                WHERE t.company_id = $1
+                WHERE t.company_id = $1 ${tsc}
                 ORDER BY t.tenant_id, (l.lease_state = 'CURRENT') DESC, l.lease_id DESC
              ) x
              ORDER BY (x.lease_state = 'CURRENT') DESC, x.tenant_id DESC`,
-            [req.user.company_id]
+            tparams
         );
         res.json(result.rows);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -1355,6 +1452,7 @@ app.get('/api/tenants', authenticateToken, allowRoles(...R_VIEW_MONEY), async (r
 
 // FULL HISTORY OF ONE TENANT (all leases, invoices, payments, activity)
 app.get('/api/tenants/:id/history', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
+    if (!(await guard(req, res, 'tenant', req.params.id))) return;
     const cId = req.user.company_id;
     const tenantId = req.params.id;
     try {
@@ -1422,6 +1520,7 @@ async function checkEditPermission(req, client, tenantId, section) {
 async function markRequestUsed(client, requestId) { if (requestId) await client.query("UPDATE edit_requests SET status = 'USED', used_at = NOW() WHERE request_id = $1", [requestId]); }
 
 app.put('/api/tenants/:id', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
+    if (!(await guard(req, res, 'tenant', req.params.id))) return;
     const { full_name, nida_passport_no, identity_type, phone_number, end_date, lease_id } = req.body;
     const tenantId = req.params.id;
     if (!full_name || !phone_number || !nida_passport_no) {
@@ -1470,6 +1569,7 @@ app.put('/api/tenants/:id', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPAN
 
 // correct a saved contract: price, discount, periods, dates (the invoice and balances follow)
 app.put('/api/leases/:id/correct', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT'), async (req, res) => {
+    if (!(await guard(req, res, 'lease', req.params.id))) return;
     const cId = req.user.company_id, b = req.body || {};
     let client;
     try {
@@ -1588,6 +1688,7 @@ app.put('/api/edit-requests/:id/cancel', authenticateToken, allowRoles('PROPERTY
 
 // RENEW CONTRACT: a NEW lease record for the same tenant and unit
 app.post('/api/leases/:id/renew', authenticateToken, allowRoles(...LEASE_MANAGERS), async (req, res) => {
+    if (!(await guard(req, res, 'lease', req.params.id))) return;
     const { start_date, end_date, rent_price, number_of_periods, discount, paid_amount } = req.body;
     const rent_period = req.body.rent_period || 'Month';
     const companyId = req.user.company_id;
@@ -1656,6 +1757,7 @@ app.post('/api/leases/:id/renew', authenticateToken, allowRoles(...LEASE_MANAGER
 
 // EXTEND STAY: same lease, later end date, extra charge as its own invoice
 app.post('/api/leases/:id/extend', authenticateToken, allowRoles(...LEASE_MANAGERS), async (req, res) => {
+    if (!(await guard(req, res, 'lease', req.params.id))) return;
     const { new_end_date, extra_periods, rent_price, discount, paid_amount } = req.body;
     const companyId = req.user.company_id;
     if (!new_end_date) return res.status(400).json({ error: 'New end date is required.' });
@@ -1727,6 +1829,7 @@ app.post('/api/leases/:id/extend', authenticateToken, allowRoles(...LEASE_MANAGE
 
 // MOVE OUT: ends the lease, frees the unit, keeps the history and any unpaid balance
 app.post('/api/leases/:id/end', authenticateToken, allowRoles(...LEASE_MANAGERS), async (req, res) => {
+    if (!(await guard(req, res, 'lease', req.params.id))) return;
     const companyId = req.user.company_id;
     let client;
     try {
@@ -1772,11 +1875,13 @@ app.post('/api/leases/:id/end', authenticateToken, allowRoles(...LEASE_MANAGERS)
 app.get('/api/dashboard/metrics', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
     const cId = req.user.company_id;
     try {
-        const totalProperties = await pool.query('SELECT COUNT(*) FROM properties WHERE company_id = $1', [cId]);
-        const totalUnits = await pool.query('SELECT COUNT(*) FROM units WHERE company_id = $1', [cId]);
-        const occupiedUnits = await pool.query("SELECT COUNT(*) FROM units WHERE company_id = $1 AND status = 'OCCUPIED'", [cId]);
-        const vacantUnits = await pool.query("SELECT COUNT(*) FROM units WHERE company_id = $1 AND status = 'VACANT'", [cId]);
-        const activeTenants = await pool.query("SELECT COUNT(DISTINCT tenant_id) FROM leases WHERE company_id = $1 AND lease_state = 'CURRENT'", [cId]);
+        const ps = [cId], us = [cId], ls = [cId];
+        const sP = scopeSql(req, 'property_id', ps), sU = scopeSql(req, 'property_id', us), sL = scopeSql(req, 'property_id', ls);
+        const totalProperties = await pool.query(`SELECT COUNT(*) FROM properties WHERE company_id = $1 ${sP}`, ps);
+        const totalUnits = await pool.query(`SELECT COUNT(*) FROM units WHERE company_id = $1 ${sU}`, us);
+        const occupiedUnits = await pool.query(`SELECT COUNT(*) FROM units WHERE company_id = $1 AND status = 'OCCUPIED' ${sU}`, us);
+        const vacantUnits = await pool.query(`SELECT COUNT(*) FROM units WHERE company_id = $1 AND status = 'VACANT' ${sU}`, us);
+        const activeTenants = await pool.query(`SELECT COUNT(DISTINCT tenant_id) FROM leases WHERE company_id = $1 AND lease_state = 'CURRENT' ${sL}`, ls);
 
         const unitsTotal = parseInt(totalUnits.rows[0]?.count || 0);
         const unitsOccupied = parseInt(occupiedUnits.rows[0]?.count || 0);
@@ -1882,11 +1987,13 @@ app.get('/api/staff', authenticateToken, async (req, res) => {
 // ============================================================
 app.get('/api/units', authenticateToken, async (req, res) => {
     try {
+        const params = [req.user.company_id];
+        const sc = scopeSql(req, 'u.property_id', params);
         const result = await pool.query(
             `SELECT u.*, COALESCE(p.property_name, p.title) AS property_name
              FROM units u JOIN properties p ON u.property_id = p.property_id
-             WHERE u.company_id = $1 ORDER BY p.property_id, u.unit_number`,
-            [req.user.company_id]
+             WHERE u.company_id = $1 ${sc} ORDER BY p.property_id, u.unit_number`,
+            params
         );
         res.json(result.rows);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -1924,12 +2031,13 @@ const UNITS_WITH_TENANT_SQL = `
 
 app.get('/api/properties/overview', authenticateToken, wrapAsync(async (req, res) => {
     const cId = req.user.company_id;
+    const pp = [cId], pu = [cId];
     const props = (await pool.query(
         `SELECT property_id, COALESCE(property_name, title) AS property_name, address, category, total_units,
                 COALESCE(service_charge_label, 'Service charge') AS service_charge_label, created_at
-         FROM properties WHERE company_id = $1 ORDER BY created_at DESC, property_id DESC`, [cId]
+         FROM properties WHERE company_id = $1 ${scopeSql(req, 'property_id', pp)} ORDER BY created_at DESC, property_id DESC`, pp
     )).rows;
-    const units = (await pool.query(`${UNITS_WITH_TENANT_SQL} ORDER BY u.property_id, u.unit_id`, [cId])).rows;
+    const units = (await pool.query(`${UNITS_WITH_TENANT_SQL} ${scopeSql(req, 'u.property_id', pu)} ORDER BY u.property_id, u.unit_id`, pu)).rows;
 
     const byProp = {};
     units.forEach(u => {
@@ -1947,6 +2055,7 @@ app.get('/api/properties/overview', authenticateToken, wrapAsync(async (req, res
 }));
 
 app.put('/api/properties/:id', authenticateToken, allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
+    if (!(await guard(req, res, 'property', req.params.id))) return;
     const { property_name, address, category, service_charge_label } = req.body;
     if (!property_name || !address) return res.status(400).json({ error: 'Property name and address are required.' });
     const r = await pool.query(
@@ -1961,6 +2070,7 @@ app.put('/api/properties/:id', authenticateToken, allowRoles(...R_MANAGE), wrapA
 }));
 
 app.post('/api/properties/:id/units', authenticateToken, allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
+    if (!(await guard(req, res, 'property', req.params.id))) return;
     const { unit_number, rent_amount, service_charge, service_inclusive } = req.body;
     const count = Math.min(100, Math.max(1, parseInt(req.body.count) || 1));
     const rent = parseFloat(rent_amount);
@@ -1987,6 +2097,7 @@ app.post('/api/properties/:id/units', authenticateToken, allowRoles(...R_MANAGE)
 }));
 
 app.put('/api/units/:id', authenticateToken, allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
+    if (!(await guard(req, res, 'unit', req.params.id))) return;
     const { unit_number, rent_amount, service_charge, service_inclusive, status } = req.body;
     const rent = parseFloat(rent_amount);
     if (!unit_number || !(rent >= 0)) return res.status(400).json({ error: 'Unit name and rent amount are required.' });
@@ -2010,6 +2121,7 @@ app.put('/api/units/:id', authenticateToken, allowRoles(...R_MANAGE), wrapAsync(
 
 // change rent / service charge of many units at once
 app.put('/api/properties/:id/bulk-units', authenticateToken, allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
+    if (!(await guard(req, res, 'property', req.params.id))) return;
     const { rent_amount, service_charge, service_inclusive, scope } = req.body;
     const sets = [], vals = [];
     if (rent_amount !== undefined && rent_amount !== '' && rent_amount !== null) {
@@ -2102,6 +2214,7 @@ async function removeProperty(client, cId, userId, ip, propertyId, force) {
         await client.query('DELETE FROM work_orders WHERE company_id = $2 AND unit_id IN (SELECT unit_id FROM units WHERE property_id = $1)', [propertyId, cId]);
     }
     await client.query('UPDATE expenses SET property_id = NULL WHERE property_id = $1 AND company_id = $2', [propertyId, cId]);
+    await client.query('DELETE FROM user_properties WHERE property_id = $1', [propertyId]);
     await client.query('DELETE FROM units WHERE property_id = $1 AND company_id = $2', [propertyId, cId]);
     await client.query('DELETE FROM properties WHERE property_id = $1 AND company_id = $2', [propertyId, cId]);
     await createAuditLog(client, cId, userId, force ? 'Deleted Property with all history' : 'Deleted Property', 'PROPERTIES', ip, { property_id: propertyId, name: pr.name });
@@ -2114,9 +2227,11 @@ async function inTx(fn) {
     finally { client.release(); }
 }
 function makeDeleter(kind, remover, roles) {
+    const gk = kind === 'Unit' ? 'unit' : null;      // people limited to some projects can only delete inside them
     // single delete
     return {
         one: async (req, res) => {
+            if (gk && !(await guard(req, res, gk, req.params.id))) return;
             try {
                 await inTx(c => remover(c, req.user.company_id, req.user.user_id, req.ip, parseInt(req.params.id), wantsForce(req)));
                 res.json({ message: kind + ' deleted.' });
@@ -2127,6 +2242,10 @@ function makeDeleter(kind, remover, roles) {
             if (!ids.length) return res.status(400).json({ error: 'Nothing selected.' });
             const force = wantsForce(req); const failed = []; let deleted = 0;
             for (const id of ids) {
+                if (gk && scoped(req)) {
+                    const pids = await propertiesOf(gk, id, req.user.company_id);
+                    if (!pids.length || !pids.every(x => inScope(req, x))) { failed.push({ id, error: 'You do not have access to this project.' }); continue; }
+                }
                 try { await inTx(c => remover(c, req.user.company_id, req.user.user_id, req.ip, id, force)); deleted++; }
                 catch (err) { failed.push({ id, error: err.message }); }
             }
@@ -2154,11 +2273,12 @@ function monthRange(ym) {
     return { start, end };
 }
 
-async function loadServiceStatus(cId, ym, propertyId) {
+async function loadServiceStatus(cId, ym, propertyId, req) {
     const range = monthRange(ym);
     const params = [cId, range.start];
     let extra = '';
     if (propertyId) { params.push(propertyId); extra = ` AND u.property_id = $${params.length}`; }
+    if (req) extra += scopeSql(req, 'u.property_id', params);
     const rows = (await pool.query(
         `SELECT u.unit_id, u.unit_number, u.property_id, COALESCE(p.property_name, p.title) AS property_name,
                 COALESCE(u.service_charge, 0) AS service_charge, COALESCE(u.service_inclusive, false) AS service_inclusive,
@@ -2200,7 +2320,8 @@ async function loadServiceStatus(cId, ym, propertyId) {
 app.get('/api/service-charges/status', authenticateToken, allowRoles(...R_VIEW_MONEY), wrapAsync(async (req, res) => {
     const ym = req.query.month || todayStr().slice(0, 7);
     if (!monthRange(ym)) return res.status(400).json({ error: 'Invalid month.' });
-    res.json(await loadServiceStatus(req.user.company_id, ym, req.query.property_id));
+    if (req.query.property_id && !inScope(req, req.query.property_id)) return res.status(403).json({ error: 'You do not have access to this project.', code: 'OUT_OF_SCOPE' });
+    res.json(await loadServiceStatus(req.user.company_id, ym, req.query.property_id, req));
 }));
 
 // creates the service-charge invoice of a month for every occupied unit that has one (never twice)
@@ -2218,6 +2339,7 @@ app.post('/api/service-charges/generate', authenticateToken, allowRoles(...R_MON
         const params = [cId, range.start, range.end];
         let extra = '';
         if (req.body.property_id) { params.push(req.body.property_id); extra = ` AND u.property_id = $${params.length}`; }
+        extra += scopeSql(req, 'u.property_id', params);
         const leases = (await client.query(
             `SELECT l.lease_id, u.service_charge, COALESCE(p.service_charge_label, 'Service charge') AS label
              FROM leases l JOIN units u ON u.unit_id = l.unit_id JOIN properties p ON p.property_id = u.property_id
@@ -2244,11 +2366,12 @@ app.post('/api/service-charges/generate', authenticateToken, allowRoles(...R_MON
 
 app.get('/api/leases', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
     try {
+        const params = [req.user.company_id];
         const result = await pool.query(
             `SELECT l.*, t.full_name AS tenant_name, u.unit_number
              FROM leases l JOIN tenants t ON l.tenant_id = t.tenant_id JOIN units u ON l.unit_id = u.unit_id
-             WHERE l.company_id = $1 ORDER BY l.lease_id DESC`,
-            [req.user.company_id]
+             WHERE l.company_id = $1 ${scopeSql(req, 'u.property_id', params)} ORDER BY l.lease_id DESC`,
+            params
         );
         res.json(result.rows);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -2276,7 +2399,8 @@ const INVOICE_BALANCES_SQL = `
     WHERE inv.company_id = $1`;
 
 app.get('/api/invoices', authenticateToken, allowRoles(...R_VIEW_MONEY), wrapAsync(async (req, res) => {
-    const result = await pool.query(`${INVOICE_BALANCES_SQL} ORDER BY inv.invoice_id DESC LIMIT 1000`, [req.user.company_id]);
+    const ip = [req.user.company_id];
+    const result = await pool.query(`${INVOICE_BALANCES_SQL} ${scopeSql(req, 'p.property_id', ip)} ORDER BY inv.invoice_id DESC LIMIT 1000`, ip);
     res.json(result.rows);
 }));
 
@@ -2292,6 +2416,7 @@ app.post('/api/invoices/issue', authenticateToken, allowRoles(...R_MONEY), wrapA
 
     const lease = await pool.query('SELECT 1 FROM leases WHERE lease_id = $1 AND company_id = $2', [lease_id, req.user.company_id]);
     if (lease.rows.length === 0) return res.status(404).json({ error: 'Tenant contract not found.' });
+    if (!(await guard(req, res, 'lease', lease_id))) return;
 
     const labels = { RENT: 'Rent', SERVICE: 'Service charge', DEPOSIT: 'Deposit', UTILITY: 'Utility bill', PENALTY: 'Penalty / late fee', REPAIR: 'Repair / damage', OTHER: 'Other charge' };
     let client;
@@ -2315,6 +2440,7 @@ app.post('/api/invoices/issue', authenticateToken, allowRoles(...R_MONEY), wrapA
 
 // delete an invoice only when nobody paid it and it is not part of the tenant's rent contract
 app.delete('/api/invoices/:id', authenticateToken, allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
+    if (!(await guard(req, res, 'invoice', req.params.id))) return;
     const inv = (await pool.query('SELECT invoice_id, COALESCE(lease_charge, true) AS lease_charge FROM invoices WHERE invoice_id = $1 AND company_id = $2', [req.params.id, req.user.company_id])).rows[0];
     if (!inv) return res.status(404).json({ error: 'Invoice not found.' });
     if (inv.lease_charge) return res.status(400).json({ error: 'This invoice belongs to the rent contract. Edit or end the contract instead.' });
@@ -2330,6 +2456,7 @@ app.post('/api/payments/record', authenticateToken, allowRoles(...R_MONEY), asyn
     const { invoice_id, amount, payment_method, payment_date, reference, notes } = req.body;
     let amt = Math.round(parseFloat(amount) * 100) / 100;
     if (!invoice_id || !(amt > 0)) return res.status(400).json({ error: 'Invoice and a valid amount are required.' });
+    if (!(await guard(req, res, 'invoice', invoice_id))) return;
     // The customer may pay in the other currency: amount is then what was handed over, and the rate (TSh per 1 USD) turns it into the invoice currency
     const recvCur = ['TZS', 'USD'].includes(String(req.body.received_currency || '').toUpperCase()) ? String(req.body.received_currency).toUpperCase() : null;
     const rate = parseFloat(req.body.exchange_rate);
@@ -2397,7 +2524,7 @@ app.get('/api/payments', authenticateToken, allowRoles(...R_VIEW_MONEY), wrapAsy
          JOIN tenants t ON l.tenant_id = t.tenant_id
          JOIN units u ON l.unit_id = u.unit_id
          JOIN properties p ON u.property_id = p.property_id
-         WHERE py.company_id = $1 ${where}
+         WHERE py.company_id = $1 ${where} ${scopeSql(req, 'u.property_id', params)}
          ORDER BY py.payment_date DESC, py.payment_id DESC LIMIT 500`, params
     )).rows;
     res.json(rows);
@@ -2458,6 +2585,7 @@ async function getReceiptData(cId, payId) {
     };
 }
 app.get('/api/payments/:id/receipt', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
+    if (!(await guard(req, res, 'payment', req.params.id))) return;
     try { res.json(await getReceiptData(req.user.company_id, req.params.id)); }
     catch (err) { if (!err.status) console.error('Receipt error:', err); res.status(err.status || 500).json({ error: err.message }); }
 });
@@ -2508,6 +2636,7 @@ async function getInvoicePrintData(cId, invId) {
     };
 }
 app.get('/api/invoices/:id/print', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
+    if (!(await guard(req, res, 'invoice', req.params.id))) return;
     try { res.json(await getInvoicePrintData(req.user.company_id, req.params.id)); }
     catch (err) { if (!err.status) console.error('Invoice print error:', err); res.status(err.status || 500).json({ error: err.message }); }
 });
@@ -2631,10 +2760,12 @@ function pdfFail(res, err) {
     if (!res.headersSent) res.status(err.status || (err.code === 'MISSING_PACKAGE' ? 501 : 500)).json({ error: err.message, code: err.code }); else res.end();
 }
 app.get('/api/invoices/:id/pdf', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
+    if (!(await guard(req, res, 'invoice', req.params.id))) return;
     try { const d = await getInvoicePrintData(req.user.company_id, req.params.id); writeInvoicePdf(res, `${d.invoice.invoice_number}.pdf`, d); }
     catch (err) { pdfFail(res, err); }
 });
 app.get('/api/payments/:id/receipt-pdf', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
+    if (!(await guard(req, res, 'payment', req.params.id))) return;
     try { const d = await getReceiptData(req.user.company_id, req.params.id); writeReceiptPdf(res, `${d.receipt_number}.pdf`, d); }
     catch (err) { pdfFail(res, err); }
 });
@@ -2651,14 +2782,16 @@ async function safeRows(sql, params) {
 
 app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
     const cId = req.user.company_id;
+    const SC = scoped(req) ? (req.user.scope.length ? req.user.scope : [0]) : null;   // project access (null = all)
+    const inSc = col => `AND ($2::int[] IS NULL OR ${col} = ANY($2::int[]))`;
     try {
         const counts = (await pool.query(
             `SELECT
-                (SELECT COUNT(*) FROM properties WHERE company_id = $1) AS properties,
-                (SELECT COUNT(*) FROM units WHERE company_id = $1) AS units,
-                (SELECT COUNT(*) FROM units WHERE company_id = $1 AND status = 'OCCUPIED') AS occupied,
-                (SELECT COUNT(DISTINCT tenant_id) FROM leases WHERE company_id = $1 AND lease_state = 'CURRENT') AS tenants`,
-            [cId]
+                (SELECT COUNT(*) FROM properties WHERE company_id = $1 ${inSc('property_id')}) AS properties,
+                (SELECT COUNT(*) FROM units WHERE company_id = $1 ${inSc('property_id')}) AS units,
+                (SELECT COUNT(*) FROM units WHERE company_id = $1 AND status = 'OCCUPIED' ${inSc('property_id')}) AS occupied,
+                (SELECT COUNT(DISTINCT tenant_id) FROM leases WHERE company_id = $1 AND lease_state = 'CURRENT' ${inSc('property_id')}) AS tenants`,
+            [cId, SC]
         )).rows[0];
 
         const unitsTotal = parseInt(counts.units);
@@ -2666,8 +2799,8 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
 
         // everything that is still owed, by invoice
         const owed = (await pool.query(
-            `${INVOICE_BALANCES_SQL} AND inv.amount_due - COALESCE(pay.paid, 0) > 0 ORDER BY inv.due_date ASC`,
-            [cId]
+            `${INVOICE_BALANCES_SQL} ${inSc('p.property_id')} AND inv.amount_due - COALESCE(pay.paid, 0) > 0 ORDER BY inv.due_date ASC`,
+            [cId, SC]
         )).rows.filter(r => r.currency === 'TZS');
 
         const bucket = (rows) => ({
@@ -2692,8 +2825,10 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
         const debtors = Object.values(byTenant).sort((a, b) => b.balance - a.balance).slice(0, 5);
 
         const collectedRow = (await pool.query(
-            "SELECT COALESCE(SUM(amount_paid), 0) AS total FROM payments_tzs WHERE company_id = $1 AND payment_date >= date_trunc('month', CURRENT_DATE)",
-            [cId]
+            `SELECT COALESCE(SUM(py.amount_paid), 0) AS total FROM payments_tzs py
+               JOIN invoices i ON i.invoice_id = py.invoice_id JOIN leases l ON l.lease_id = i.lease_id JOIN units u ON u.unit_id = l.unit_id
+              WHERE py.company_id = $1 AND py.payment_date >= date_trunc('month', CURRENT_DATE) ${inSc('u.property_id')}`,
+            [cId, SC]
         )).rows[0];
         const collectedThisMonth = parseFloat(collectedRow.total);
 
@@ -2702,8 +2837,8 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
                 COUNT(*) FILTER (WHERE end_date < CURRENT_DATE) AS expired,
                 COUNT(*) FILTER (WHERE end_date >= CURRENT_DATE AND end_date <= CURRENT_DATE + 7) AS week,
                 COUNT(*) FILTER (WHERE end_date > CURRENT_DATE + 7 AND end_date <= CURRENT_DATE + 30) AS month
-             FROM leases WHERE company_id = $1 AND lease_state = 'CURRENT'`,
-            [cId]
+             FROM leases WHERE company_id = $1 AND lease_state = 'CURRENT' ${inSc('property_id')}`,
+            [cId, SC]
         )).rows[0];
 
         // property performance = half occupancy + half collection rate
@@ -2725,8 +2860,8 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
                  WHERE inv.company_id = $1
                  GROUP BY u.property_id
              ) b ON b.property_id = p.property_id
-             WHERE p.company_id = $1`,
-            [cId]
+             WHERE p.company_id = $1 ${inSc('p.property_id')}`,
+            [cId, SC]
         )).rows;
 
         const properties = perfRows.map(r => {
@@ -2746,16 +2881,16 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
         const workloadRows = await safeRows(
             `SELECT tech.worker_id AS user_id, tech.full_name, COUNT(*) AS n, MAX(CURRENT_DATE - w.created_at::date) AS oldest
              FROM work_orders w JOIN maintenance_workers tech ON tech.worker_id = w.worker_id
-             WHERE tech.company_id = $1 AND w.status IN ('OPEN','IN_PROGRESS')
-             GROUP BY tech.worker_id, tech.full_name ORDER BY n DESC`, [cId]
+             WHERE tech.company_id = $1 AND w.status IN ('OPEN','IN_PROGRESS') ${inSc('w.property_id')}
+             GROUP BY tech.worker_id, tech.full_name ORDER BY n DESC`, [cId, SC]
         );
         const ticketRows = await safeRows(
-            "SELECT COUNT(*) AS c FROM work_orders w LEFT JOIN units u ON w.unit_id = u.unit_id WHERE COALESCE(w.company_id, u.company_id) = $1 AND w.status IN ('OPEN','IN_PROGRESS')",
-            [cId]
+            `SELECT COUNT(*) AS c FROM work_orders w LEFT JOIN units u ON w.unit_id = u.unit_id WHERE COALESCE(w.company_id, u.company_id) = $1 AND w.status IN ('OPEN','IN_PROGRESS') ${inSc('COALESCE(w.property_id, u.property_id)')}`,
+            [cId, SC]
         );
         const expenseRows = await safeRows(
-            "SELECT COALESCE(SUM(amount), 0) AS total FROM expenses_tzs WHERE company_id = $1 AND expense_date >= date_trunc('month', CURRENT_DATE)",
-            [cId]
+            `SELECT COALESCE(SUM(amount), 0) AS total FROM expenses_tzs WHERE company_id = $1 AND expense_date >= date_trunc('month', CURRENT_DATE) ${inSc('property_id')}`,
+            [cId, SC]
         );
         const expensesThisMonth = expenseRows ? parseFloat(expenseRows[0].total) : null;
 
@@ -2763,29 +2898,30 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
         const vacantList = (await pool.query(
             `SELECT u.unit_id, u.unit_number, u.rent_amount, COALESCE(p.property_name, p.title) AS property_name
              FROM units u JOIN properties p ON p.property_id = u.property_id
-             WHERE u.company_id = $1 AND u.status = 'VACANT' ORDER BY p.property_id, u.unit_number LIMIT 30`, [cId]
+             WHERE u.company_id = $1 AND u.status = 'VACANT' ${inSc('u.property_id')} ORDER BY p.property_id, u.unit_number LIMIT 30`, [cId, SC]
         )).rows;
         const expiring = (await pool.query(
             `SELECT l.lease_id, l.end_date, (l.end_date::date - CURRENT_DATE) AS days_left, t.tenant_id, t.full_name AS tenant_name, t.phone_number AS tenant_phone,
                     u.unit_number, COALESCE(p.property_name, p.title) AS property_name
              FROM leases l JOIN tenants t ON t.tenant_id = l.tenant_id JOIN units u ON u.unit_id = l.unit_id JOIN properties p ON p.property_id = u.property_id
-             WHERE l.company_id = $1 AND l.lease_state = 'CURRENT' AND l.end_date <= CURRENT_DATE + 30
-             ORDER BY l.end_date ASC LIMIT 30`, [cId]
+             WHERE l.company_id = $1 AND l.lease_state = 'CURRENT' AND l.end_date <= CURRENT_DATE + 30 ${inSc('u.property_id')}
+             ORDER BY l.end_date ASC LIMIT 30`, [cId, SC]
         )).rows;
         let service = null;
-        try { service = (await loadServiceStatus(cId, todayStr().slice(0, 7), null)).summary; } catch (e) { console.error('Overview service warning:', e.message); }
+        try { service = (await loadServiceStatus(cId, todayStr().slice(0, 7), null, req)).summary; } catch (e) { console.error('Overview service warning:', e.message); }
 
         const paySeries = (await pool.query(
             `SELECT to_char(m.month, 'YYYY-MM') AS ym,
-                    COALESCE((SELECT SUM(amount_paid) FROM payments_tzs WHERE company_id = $1 AND date_trunc('month', payment_date) = m.month), 0) AS collected
+                    COALESCE((SELECT SUM(py.amount_paid) FROM payments_tzs py JOIN invoices i ON i.invoice_id = py.invoice_id JOIN leases l ON l.lease_id = i.lease_id JOIN units u ON u.unit_id = l.unit_id
+                              WHERE py.company_id = $1 AND date_trunc('month', py.payment_date) = m.month ${inSc('u.property_id')}), 0) AS collected
              FROM generate_series(date_trunc('month', CURRENT_DATE) - interval '5 months', date_trunc('month', CURRENT_DATE), interval '1 month') AS m(month)
-             ORDER BY m.month`, [cId]
+             ORDER BY m.month`, [cId, SC]
         )).rows;
         const expSeries = await safeRows(
             `SELECT to_char(m.month, 'YYYY-MM') AS ym,
-                    COALESCE((SELECT SUM(amount) FROM expenses_tzs WHERE company_id = $1 AND date_trunc('month', expense_date) = m.month), 0) AS expenses
+                    COALESCE((SELECT SUM(amount) FROM expenses_tzs WHERE company_id = $1 AND date_trunc('month', expense_date) = m.month ${inSc('property_id')}), 0) AS expenses
              FROM generate_series(date_trunc('month', CURRENT_DATE) - interval '5 months', date_trunc('month', CURRENT_DATE), interval '1 month') AS m(month)
-             ORDER BY m.month`, [cId]
+             ORDER BY m.month`, [cId, SC]
         );
         const monthly = paySeries.map((r, i) => ({
             month: r.ym, collected: parseFloat(r.collected), expenses: expSeries && expSeries[i] ? parseFloat(expSeries[i].expenses) : 0
@@ -2855,12 +2991,220 @@ app.put('/api/company/profile', authenticateToken, allowRoles(...R_ADMIN), wrapA
 // ============================================================
 // USER MANAGEMENT (company owner / admin)
 // ============================================================
-app.get('/api/users', authenticateToken, allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
+// who may add / change people: the company administrator, and (Pro) people he gave the right to add staff
+// a list of ids from the database, whatever way the driver hands it over
+const idList2 = v => Array.isArray(v) ? v.map(Number) : String(v || '').replace(/[{}]/g, '').split(',').map(x => parseInt(x)).filter(x => x > 0);
+function canManageTeam(req, res, next) {
+    if (req.user.role === 'COMPANY_ADMIN' || req.user.role === 'SUPER_ADMIN' || req.user.can_add_staff) return next();
+    return res.status(403).json({ error: 'Access Denied: Unauthorized role permission.' });
+}
+const isAdminUser = req => req.user.role === 'COMPANY_ADMIN' || req.user.role === 'SUPER_ADMIN';
+// all people below this person (the people he added, and the people they added...)
+async function teamBelow(userId, cId) {
     const r = await pool.query(
-        `SELECT user_id, full_name, email, phone_number, role, is_active, COALESCE(can_edit_tenants, false) AS can_edit_tenants, created_at
-         FROM users WHERE company_id = $1 AND role <> 'SUPER_ADMIN' ORDER BY (role = 'COMPANY_ADMIN') DESC, full_name ASC`, [req.user.company_id]
+        `WITH RECURSIVE t AS (
+            SELECT user_id FROM users WHERE created_by = $1 AND company_id = $2
+            UNION SELECT u.user_id FROM users u JOIN t ON u.created_by = t.user_id WHERE u.company_id = $2
+         ) SELECT user_id FROM t`, [userId, cId]);
+    return r.rows.map(x => x.user_id);
+}
+async function orgEnabled(companyId) {
+    const a = await getCompanyAccess(companyId);
+    return !!effectiveFeatures(a ? (a.plan || 'STANDARD') : 'PRO', a ? a.features : null).org;
+}
+// reads and checks the department / projects part of a user form. Returns { error } or the values to save.
+async function readAccessBody(req, b, current) {
+    const cId = req.user.company_id;
+    const out = { department_id: current ? current.department_id : null, scope_all: current ? current.scope_all !== false : true, property_ids: null, can_add_staff: current ? !!current.can_add_staff : false, job_title: current ? current.job_title : null };
+    if (!(await orgEnabled(cId))) return { value: out, skip: true };
+    if (b.department_id !== undefined) {
+        if (b.department_id === null || b.department_id === '') out.department_id = null;
+        else {
+            const d = await pool.query('SELECT 1 FROM departments WHERE department_id = $1 AND company_id = $2 AND is_active = true', [b.department_id, cId]);
+            if (!d.rows.length) return { error: 'Department not found.' };
+            out.department_id = parseInt(b.department_id);
+        }
+    }
+    if (b.job_title !== undefined) out.job_title = String(b.job_title || '').trim().slice(0, 80) || null;
+    if (b.can_add_staff !== undefined) out.can_add_staff = b.can_add_staff === true;
+    if (b.scope_all !== undefined || b.property_ids !== undefined) {
+        out.scope_all = b.scope_all !== false;
+        if (!out.scope_all) {
+            const ids = [...new Set((Array.isArray(b.property_ids) ? b.property_ids : []).map(x => parseInt(x)).filter(x => x > 0))];
+            if (!ids.length) return { error: 'Choose at least one project, or choose all projects.' };
+            const ok = await pool.query('SELECT property_id FROM properties WHERE company_id = $1 AND property_id = ANY($2::int[])', [cId, ids]);
+            if (ok.rows.length !== ids.length) return { error: 'One of the projects was not found.' };
+            out.property_ids = ids;
+        }
+    }
+    // a person can only give access that he has himself
+    if (!isAdminUser(req)) {
+        if (scoped(req)) {
+            if (out.scope_all) return { error: 'You can only give access to your own projects.' };
+            if (out.property_ids && out.property_ids.some(id => !inScope(req, id))) return { error: 'You can only give access to your own projects.' };
+        }
+        if (req.user.department_id && out.department_id !== req.user.department_id && b.department_id !== undefined && out.department_id !== null) {
+            return { error: 'You can add people to your own department only.' };
+        }
+        if (!out.department_id && req.user.department_id) out.department_id = req.user.department_id;
+    }
+    return { value: out };
+}
+async function saveUserProjects(userId, ids) {
+    await pool.query('DELETE FROM user_properties WHERE user_id = $1', [userId]);
+    if (ids && ids.length) await pool.query('INSERT INTO user_properties (user_id, property_id) SELECT $1, UNNEST($2::int[]) ON CONFLICT DO NOTHING', [userId, ids]);
+}
+
+app.get('/api/users', authenticateToken, canManageTeam, wrapAsync(async (req, res) => {
+    const cId = req.user.company_id;
+    let where = "u.company_id = $1 AND u.role <> 'SUPER_ADMIN'";
+    const params = [cId];
+    if (!isAdminUser(req)) {
+        const below = await teamBelow(req.user.user_id, cId);
+        params.push([...below, req.user.user_id]);
+        where += ' AND u.user_id = ANY($2::int[])';
+    }
+    const r = await pool.query(
+        `SELECT u.user_id, u.full_name, u.email, u.phone_number, u.role, u.is_active, COALESCE(u.can_edit_tenants, false) AS can_edit_tenants, u.created_at,
+                u.department_id, d.name AS department_name, COALESCE(u.scope_all, true) AS scope_all, COALESCE(u.can_add_staff, false) AS can_add_staff, u.job_title, u.created_by,
+                COALESCE((SELECT ARRAY_AGG(up.property_id ORDER BY up.property_id) FROM user_properties up WHERE up.user_id = u.user_id), '{}') AS property_ids
+         FROM users u LEFT JOIN departments d ON d.department_id = u.department_id
+         WHERE ${where} ORDER BY (u.role = 'COMPANY_ADMIN') DESC, u.full_name ASC`, params
     );
-    res.json(r.rows);
+    res.json(r.rows.map(u => ({ ...u, property_ids: idList2(u.property_ids) })));
+}));
+
+// ---- departments (Pro) ----
+const DEPARTMENT_SUGGESTIONS = [
+    { key: 'FINANCE', names: { en: 'Finance', sw: 'Fedha', zh: '财务' }, role: 'ACCOUNTANT' },
+    { key: 'OPERATIONS', names: { en: 'Operations', sw: 'Operesheni', zh: '运营' }, role: 'PROPERTY_MANAGER' },
+    { key: 'MAINTENANCE', names: { en: 'Maintenance', sw: 'Matengenezo', zh: '维修' }, role: 'MAINTENANCE_MANAGER' },
+    { key: 'LEASING', names: { en: 'Leasing', sw: 'Upangishaji', zh: '租赁' }, role: 'PROPERTY_MANAGER' }
+];
+app.get('/api/org/departments', authenticateToken, requireFeature('org'), canManageTeam, wrapAsync(async (req, res) => {
+    const r = await pool.query(
+        `SELECT d.department_id, d.name, d.default_role, d.is_active,
+                (SELECT COUNT(*) FROM users u WHERE u.department_id = d.department_id AND u.is_active = true)::int AS members
+         FROM departments d WHERE d.company_id = $1 AND d.is_active = true ORDER BY d.name`, [req.user.company_id]);
+    res.json({ departments: r.rows, suggestions: DEPARTMENT_SUGGESTIONS });
+}));
+function readDepartment(b) {
+    const name = String(b.name || '').trim().slice(0, 80);
+    if (!name) return { error: 'Please type the department name.' };
+    const role = ALL_ROLES.includes(b.default_role) && b.default_role !== 'COMPANY_ADMIN' ? b.default_role : 'VIEWER';
+    return { name, role };
+}
+app.post('/api/org/departments', authenticateToken, requireFeature('org'), allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
+    const d = readDepartment(req.body);
+    if (d.error) return res.status(400).json({ error: d.error });
+    const dup = await pool.query('SELECT 1 FROM departments WHERE company_id = $1 AND LOWER(name) = LOWER($2) AND is_active = true', [req.user.company_id, d.name]);
+    if (dup.rows.length) return res.status(400).json({ error: 'This department already exists.' });
+    const r = await pool.query('INSERT INTO departments (company_id, name, default_role) VALUES ($1, $2, $3) ON CONFLICT (company_id, LOWER(name)) DO UPDATE SET is_active = true, default_role = EXCLUDED.default_role RETURNING department_id', [req.user.company_id, d.name, d.role]);
+    await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Added department', 'USERS', req.ip, { name: d.name });
+    res.status(201).json({ message: 'Department added.', department_id: r.rows[0].department_id });
+}));
+app.put('/api/org/departments/:id', authenticateToken, requireFeature('org'), allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
+    const d = readDepartment(req.body);
+    if (d.error) return res.status(400).json({ error: d.error });
+    const dup = await pool.query('SELECT 1 FROM departments WHERE company_id = $1 AND LOWER(name) = LOWER($2) AND is_active = true AND department_id <> $3', [req.user.company_id, d.name, req.params.id]);
+    if (dup.rows.length) return res.status(400).json({ error: 'This department already exists.' });
+    const r = await pool.query('UPDATE departments SET name = $1, default_role = $2 WHERE department_id = $3 AND company_id = $4 RETURNING department_id', [d.name, d.role, req.params.id, req.user.company_id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Department not found.' });
+    res.json({ message: 'Department saved.' });
+}));
+app.delete('/api/org/departments/:id', authenticateToken, requireFeature('org'), allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
+    const r = await pool.query('DELETE FROM departments WHERE department_id = $1 AND company_id = $2 RETURNING department_id', [req.params.id, req.user.company_id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Department not found.' });
+    await pool.query('UPDATE users SET department_id = NULL WHERE department_id = $1 AND company_id = $2', [req.params.id, req.user.company_id]);
+    clearAllUserCache();
+    res.json({ message: 'Department removed. Its people stay in the system without a department.' });
+}));
+
+
+// ---- the structure of the company: departments, projects, who works where, and how each is doing ----
+app.get('/api/org/structure', authenticateToken, requireFeature('org'), canManageTeam, wrapAsync(async (req, res) => {
+    const cId = req.user.company_id;
+    const SC = scoped(req) ? (req.user.scope.length ? req.user.scope : [0]) : null;
+    const inSc = col => `AND ($2::int[] IS NULL OR ${col} = ANY($2::int[]))`;
+
+    const projects = (await pool.query(
+        `SELECT p.property_id, COALESCE(p.property_name, p.title) AS property_name, p.address, p.category,
+                (SELECT COUNT(*) FROM units u WHERE u.property_id = p.property_id)::int AS units,
+                (SELECT COUNT(*) FROM units u WHERE u.property_id = p.property_id AND u.status = 'OCCUPIED')::int AS occupied,
+                COALESCE(b.billed, 0) AS billed, COALESCE(b.collected, 0) AS collected,
+                COALESCE(m.collected_month, 0) AS collected_month,
+                COALESCE((SELECT SUM(e.amount) FROM expenses_tzs e WHERE e.property_id = p.property_id AND e.company_id = $1 AND e.expense_date >= date_trunc('month', CURRENT_DATE)), 0) AS expenses_month,
+                COALESCE((SELECT SUM(e.amount) FROM expenses_tzs e WHERE e.property_id = p.property_id AND e.company_id = $1), 0) AS expenses_total
+         FROM properties p
+         LEFT JOIN (
+             SELECT u.property_id, SUM(inv.amount_due) AS billed, SUM(LEAST(COALESCE(pay.paid, 0), inv.amount_due)) AS collected
+             FROM invoices_tzs inv JOIN leases l ON inv.lease_id = l.lease_id JOIN units u ON l.unit_id = u.unit_id
+             LEFT JOIN (SELECT invoice_id, SUM(amount_paid) AS paid FROM payments_tzs WHERE company_id = $1 GROUP BY invoice_id) pay ON pay.invoice_id = inv.invoice_id
+             WHERE inv.company_id = $1 GROUP BY u.property_id
+         ) b ON b.property_id = p.property_id
+         LEFT JOIN (
+             SELECT u.property_id, SUM(py.amount_paid) AS collected_month
+             FROM payments_tzs py JOIN invoices i ON i.invoice_id = py.invoice_id JOIN leases l ON l.lease_id = i.lease_id JOIN units u ON u.unit_id = l.unit_id
+             WHERE py.company_id = $1 AND py.payment_date >= date_trunc('month', CURRENT_DATE) GROUP BY u.property_id
+         ) m ON m.property_id = p.property_id
+         WHERE p.company_id = $1 ${inSc('p.property_id')} ORDER BY property_name`, [cId, SC])).rows;
+
+    const people = (await pool.query(
+        `SELECT u.user_id, u.full_name, u.email, u.role, u.is_active, u.job_title, u.department_id, COALESCE(u.scope_all, true) AS scope_all, COALESCE(u.can_add_staff, false) AS can_add_staff, u.created_by,
+                COALESCE((SELECT ARRAY_AGG(up.property_id) FROM user_properties up WHERE up.user_id = u.user_id), '{}') AS property_ids,
+                COALESCE((SELECT SUM(py.amount_paid) FROM payments_tzs py WHERE py.recorded_by = u.user_id AND py.payment_date >= date_trunc('month', CURRENT_DATE)), 0) AS recorded_month,
+                (SELECT COUNT(*) FROM payments py WHERE py.recorded_by = u.user_id AND py.payment_date >= date_trunc('month', CURRENT_DATE))::int AS payments_month,
+                COALESCE((SELECT SUM(e.amount) FROM expenses_tzs e WHERE e.recorded_by = u.user_id AND e.expense_date >= date_trunc('month', CURRENT_DATE)), 0) AS expenses_month
+         FROM users u WHERE u.company_id = $1 AND u.role <> 'SUPER_ADMIN' ORDER BY u.full_name`, [cId])).rows.map(u => ({ ...u, property_ids: idList2(u.property_ids) }));
+
+    const allowedIds = SC ? new Set(SC.map(String)) : null;
+    const visiblePeople = people.filter(u => {
+        if (!allowedIds) return true;
+        // a limited person sees the people who work on his projects
+        return u.scope_all ? u.role === 'COMPANY_ADMIN' ? false : true : u.property_ids.some(id => allowedIds.has(String(id)));
+    });
+    const depts = (await pool.query('SELECT department_id, name, default_role FROM departments WHERE company_id = $1 AND is_active = true ORDER BY name', [cId])).rows;
+
+    const nameOf = {}; projects.forEach(p => { nameOf[p.property_id] = p.property_name; });
+    const personOut = u => ({
+        user_id: u.user_id, full_name: u.full_name, role: u.role, is_active: u.is_active, job_title: u.job_title, can_add_staff: u.can_add_staff,
+        all_projects: u.scope_all, projects: u.scope_all ? [] : u.property_ids.filter(id => nameOf[id]).map(id => ({ property_id: id, name: nameOf[id] }))
+    });
+
+    const projectsOut = projects.map(p => {
+        const billed = parseFloat(p.billed), collected = parseFloat(p.collected);
+        const occupancy = p.units > 0 ? Math.round(p.occupied / p.units * 100) : 0;
+        const collection = billed > 0 ? Math.round(collected / billed * 100) : null;
+        const staff = visiblePeople.filter(u => !u.scope_all && u.property_ids.map(String).includes(String(p.property_id)));
+        const wide = visiblePeople.filter(u => u.scope_all && u.role !== 'COMPANY_ADMIN');
+        return {
+            property_id: p.property_id, property_name: p.property_name, address: p.address, category: p.category,
+            units: p.units, occupied: p.occupied, vacant: p.units - p.occupied, occupancy_rate: occupancy,
+            billed, collected, outstanding: Math.max(0, billed - collected), collection_rate: collection,
+            collected_month: parseFloat(p.collected_month), expenses_month: parseFloat(p.expenses_month), profit_month: parseFloat(p.collected_month) - parseFloat(p.expenses_month),
+            profit_total: collected - parseFloat(p.expenses_total),
+            staff: staff.map(personOut), company_wide_count: wide.length
+        };
+    });
+
+    const mk = (list) => ({
+        members: list.map(personOut), count: list.length,
+        recorded_month: list.reduce((n, u) => n + parseFloat(u.recorded_month), 0), payments_month: list.reduce((n, u) => n + u.payments_month, 0),
+        expenses_month: list.reduce((n, u) => n + parseFloat(u.expenses_month), 0)
+    });
+    const departmentsOut = depts.map(d => ({ department_id: d.department_id, name: d.name, default_role: d.default_role, ...mk(visiblePeople.filter(u => u.department_id === d.department_id)) }));
+    const noDept = visiblePeople.filter(u => !u.department_id && u.role !== 'COMPANY_ADMIN');
+    const admins = people.filter(u => u.role === 'COMPANY_ADMIN');
+
+    const sum = k => projectsOut.reduce((n, p) => n + p[k], 0);
+    res.json({
+        totals: { projects: projectsOut.length, units: sum('units'), occupied: sum('occupied'), collected_month: sum('collected_month'), expenses_month: sum('expenses_month'), profit_month: sum('profit_month'), outstanding: sum('outstanding'), people: visiblePeople.length },
+        owner_level: SC === null,
+        admins: SC === null ? admins.map(personOut) : [],
+        departments: departmentsOut,
+        without_department: mk(noDept),
+        projects: projectsOut
+    });
 }));
 
 app.get('/api/workers', authenticateToken, allowRoles(...R_TICKETS), wrapAsync(async (req, res) => {
@@ -2907,35 +3251,52 @@ app.delete('/api/workers/:id', authenticateToken, allowRoles(...R_TICKETS), wrap
 }));
 
 
-app.post('/api/users', authenticateToken, allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
+app.post('/api/users', authenticateToken, canManageTeam, wrapAsync(async (req, res) => {
     const { full_name, email, phone_number, password, role } = req.body;
     if (!full_name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required.' });
     if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
     if (!ALL_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
+    if (role === 'COMPANY_ADMIN' && !isAdminUser(req)) return res.status(403).json({ error: 'Only the company administrator can add another administrator.' });
     if (!/^\S+@\S+\.\S+$/.test(String(email).trim())) return res.status(400).json({ error: 'Please enter a valid email address.' });
     const staffLimit = await checkLimit(req.user, 'max_staff', "SELECT COUNT(*) FROM users WHERE company_id = $1 AND role <> 'COMPANY_ADMIN'", 'staff members');
     if (staffLimit && role !== 'COMPANY_ADMIN') return res.status(403).json({ error: staffLimit, code: 'LIMIT_REACHED' });
+    const acc = await readAccessBody(req, req.body, null);
+    if (acc.error) return res.status(400).json({ error: acc.error });
+    const v = acc.value;
+    if (role === 'COMPANY_ADMIN') { v.scope_all = true; v.property_ids = null; }
 
     const cleanEmail = String(email).trim().toLowerCase();
     const exists = await pool.query('SELECT 1 FROM users WHERE LOWER(email) = $1', [cleanEmail]);
     if (exists.rows.length > 0) return res.status(400).json({ error: 'This email is already registered.' });
     const hashed = await bcrypt.hash(String(password), 10);
     const r = await pool.query(
-        `INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active, can_edit_tenants)
-         VALUES ($1, $2, $3, $4, $5, $6, true, $7) RETURNING user_id`,
-        [req.user.company_id, String(full_name).trim(), cleanEmail, hashed, phone_number || null, role, role === 'COMPANY_ADMIN']
+        `INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active, can_edit_tenants, department_id, scope_all, can_add_staff, created_by, job_title)
+         VALUES ($1, $2, $3, $4, $5, $6, true, $7, $8, $9, $10, $11, $12) RETURNING user_id`,
+        [req.user.company_id, String(full_name).trim(), cleanEmail, hashed, phone_number || null, role, role === 'COMPANY_ADMIN', v.department_id, v.scope_all, v.can_add_staff && role !== 'COMPANY_ADMIN', req.user.user_id, v.job_title]
     );
+    if (!v.scope_all) await saveUserProjects(r.rows[0].user_id, v.property_ids);
     await createAuditLog(pool, req.user.company_id, req.user.user_id, `Added user (${role})`, 'USERS', req.ip, { email: cleanEmail });
     res.status(201).json({ message: 'User added.', user_id: r.rows[0].user_id });
 }));
 
-app.put('/api/users/:id', authenticateToken, allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
+// a delegate (not the administrator) may only change people below him
+async function mayChange(req, res, targetId) {
+    if (isAdminUser(req)) return true;
+    const below = await teamBelow(req.user.user_id, req.user.company_id);
+    if (below.map(String).includes(String(targetId))) return true;
+    res.status(403).json({ error: 'You can only change the people you added.', code: 'OUT_OF_SCOPE' });
+    return false;
+}
+
+app.put('/api/users/:id', authenticateToken, canManageTeam, wrapAsync(async (req, res) => {
     const { full_name, phone_number, role, is_active, can_edit_tenants, password } = req.body;
     const cId = req.user.company_id;
-    const target = (await pool.query("SELECT user_id, role, is_active FROM users WHERE user_id = $1 AND company_id = $2 AND role <> 'SUPER_ADMIN'", [req.params.id, cId])).rows[0];
+    const target = (await pool.query("SELECT user_id, role, is_active, department_id, scope_all, can_add_staff, job_title FROM users WHERE user_id = $1 AND company_id = $2 AND role <> 'SUPER_ADMIN'", [req.params.id, cId])).rows[0];
     if (!target) return res.status(404).json({ error: 'User not found.' });
+    if (!(await mayChange(req, res, target.user_id))) return;
     if (!full_name) return res.status(400).json({ error: 'Name is required.' });
     if (!ALL_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
+    if ((role === 'COMPANY_ADMIN' || target.role === 'COMPANY_ADMIN') && !isAdminUser(req)) return res.status(403).json({ error: 'Only the company administrator can do this.' });
     if (password && String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
 
     const isSelf = String(target.user_id) === String(req.user.user_id);
@@ -2947,27 +3308,39 @@ app.put('/api/users/:id', authenticateToken, allowRoles(...R_ADMIN), wrapAsync(a
         if (parseInt(others) === 0) return res.status(400).json({ error: 'The company needs at least one active administrator.' });
     }
 
-    const sets = ['full_name = $1', 'phone_number = $2', 'role = $3', 'is_active = $4', 'can_edit_tenants = $5'];
-    const vals = [String(full_name).trim(), phone_number || null, role, is_active !== false, can_edit_tenants === true];
+    const acc = await readAccessBody(req, req.body, target);
+    if (acc.error) return res.status(400).json({ error: acc.error });
+    const v = acc.value;
+    if (isSelf && !isAdminUser(req) && (req.body.scope_all !== undefined || req.body.property_ids !== undefined || req.body.can_add_staff !== undefined)) {
+        return res.status(400).json({ error: 'You cannot change your own access.' });
+    }
+    if (role === 'COMPANY_ADMIN') { v.scope_all = true; v.property_ids = null; v.can_add_staff = false; }
+
+    const sets = ['full_name = $1', 'phone_number = $2', 'role = $3', 'is_active = $4', 'can_edit_tenants = $5', 'department_id = $6', 'scope_all = $7', 'can_add_staff = $8', 'job_title = $9'];
+    const vals = [String(full_name).trim(), phone_number || null, role, is_active !== false, can_edit_tenants === true, v.department_id, v.scope_all, v.can_add_staff, v.job_title];
     if (password) { vals.push(await bcrypt.hash(String(password), 10)); sets.push(`password_hash = $${vals.length}`); }
     vals.push(target.user_id, cId);
     await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE user_id = $${vals.length - 1} AND company_id = $${vals.length}`, vals);
+    if (req.body.scope_all !== undefined || req.body.property_ids !== undefined) await saveUserProjects(target.user_id, v.scope_all ? [] : v.property_ids);
     clearUserCache(target.user_id);
     await createAuditLog(pool, cId, req.user.user_id, 'Updated user', 'USERS', req.ip, { user_id: target.user_id, role });
     res.json({ message: 'User updated.' });
 }));
 
-app.delete('/api/users/:id', authenticateToken, allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
+app.delete('/api/users/:id', authenticateToken, canManageTeam, wrapAsync(async (req, res) => {
     const cId = req.user.company_id;
     const target = (await pool.query("SELECT user_id, role FROM users WHERE user_id = $1 AND company_id = $2 AND role <> 'SUPER_ADMIN'", [req.params.id, cId])).rows[0];
     if (!target) return res.status(404).json({ error: 'User not found.' });
+    if (!(await mayChange(req, res, target.user_id))) return;
     if (String(target.user_id) === String(req.user.user_id)) return res.status(400).json({ error: 'You cannot delete your own account.' });
     if (target.role === 'COMPANY_ADMIN') {
+        if (!isAdminUser(req)) return res.status(403).json({ error: 'Only the company administrator can do this.' });
         const others = (await pool.query("SELECT COUNT(*) AS c FROM users WHERE company_id = $1 AND role = 'COMPANY_ADMIN' AND is_active = true AND user_id <> $2", [cId, target.user_id])).rows[0].c;
         if (parseInt(others) === 0) return res.status(400).json({ error: 'The company needs at least one active administrator.' });
     }
     try {
         await pool.query('DELETE FROM users WHERE user_id = $1 AND company_id = $2', [target.user_id, cId]);
+        await pool.query('DELETE FROM user_properties WHERE user_id = $1', [target.user_id]);
         clearUserCache(target.user_id);
         res.json({ message: 'User deleted.' });
     } catch (err) {
@@ -2992,6 +3365,7 @@ app.get('/api/expenses', authenticateToken, allowRoles(...R_VIEW_MONEY), wrapAsy
     if (isDateStr(req.query.to)) { params.push(req.query.to); where += ` AND e.expense_date <= $${params.length}`; }
     if (req.query.property_id) { params.push(req.query.property_id); where += ` AND e.property_id = $${params.length}`; }
     if (req.query.category) { params.push(req.query.category); where += ` AND e.category = $${params.length}`; }
+    where += scopeSql(req, 'e.property_id', params);
     const rows = (await pool.query(
         `SELECT e.expense_id, e.description, e.amount, e.category, e.expense_date, e.property_id, e.payee, e.notes, e.ticket_id, COALESCE(e.currency, 'TZS') AS currency, e.account_id, fa.name AS account_name,
                 COALESCE(p.property_name, p.title) AS property_name, u.full_name AS recorded_by_name
@@ -3020,6 +3394,7 @@ app.post('/api/expenses', authenticateToken, allowRoles(...R_MONEY), wrapAsync(a
     const r = readExpenseBody(req.body);
     if (r.error) return res.status(400).json({ error: r.error });
     const v = r.value;
+    if (scoped(req) && !inScope(req, v.property_id)) return res.status(403).json({ error: 'Choose one of your projects.', code: 'OUT_OF_SCOPE' });
     if (v.property_id) {
         const ok = await pool.query('SELECT 1 FROM properties WHERE property_id = $1 AND company_id = $2', [v.property_id, req.user.company_id]);
         if (ok.rows.length === 0) return res.status(404).json({ error: 'Property not found.' });
@@ -3035,9 +3410,11 @@ app.post('/api/expenses', authenticateToken, allowRoles(...R_MONEY), wrapAsync(a
 }));
 
 app.put('/api/expenses/:id', authenticateToken, allowRoles(...R_MONEY), wrapAsync(async (req, res) => {
+    if (!(await guard(req, res, 'expense', req.params.id))) return;
     const r = readExpenseBody(req.body);
     if (r.error) return res.status(400).json({ error: r.error });
     const v = r.value;
+    if (scoped(req) && !inScope(req, v.property_id)) return res.status(403).json({ error: 'Choose one of your projects.', code: 'OUT_OF_SCOPE' });
     const accId = await checkAccount(pool, req.user.company_id, v.account_id, v.currency);
     const upd = await pool.query(
         `UPDATE expenses SET property_id = $1, description = $2, amount = $3, category = $4, expense_date = $5, payee = $6, notes = $7, currency = $10, account_id = $11
@@ -3050,6 +3427,7 @@ app.put('/api/expenses/:id', authenticateToken, allowRoles(...R_MONEY), wrapAsyn
 }));
 
 app.delete('/api/expenses/:id', authenticateToken, allowRoles(...R_MONEY), wrapAsync(async (req, res) => {
+    if (!(await guard(req, res, 'expense', req.params.id))) return;
     const r = await pool.query('DELETE FROM expenses WHERE expense_id = $1 AND company_id = $2 RETURNING expense_id', [req.params.id, req.user.company_id]);
     if (r.rows.length === 0) return res.status(404).json({ error: 'Expense not found.' });
     await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Deleted Expense', 'EXPENSES', req.ip, { expense_id: req.params.id });
@@ -3064,7 +3442,7 @@ const TICKET_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CANCELLED'];
 
 app.get('/api/tickets', authenticateToken, requireFeature('tickets'), allowRoles(...R_TICKETS, 'ACCOUNTANT', 'VIEWER'), wrapAsync(async (req, res) => {
     const params = [req.user.company_id];
-    let where = '';
+    let where = scopeSql(req, 'COALESCE(w.property_id, u.property_id)', params);
     const rows = (await pool.query(
         `SELECT w.ticket_id, w.title, w.description, w.priority, w.status, w.estimated_cost, w.actual_cost, w.notes, w.created_at, w.resolved_at,
                 w.unit_id, COALESCE(w.property_id, u.property_id) AS property_id, w.worker_id AS assigned_technician_id,
@@ -3090,7 +3468,9 @@ app.post('/api/tickets', authenticateToken, requireFeature('tickets'), allowRole
         const u = (await pool.query('SELECT property_id FROM units WHERE unit_id = $1 AND company_id = $2', [unitId, cId])).rows[0];
         if (!u) return res.status(404).json({ error: 'Unit not found.' });
         propId = u.property_id;
-    } else {
+    }
+    if (!inScope(req, propId)) return res.status(403).json({ error: 'You do not have access to this project.', code: 'OUT_OF_SCOPE' });
+    if (!unitId) {
         const ok = await pool.query('SELECT 1 FROM properties WHERE property_id = $1 AND company_id = $2', [propId, cId]);
         if (ok.rows.length === 0) return res.status(404).json({ error: 'Property not found.' });
     }
@@ -3111,6 +3491,7 @@ app.post('/api/tickets', authenticateToken, requireFeature('tickets'), allowRole
 }));
 
 app.put('/api/tickets/:id', authenticateToken, requireFeature('tickets'), allowRoles(...R_TICKETS), async (req, res) => {
+    if (!(await guard(req, res, 'ticket', req.params.id))) return;
     const cId = req.user.company_id;
     let client;
     try {
@@ -3172,6 +3553,7 @@ app.put('/api/tickets/:id', authenticateToken, requireFeature('tickets'), allowR
 });
 
 app.delete('/api/tickets/:id', authenticateToken, requireFeature('tickets'), allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
+    if (!(await guard(req, res, 'ticket', req.params.id))) return;
     const r = await pool.query(
         `DELETE FROM work_orders w USING (SELECT ticket_id FROM work_orders w2 LEFT JOIN units u ON u.unit_id = w2.unit_id WHERE w2.ticket_id = $1 AND COALESCE(w2.company_id, u.company_id) = $2) x
          WHERE w.ticket_id = x.ticket_id RETURNING w.ticket_id`, [req.params.id, req.user.company_id]
@@ -3261,7 +3643,7 @@ function lukuLowFlag(available, threshold) {
     return 'OK';
 }
 
-app.get('/api/luku/summary', authenticateToken, requireFeature('luku'), allowRoles(...R_VIEW_MONEY), wrapAsync(async (req, res) => {
+app.get('/api/luku/summary', authenticateToken, companyWide, requireFeature('luku'), allowRoles(...R_VIEW_MONEY), wrapAsync(async (req, res) => {
     const cId = req.user.company_id;
     const thr = parseInt((await pool.query('SELECT COALESCE(luku_low_threshold, 5) AS t FROM companies WHERE company_id = $1', [cId])).rows[0].t);
     const groups = (await pool.query(
@@ -3274,7 +3656,7 @@ app.get('/api/luku/summary', authenticateToken, requireFeature('luku'), allowRol
     res.json({ threshold: thr, groups, low_count: groups.filter(g => g.flag !== 'OK').length, month_sales: { count: parseInt(sales.n), total: parseFloat(sales.total) } });
 }));
 
-app.post('/api/luku/stock/upload', authenticateToken, requireFeature('luku'), allowRoles(...R_MANAGE), async (req, res) => {
+app.post('/api/luku/stock/upload', authenticateToken, companyWide, requireFeature('luku'), allowRoles(...R_MANAGE), async (req, res) => {
     const { filename, data } = req.body;
     if (!data) return res.status(400).json({ error: 'Please choose a file.' });
     const cId = req.user.company_id;
@@ -3352,7 +3734,7 @@ app.post('/api/luku/stock/upload', authenticateToken, requireFeature('luku'), al
     } finally { if (client) client.release(); }
 });
 
-app.post('/api/luku/sell', authenticateToken, requireFeature('luku'), allowRoles(...R_MONEY), async (req, res) => {
+app.post('/api/luku/sell', authenticateToken, companyWide, requireFeature('luku'), allowRoles(...R_MONEY), async (req, res) => {
     const { unit_name, price, customer_name, customer_phone } = req.body;
     const amount = parseFloat(price);
     if (!unit_name || !(amount > 0)) return res.status(400).json({ error: 'Choose the unit and the price.' });
@@ -3393,7 +3775,7 @@ app.post('/api/luku/sell', authenticateToken, requireFeature('luku'), allowRoles
     } finally { if (client) client.release(); }
 });
 
-app.get('/api/luku/sales', authenticateToken, requireFeature('luku'), allowRoles(...R_VIEW_MONEY), wrapAsync(async (req, res) => {
+app.get('/api/luku/sales', authenticateToken, companyWide, requireFeature('luku'), allowRoles(...R_VIEW_MONEY), wrapAsync(async (req, res) => {
     const params = [req.user.company_id];
     let where = '';
     if (isDateStr(req.query.from)) { params.push(req.query.from); where += ` AND v.sold_at::date >= $${params.length}`; }
@@ -3407,14 +3789,14 @@ app.get('/api/luku/sales', authenticateToken, requireFeature('luku'), allowRoles
 }));
 
 // remove unsold tokens uploaded by mistake
-app.delete('/api/luku/stock', authenticateToken, requireFeature('luku'), allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
+app.delete('/api/luku/stock', authenticateToken, companyWide, requireFeature('luku'), allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
     const { unit_name, price } = req.query;
     if (!unit_name || !(parseFloat(price) > 0)) return res.status(400).json({ error: 'Unit and price are required.' });
     const r = await pool.query("DELETE FROM luku_stock WHERE company_id = $1 AND unit_name = $2 AND price = $3 AND status = 'AVAILABLE' RETURNING stock_id", [req.user.company_id, unit_name, parseFloat(price)]);
     res.json({ message: `${r.rows.length} unsold token(s) removed.` });
 }));
 
-app.get('/api/luku/template', authenticateToken, requireFeature('luku'), async (req, res) => {
+app.get('/api/luku/template', authenticateToken, companyWide, requireFeature('luku'), async (req, res) => {
     // Excel version keeps the token column as Text, so Excel can never round the long numbers
     try {
         const ExcelJS = loadOptional('exceljs');
@@ -3912,8 +4294,14 @@ async function buildReport(req) {
     if (to < from) { const t = from; from = to; to = t; }
     const cId = req.user.company_id;
     let propertyId = null, propertyName = 'All properties';
-    if (req.query.property_id) {
-        const p = (await pool.query('SELECT property_id, COALESCE(property_name, title) AS n FROM properties WHERE property_id = $1 AND company_id = $2', [req.query.property_id, cId])).rows[0];
+    let wantedProp = req.query.property_id;
+    if (scoped(req)) {      // a person limited to some projects gets the report of one project at a time
+        if (!wantedProp && req.user.scope.length === 1) wantedProp = req.user.scope[0];
+        if (!wantedProp) { const e = new Error('Please choose a project.'); e.status = 400; e.code = 'CHOOSE_PROJECT'; throw e; }
+        if (!inScope(req, wantedProp)) { const e = new Error('You do not have access to this project.'); e.status = 403; e.code = 'OUT_OF_SCOPE'; throw e; }
+    }
+    if (wantedProp) {
+        const p = (await pool.query('SELECT property_id, COALESCE(property_name, title) AS n FROM properties WHERE property_id = $1 AND company_id = $2', [wantedProp, cId])).rows[0];
         if (!p) { const e = new Error('Property not found.'); e.status = 404; throw e; }
         propertyId = p.property_id; propertyName = p.n;
     }
@@ -4107,7 +4495,7 @@ app.get('/api/reports/export', authenticateToken, allowRoles(...R_VIEW_MONEY), a
 // ============================================================
 const INCOME_CATEGORIES = ['RENT', 'DEPOSIT', 'SERVICE', 'LUKU', 'INTEREST', 'SALE', 'OTHER'];
 
-app.get('/api/finance/accounts', authenticateToken, allowRoles(...R_FIN_VIEW), wrapAsync(async (req, res) => {
+app.get('/api/finance/accounts', authenticateToken, companyWide, allowRoles(...R_FIN_VIEW), wrapAsync(async (req, res) => {
     const cId = req.user.company_id;
     const rows = (await pool.query(
         `SELECT a.account_id, a.name, a.currency, a.kind, a.opening_balance, a.is_active, a.created_at,
@@ -4134,7 +4522,7 @@ function readAccountBody(b) {
     return { value: { name, currency: cleanCur(b.currency), kind, opening } };
 }
 
-app.post('/api/finance/accounts', authenticateToken, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
+app.post('/api/finance/accounts', authenticateToken, companyWide, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
     const r = readAccountBody(req.body);
     if (r.error) return res.status(400).json({ error: r.error });
     const v = r.value;
@@ -4147,7 +4535,7 @@ app.post('/api/finance/accounts', authenticateToken, allowRoles(...R_FIN_WRITE),
     res.status(201).json({ message: 'Account created.', account_id: ins.rows[0].account_id });
 }));
 
-app.put('/api/finance/accounts/:id', authenticateToken, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
+app.put('/api/finance/accounts/:id', authenticateToken, companyWide, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
     const r = readAccountBody(req.body);
     if (r.error) return res.status(400).json({ error: r.error });
     const v = r.value;
@@ -4164,7 +4552,7 @@ app.put('/api/finance/accounts/:id', authenticateToken, allowRoles(...R_FIN_WRIT
     res.json({ message: 'Account saved.' });
 }));
 
-app.delete('/api/finance/accounts/:id', authenticateToken, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
+app.delete('/api/finance/accounts/:id', authenticateToken, companyWide, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
     const used = await pool.query(
         `SELECT (SELECT COUNT(*) FROM payments WHERE account_id = $1) + (SELECT COUNT(*) FROM expenses WHERE account_id = $1) + (SELECT COUNT(*) FROM finance_income WHERE account_id = $1) AS n`, [req.params.id]);
     if (parseInt(used.rows[0].n) > 0) {
@@ -4194,7 +4582,7 @@ async function checkPropertyOwn(companyId, propertyId) {
     const ok = await pool.query('SELECT 1 FROM properties WHERE property_id = $1 AND company_id = $2', [propertyId, companyId]);
     if (!ok.rows.length) { const e = new Error('Property not found.'); e.status = 404; throw e; }
 }
-app.post('/api/finance/income', authenticateToken, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
+app.post('/api/finance/income', authenticateToken, companyWide, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
     const r = readIncomeBody(req.body);
     if (r.error) return res.status(400).json({ error: r.error });
     const v = r.value;
@@ -4207,7 +4595,7 @@ app.post('/api/finance/income', authenticateToken, allowRoles(...R_FIN_WRITE), w
     await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Recorded Income', 'FINANCE', req.ip, { income_id: ins.rows[0].income_id, amount: v.amount, currency: v.currency });
     res.status(201).json({ message: 'Income saved.', income_id: ins.rows[0].income_id });
 }));
-app.put('/api/finance/income/:id', authenticateToken, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
+app.put('/api/finance/income/:id', authenticateToken, companyWide, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
     const r = readIncomeBody(req.body);
     if (r.error) return res.status(400).json({ error: r.error });
     const v = r.value;
@@ -4221,7 +4609,7 @@ app.put('/api/finance/income/:id', authenticateToken, allowRoles(...R_FIN_WRITE)
     await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Edited Income', 'FINANCE', req.ip, { income_id: req.params.id });
     res.json({ message: 'Income updated.' });
 }));
-app.delete('/api/finance/income/:id', authenticateToken, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
+app.delete('/api/finance/income/:id', authenticateToken, companyWide, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
     const d = await pool.query('DELETE FROM finance_income WHERE income_id = $1 AND company_id = $2 RETURNING income_id', [req.params.id, req.user.company_id]);
     if (!d.rows.length) return res.status(404).json({ error: 'Income record not found.' });
     await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Deleted Income', 'FINANCE', req.ip, { income_id: req.params.id });
@@ -4353,12 +4741,12 @@ async function buildLedger(req) {
     };
 }
 
-app.get('/api/finance/ledger', authenticateToken, allowRoles(...R_FIN_VIEW), wrapAsync(async (req, res) => {
+app.get('/api/finance/ledger', authenticateToken, companyWide, allowRoles(...R_FIN_VIEW), wrapAsync(async (req, res) => {
     res.json(await buildLedger(req));
 }));
 
 // units for the filter (all units of the chosen properties)
-app.get('/api/finance/units', authenticateToken, allowRoles(...R_FIN_VIEW), wrapAsync(async (req, res) => {
+app.get('/api/finance/units', authenticateToken, companyWide, allowRoles(...R_FIN_VIEW), wrapAsync(async (req, res) => {
     const props = idList(req.query.property_ids);
     const a = [req.user.company_id]; let w = '';
     if (props.length) { a.push(props); w = ' AND u.property_id = ANY($2::int[])'; }
@@ -4369,7 +4757,7 @@ app.get('/api/finance/units', authenticateToken, allowRoles(...R_FIN_VIEW), wrap
 }));
 
 // Quick review for the top of the Finance page: this month and this year, one block per currency
-app.get('/api/finance/overview', authenticateToken, allowRoles(...R_FIN_VIEW), wrapAsync(async (req, res) => {
+app.get('/api/finance/overview', authenticateToken, companyWide, allowRoles(...R_FIN_VIEW), wrapAsync(async (req, res) => {
     const t = todayStr();
     const mk = async (from) => (await buildLedger({ user: req.user, query: { from, to: t, currency: 'ALL', kind: 'all', group: 'month' } }));
     const month = await mk(t.slice(0, 8) + '01'), year = await mk(t.slice(0, 5) + '01-01');
@@ -4419,7 +4807,7 @@ function ledgerReport(L, view) {
              from: L.from, to: L.to, summary, columns, rows };
 }
 
-app.get('/api/finance/export', authenticateToken, allowRoles(...R_FIN_VIEW), async (req, res) => {
+app.get('/api/finance/export', authenticateToken, companyWide, allowRoles(...R_FIN_VIEW), async (req, res) => {
     try {
         const L = await buildLedger(req);
         const view = ['statement', 'summary', 'accounts', 'income', 'expenses'].includes(req.query.view) ? req.query.view : 'statement';
