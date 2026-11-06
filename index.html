@@ -3773,7 +3773,7 @@
         const nativeFetch = window.fetch.bind(window);
         window.fetch = async (url, opts) => {
             const res = await nativeFetch(url, opts);
-            if ((res.status === 401 || res.status === 403) && !String(url).includes('/api/auth/login')) {
+            if ((res.status === 401 || res.status === 403) && !/\/api\/auth\/(login|admin-login|forgot-password|reset-password|register-company)/.test(String(url))) {
                 try {
                     const data = await res.clone().json();
                     if (LOCK_CODES.includes(data.code)) showLockedScreen(data.error);
