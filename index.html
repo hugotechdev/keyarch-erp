@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KEY ARCH ERP — Multi-Tenant Property Management SaaS</title>
+    <title>KEY ARCH — Property Management System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/style.css">
@@ -283,6 +283,14 @@
         html[data-theme="dark"] #ka-loader .ka-load-text { color: #8da2c8; }
         html[data-theme="coffee"] #ka-loader .ka-load-text { color: #D9AE4E; }
         @media print { #ka-loader { display: none !important; } }
+        /* ===== language switch ===== */
+        .ka-lang-switch { display: flex; gap: 4px; }
+        .ka-lang-btn { font: 700 11px/1 system-ui, sans-serif; padding: 6px 9px; border-radius: 999px; border: 1px solid #233863; background: #14223d; color: #9fb0cf; cursor: pointer; }
+        .ka-lang-btn.on { background: #2563eb; color: #fff; border-color: #2563eb; }
+        html[data-theme="light"] .ka-lang-btn { background: #EFF2F9; border-color: #D5DCEB; color: #4a5a7a; }
+        html[data-theme="light"] .ka-lang-btn.on { background: #2563eb; color: #fff; border-color: #2563eb; }
+        html[data-theme="coffee"] .ka-lang-btn { background: #241B14; border-color: #4a3826; color: #cdb98f; }
+        html[data-theme="coffee"] .ka-lang-btn.on { background: var(--ka-gold, #D9AE4E); color: #1a130d; border-color: #D9AE4E; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between text-gray-100 font-sans">
@@ -308,13 +316,14 @@
 
     <!-- VIEW 1: AUTHENTICATION PORTAL -->
     <div id="view-login" class="flex-grow flex items-center justify-center p-4 relative">
+        <div class="absolute top-4 left-4 ka-lang-switch z-10"></div>
         <button type="button" onclick="toggleTheme()" title="Light / Dark" aria-label="Switch light or dark mode" class="absolute top-4 right-4 w-10 h-10 rounded-full bg-[#14223d] text-gray-300 hover:text-white flex items-center justify-center z-10"><i class="fa-solid fa-moon theme-icon-el"></i></button>
         <div class="bg-[#0a1224] border border-[#182848] w-full max-w-md rounded-2xl p-8 shadow-2xl space-y-6">
             <div class="text-center space-y-1">
                 <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
-                    KEY ARCH <span class="text-xs font-semibold px-2 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 align-middle">ERP</span>
+                    KEY ARCH
                 </h1>
-                <p class="text-xs text-gray-400 uppercase tracking-widest">SaaS Property Portal</p>
+                <p class="text-xs text-gray-400 uppercase tracking-widest">Property Management System</p>
             </div>
 
             <!-- AUTH SWITCH TABS -->
@@ -395,6 +404,34 @@
         </div>
     </div>
 
+    <!-- VIEW: SYSTEM OWNER LOGIN (/admin) -->
+    <div id="view-admin-login" style="display: none;" class="flex-grow flex items-center justify-center p-4 relative min-h-screen">
+        <div class="absolute top-4 right-4 flex items-center gap-2 z-10">
+            <span class="ka-lang-switch"></span>
+            <button type="button" onclick="toggleTheme()" title="Light / Dark" aria-label="Switch light or dark mode" class="w-10 h-10 rounded-full bg-[#14223d] text-gray-300 hover:text-white flex items-center justify-center"><i class="fa-solid fa-moon theme-icon-el"></i></button>
+        </div>
+        <div class="bg-[#0a1224] border border-[#182848] w-full max-w-md rounded-2xl p-8 shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="mx-auto w-14 h-14 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center text-2xl"><i class="fa-solid fa-shield-halved"></i></div>
+                <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">KEY ARCH</h1>
+                <p class="text-xs text-gray-400 uppercase tracking-widest">System Owner Sign In</p>
+            </div>
+            <form id="form-admin-login" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Email Address</label>
+                    <input type="email" id="adm-email" autocomplete="username" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-300 mb-1">Password</label>
+                    <div class="relative"><input type="password" id="adm-password" autocomplete="current-password" class="w-full p-3 pr-11 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
+                        <button type="button" onclick="togglePw('adm-password', this)" class="absolute right-3 top-3 text-gray-400 hover:text-white" title="Show / hide password"><i class="fa-solid fa-eye"></i></button></div>
+                </div>
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold text-sm shadow-lg transition">Sign In &rarr;</button>
+            </form>
+            <div class="border-t border-[#182848] pt-4 text-center text-[11px] text-gray-400"><a href="/" class="text-cyan-300 hover:underline">Company sign in</a></div>
+        </div>
+    </div>
+
     <!-- VIEW: ACCESS NOT ACTIVE (waiting payment / suspended / subscription ended) -->
     <div id="view-locked" style="display: none;" class="flex-grow flex items-center justify-center p-4 min-h-screen">
         <div class="bg-[#0a1224] border border-[#182848] w-full max-w-md rounded-2xl p-8 shadow-2xl text-center space-y-5">
@@ -422,7 +459,7 @@
                 <img id="sidebar-logo" class="ka-logo hidden w-11 h-11 shrink-0" alt="">
                 <div class="min-w-0 pr-9 lg:pr-0">
                     <h1 class="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400">
-                        KEY ARCH <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-600/30 border border-blue-500/50 text-blue-300 align-middle">ERP</span>
+                        KEY ARCH
                     </h1>
                     <p id="sidebar-company" class="text-[11px] text-gray-500 mt-1 truncate">Hugo Tech</p>
                 </div>
@@ -442,7 +479,8 @@
                 <button data-page="expenses" onclick="showPage('expenses')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-money-bill-transfer w-4 text-center"></i> Expenses</button>
                 <button data-page="reports" onclick="showPage('reports')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-chart-line w-4 text-center"></i> Reports</button>
             </nav>
-            <div class="p-3 border-t border-[#182848]">
+            <div class="p-3 border-t border-[#182848] space-y-2">
+                <div class="ka-lang-switch justify-center"></div>
                 <button data-page="settings" onclick="showPage('settings')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-gear w-4 text-center"></i> Settings</button>
             </div>
         </aside>
@@ -520,6 +558,19 @@
 
                 <!-- ============ PAGE: PLATFORM ADMIN (Super Admin only) ============ -->
                 <section id="page-platform" class="app-page hidden space-y-4">
+                    <div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-4 space-y-3">
+                        <div class="text-sm font-bold text-white"><i class="fa-solid fa-user-shield text-amber-400"></i> My Owner Account</div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div><label class="block text-[11px] font-semibold text-gray-300 mb-1">Full name</label><input id="own-name" type="text" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500"></div>
+                            <div><label class="block text-[11px] font-semibold text-gray-300 mb-1">Email (used to sign in)</label><input id="own-email" type="email" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500"></div>
+                            <div><label class="block text-[11px] font-semibold text-gray-300 mb-1">New password (leave empty to keep)</label><input id="own-new" type="password" autocomplete="new-password" placeholder="Min 8 characters" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500"></div>
+                            <div><label class="block text-[11px] font-semibold text-gray-300 mb-1">Current password (required to save)</label><input id="own-cur" type="password" autocomplete="current-password" class="w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500"></div>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="saveOwnerAccount()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl"><i class="fa-solid fa-floppy-disk"></i> Save Account</button>
+                            <button onclick="sendTestEmail()" class="bg-[#14223d] border border-[#233863] hover:bg-[#1e2f52] text-white text-xs font-bold px-4 py-2.5 rounded-xl"><i class="fa-solid fa-envelope"></i> Send test email</button>
+                        </div>
+                    </div>
                     <div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-4 space-y-3">
                         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
                             <div>
@@ -1827,8 +1878,17 @@
             if (e.target.classList && e.target.classList.contains('money-input')) formatMoneyInput(e.target);
         }, true);
 
+        const IS_ADMIN_PAGE = /^\/admin\/?$/.test(location.pathname);
         document.addEventListener('DOMContentLoaded', () => {
-            if (localStorage.getItem('keyarch_token')) showAppView();
+            if (IS_ADMIN_PAGE) {
+                let ok = false;
+                try { ok = !!localStorage.getItem('keyarch_token') && (JSON.parse(localStorage.getItem('keyarch_user') || '{}').role === 'SUPER_ADMIN'); } catch (e) { }
+                if (ok) showAppView();
+                else {
+                    document.getElementById('view-login').style.display = 'none';
+                    document.getElementById('view-admin-login').style.display = 'flex';
+                }
+            } else if (localStorage.getItem('keyarch_token')) showAppView();
 
             addGroupCard();
             calculateAmountDue();
@@ -1846,6 +1906,21 @@
                 if (unitDropdown && unitTrigger && !unitTrigger.contains(e.target) && !unitDropdown.contains(e.target)) {
                     unitDropdown.classList.add('hidden');
                 }
+            });
+
+            document.getElementById('form-admin-login').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const res = await fetch('/api/auth/admin-login', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: document.getElementById('adm-email').value, password: document.getElementById('adm-password').value })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    localStorage.setItem('keyarch_token', data.token);
+                    localStorage.setItem('keyarch_user', JSON.stringify({ ...data.user, company: data.company }));
+                    document.getElementById('view-admin-login').style.display = 'none';
+                    showAppView();
+                } else alert(data.error || 'Login Failed!');
             });
 
             document.getElementById('form-login').addEventListener('submit', async (e) => {
@@ -2511,6 +2586,7 @@
             else if (page === 'reports') initReports(); else if (page === 'invoices') { setInvTab(invTab); } else if (page === 'settings') { loadProfile(); loadStaff(); }
         }
         function showPage(page) {
+            if (!canSeePage(page)) page = role() === 'SUPER_ADMIN' ? 'platform' : (isTech() ? 'maintenance' : 'dashboard');
             const gate = FEATURE_PAGES[page];
             if (gate && !hasFeature(gate)) { showUpgrade(page); return; }
             document.querySelectorAll('.app-page').forEach(el => el.classList.add('hidden'));
@@ -2541,6 +2617,7 @@
 
         function showAppView() {
             document.getElementById('view-login').style.display = 'none';
+            document.getElementById('view-admin-login').style.display = 'none';
             document.getElementById('view-app').style.display = 'block';
 
             const user = JSON.parse(localStorage.getItem('keyarch_user') || '{}');
@@ -3275,7 +3352,7 @@
         // ============================================================
         // VERSIONS + DATABASE SETUP CHECK
         // ============================================================
-        const PAGE_VERSION = 'v7.5 - 2026-11-05 - startup loader';
+        const PAGE_VERSION = 'v8.1 - 2026-11-06 - language switch, owner login, KEY ARCH';
 
         async function checkVersions() {
             let serverVersion = 'unknown (old server.js?)';
@@ -3338,7 +3415,29 @@
             return d ? `https://wa.me/${d}` : '';
         }
 
+        async function sendTestEmail() {
+            const r = await api('/api/platform/test-email', 'POST', {});
+            alert((r.data && (r.data.message || r.data.error)) || 'Done.');
+        }
+        async function loadOwnerAccount() {
+            const r = await api('/api/platform/account');
+            if (!r.ok) return;
+            document.getElementById('own-name').value = r.data.full_name || '';
+            document.getElementById('own-email').value = r.data.email || '';
+        }
+        async function saveOwnerAccount() {
+            const cur = document.getElementById('own-cur').value;
+            if (!cur) return alert('Enter your current password to save.');
+            const r = await api('/api/platform/account', 'PUT', {
+                full_name: document.getElementById('own-name').value, email: document.getElementById('own-email').value,
+                new_password: document.getElementById('own-new').value || undefined, current_password: cur });
+            if (!r.ok) return alert((r.data && r.data.error) || 'Could not save.');
+            document.getElementById('own-cur').value = ''; document.getElementById('own-new').value = '';
+            try { const u = JSON.parse(localStorage.getItem('keyarch_user') || '{}'); u.email = r.data.email; u.full_name = r.data.full_name; localStorage.setItem('keyarch_user', JSON.stringify(u)); } catch (e) { }
+            alert('Saved.');
+        }
         async function loadPlatform() {
+            loadOwnerAccount();
             const r = await api('/api/platform/companies');
             if (!r.ok) return;
             platformCompanies = r.data.companies || [];
@@ -3544,14 +3643,28 @@
         function canManage() { return ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'].includes(role()); }
         function canMoney() { return ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT'].includes(role()); }
         function isTech() { return role() === 'TECHNICIAN'; }
+        // what each job title sees in the menu (the server checks the same rules again)
+        const NAV_ACCESS = {
+            SUPER_ADMIN: [],
+            COMPANY_ADMIN: ['dashboard', 'properties', 'tenants', 'invoices', 'luku', 'maintenance', 'expenses', 'finance', 'reports'],
+            PROPERTY_MANAGER: ['dashboard', 'properties', 'tenants', 'invoices', 'luku', 'maintenance', 'expenses', 'reports'],
+            ACCOUNTANT: ['dashboard', 'tenants', 'invoices', 'luku', 'expenses', 'finance', 'reports'],
+            TECHNICIAN: ['maintenance'],
+            VIEWER: ['dashboard', 'properties', 'tenants', 'invoices', 'reports']
+        };
+        function canSeePage(pg) { if (pg === 'platform') return role() === 'SUPER_ADMIN'; if (pg === 'settings') return true; return (NAV_ACCESS[role()] || []).includes(pg); }
         function applyRoleUI() {
             const show = (sel, ok) => document.querySelectorAll(sel).forEach(el => el.style.display = ok ? '' : 'none');
             show('.can-manage', canManage()); show('.can-money', canMoney()); show('.can-admin', isAdminRole());
             show('.can-tickets', canManage() || isTech());
-            const tech = isTech();
-            ['dashboard', 'properties', 'tenants', 'invoices', 'luku', 'expenses', 'reports'].forEach(p => {
-                const b = document.querySelector(`.nav-item[data-page="${p}"]`); if (b) b.style.display = tech ? 'none' : '';
+            const allowed = NAV_ACCESS[role()] || NAV_ACCESS.VIEWER;
+            document.querySelectorAll('.nav-item[data-page]').forEach(b => {
+                const pg = b.getAttribute('data-page');
+                if (pg === 'platform' || pg === 'settings') return;
+                b.style.display = allowed.includes(pg) ? '' : 'none';
             });
+            const tech = isTech();
+            const nm = document.getElementById('menu-new'); if (nm && nm.parentElement) nm.parentElement.style.display = (tech || role() === 'SUPER_ADMIN' || role() === 'VIEWER') ? 'none' : '';
             const us = document.getElementById('set-users-card'); if (us) us.style.display = isAdminRole() ? '' : 'none';
             const pr = document.getElementById('set-profile-card'); if (pr) pr.style.display = role() === 'VIEWER' || isTech() ? 'none' : '';
             const gs = document.getElementById('global-search'); if (gs && tech) gs.parentElement.style.display = 'none';
@@ -3903,7 +4016,7 @@
                 ${pays}
                 ${inv.notes ? `<div class="text-xs"><p class="font-bold text-slate-400 uppercase tracking-wider mb-1">Notes</p><p class="text-slate-700 whitespace-pre-line">${esc(inv.notes)}</p></div>` : ''}
                 ${d.company && d.company.payment_instructions && inv.balance > 0 ? `<div class="text-xs bg-slate-50 border border-slate-200 rounded-lg p-3"><p class="font-bold text-slate-500 uppercase tracking-wider mb-1">How to pay</p><p class="text-slate-700 whitespace-pre-line">${esc(d.company.payment_instructions)}</p></div>` : ''}
-                <div class="border-t pt-3 flex justify-between text-[11px] text-slate-400"><span>Thank you for your business.</span><span>Generated by KEY ARCH ERP</span></div>
+                <div class="border-t pt-3 flex justify-between text-[11px] text-slate-400"><span>Thank you for your business.</span><span>Generated by KEY ARCH</span></div>
                 </div>`;
             document.getElementById('ip-pay-btn').classList.toggle('hidden', !(inv.balance > 0 && canMoney()));
             openModal('modal-invoice-print');
@@ -3994,7 +4107,7 @@
                 </div>
                 ${d.notes ? `<p class="text-xs text-slate-500">Note: ${esc(d.notes)}</p>` : ''}
                 <div class="flex justify-between items-end pt-6 text-[11px] text-slate-500"><div>Received by: <b class="text-slate-700">${esc(d.received_by || '')}</b></div><div class="border-t border-slate-400 pt-1 w-40 text-center">Signature / Stamp</div></div>
-                <div class="text-center text-[10px] text-slate-400">Thank you. · Generated by KEY ARCH ERP</div>
+                <div class="text-center text-[10px] text-slate-400">Thank you. · Generated by KEY ARCH</div>
                 </div>`;
             openModal('modal-receipt');
         }
@@ -4623,5 +4736,132 @@
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
     </script>
+<!--I18N_START-->
+<script>
+(function () {
+    var DICT = {"\"Plan default\" follows the plan. Choose On or Off to give or remove one feature for this company only.": ["\"Plan default\" inafuata mpango. Chagua On au Off kutoa au kuondoa kipengele kimoja kwa kampuni hii tu.", "“Plan default”遵循套餐。选择开或关，仅为此公司授予或移除某项功能。"], "+ Add Another Group": ["+ Ongeza Kundi Lingine", "+ 添加另一组"], "+ Invoice": ["+ Ankara", "+ 发票"], "+ Property": ["+ Mali", "+ 房产"], "+ Tenant": ["+ Mpangaji", "+ 租户"], "+ Ticket": ["+ Tiketi", "+ 工单"], "-- Select --": ["-- Chagua --", "-- 请选择 --"], "-- Select Dates --": ["-- Chagua Tarehe --", "-- 选择日期 --"], "-- Select Property First --": ["-- Chagua Mali Kwanza --", "-- 请先选择房产 --"], "1. Tenant": ["1. Mpangaji", "1. 租户"], "2. Unit & Lease Period": ["2. Chumba na Muda wa Mkataba", "2. 单元与租期"], "3. Payment": ["3. Malipo", "3. 付款"], "A new rent price applies to new tenants. Existing contracts keep the agreed price.": ["Bei mpya ya kodi inatumika kwa wapangaji wapya. Mikataba iliyopo inabaki na bei iliyokubaliwa.", "新租金仅适用于新租户，现有合同保持原价。"], "Access Not Active": ["Huduma Haijawashwa", "访问未激活"], "Access Status": ["Hali ya Huduma", "访问状态"], "Account is active": ["Akaunti inafanya kazi", "账户已启用"], "Accountant": ["Mhasibu", "会计"], "Actions": ["Vitendo", "操作"], "Active": ["Inafanya kazi", "有效"], "Active Tenants": ["Wapangaji Hai", "在租租户"], "Active Until": ["Hai Hadi", "有效期至"], "Active Until (subscription)": ["Hai Hadi (usajili)", "有效期至（订阅）"], "Add": ["Ongeza", "添加"], "Add Property": ["Ongeza Mali", "添加房产"], "Add Tenant": ["Ongeza Mpangaji", "添加租户"], "Add Units": ["Ongeza Vyumba", "添加单元"], "Add User": ["Ongeza Mtumiaji", "添加用户"], "Address": ["Anwani", "地址"], "Address *": ["Anwani *", "地址 *"], "Admin": ["Msimamizi", "管理员"], "Advanced reports": ["Ripoti za juu", "高级报表"], "Air-Bnb": ["Air-Bnb", "Air-Bnb"], "Airtel Money": ["Airtel Money", "Airtel Money"], "All": ["Zote", "全部"], "All status": ["Hali zote", "所有状态"], "All types": ["Aina zote", "所有类型"], "All units": ["Vyumba vyote", "所有单元"], "Amount": ["Kiasi", "金额"], "Amount (TZS) *": ["Kiasi (TZS) *", "金额 (TZS) *"], "Amount Paid": ["Kiasi Kilicholipwa", "已付金额"], "Amount Paid (TZS)": ["Kiasi Kilicholipwa (TZS)", "已付金额 (TZS)"], "Amount Paid Now (TZS)": ["Kiasi Kinacholipwa Sasa (TZS)", "本次支付金额 (TZS)"], "Amount Received (TZS) *": ["Kiasi Kilichopokelewa (TZS) *", "收到金额 (TZS) *"], "Amount received (TZS) *": ["Kiasi kilichopokelewa (TZS) *", "收到金额 (TZS) *"], "Apartment": ["Apartment", "公寓"], "Apply": ["Tumia", "应用"], "Apply to": ["Tumia kwa", "应用于"], "Available": ["Vinapatikana", "可用"], "Back to Dashboard": ["Rudi kwenye Dashibodi", "返回仪表盘"], "Back to Sign In": ["Rudi kwenye Kuingia", "返回登录"], "Balance": ["Salio", "余额"], "Balance Owed": ["Deni Lililobaki", "欠款余额"], "Bank": ["Benki", "银行"], "Bank Transfer": ["Uhamisho wa Benki", "银行转账"], "Basic Info": ["Taarifa za Msingi", "基本信息"], "Best first · rent collected + occupancy": ["Bora kwanza · kodi iliyokusanywa + uwepo wa wapangaji", "最佳优先 · 已收租金 + 入住率"], "Biggest Balances": ["Madeni Makubwa", "最大欠款"], "Billing": ["Malipo ya Huduma", "计费"], "COMPANY_ADMIN": ["COMPANY_ADMIN", "COMPANY_ADMIN"], "Can edit tenant details": ["Anaweza kuhariri taarifa za mpangaji", "可编辑租户资料"], "Cancelled": ["Imefutwa", "已取消"], "Cash": ["Fedha Taslimu", "现金"], "Category": ["Kundi", "类别"], "Change Prices Together": ["Badilisha Bei Pamoja", "统一调整价格"], "Charged": ["Imetozwa", "已收取"], "Charged separately": ["Inatozwa tofauti", "单独收费"], "Checking versions...": ["Inakagua matoleo...", "正在检查版本..."], "Cheque": ["Hundi", "支票"], "Choose a new password (at least 6 characters).": ["Chagua password mpya (angalau herufi 6).", "请设置新密码（至少6位）。"], "Choose a report and press": ["Chagua ripoti kisha bonyeza", "选择报表后点击"], "Choose picture": ["Chagua picha", "选择图片"], "Choose the subject of the report": ["Chagua mada ya ripoti", "选择报表主题"], "Clear": ["Futa", "清除"], "Close": ["Funga", "关闭"], "Close menu": ["Funga menyu", "关闭菜单"], "Collected": ["Imekusanywa", "已收"], "Collection": ["Makusanyo", "收款"], "Companies": ["Kampuni", "公司"], "Company": ["Kampuni", "公司"], "Company / Business Name *": ["Jina la Kampuni / Biashara *", "公司/企业名称 *"], "Company / Owner": ["Kampuni / Mmiliki", "公司/所有者"], "Company Details & Financial Year": ["Taarifa za Kampuni na Mwaka wa Fedha", "公司信息与财政年度"], "Company logo": ["Nembo ya kampuni", "公司标志"], "Company logo (optional)": ["Nembo ya kampuni (si lazima)", "公司标志（可选）"], "Company name *": ["Jina la kampuni *", "公司名称 *"], "Company sign in": ["Kuingia kwa kampuni", "公司登录"], "Confirmation": ["Uthibitisho", "确认"], "Contact HUGO TECH": ["Wasiliana na HUGO TECH", "联系 HUGO TECH"], "Contract Finished": ["Mkataba Umeisha", "合同已结束"], "Contracts Ending (30 days)": ["Mikataba Inayoisha (siku 30)", "30天内到期合同"], "Copy": ["Nakili", "复制"], "Cost": ["Gharama", "成本"], "Create Company Account →": ["Fungua Akaunti ya Kampuni →", "创建公司账户 →"], "Create this month's invoices": ["Tengeneza ankara za mwezi huu", "生成本月发票"], "Current": ["Sasa", "当前"], "Current Tenants": ["Wapangaji wa Sasa", "当前租户"], "Current password (required to save)": ["Password ya sasa (inahitajika kuhifadhi)", "当前密码（保存时必填）"], "Customer": ["Mteja", "客户"], "Customer name": ["Jina la mteja", "客户姓名"], "Customer phone": ["Simu ya mteja", "客户电话"], "Dashboard": ["Dashibodi", "仪表盘"], "Date": ["Tarehe", "日期"], "Deposit": ["Amana", "押金"], "Description": ["Maelezo", "说明"], "Description *": ["Maelezo *", "说明 *"], "Discount": ["Punguzo", "折扣"], "Discount (TZS)": ["Punguzo (TZS)", "折扣 (TZS)"], "Download Backup (Excel)": ["Pakua Nakala Rudufu (Excel)", "下载备份 (Excel)"], "Driving License": ["Leseni ya Udereva", "驾驶证"], "Due": ["Inadaiwa", "到期"], "Due In 1 Month": ["Inaisha Ndani ya Mwezi 1", "1个月内到期"], "Due In 1 Week": ["Inaisha Ndani ya Wiki 1", "1周内到期"], "Due date *": ["Tarehe ya mwisho *", "到期日 *"], "Duration:": ["Muda:", "期限："], "Edit Property": ["Hariri Mali", "编辑房产"], "Edit Tenant": ["Hariri Mpangaji", "编辑租户"], "Edit Unit": ["Hariri Chumba", "编辑单元"], "Email": ["Barua pepe", "邮箱"], "Email (used to sign in)": ["Barua pepe (ya kuingia)", "邮箱（用于登录）"], "Email *": ["Barua pepe *", "邮箱 *"], "Email / Phone": ["Barua pepe / Simu", "邮箱 / 电话"], "Email / Role": ["Barua pepe / Cheo", "邮箱 / 角色"], "Email Address": ["Anwani ya Barua pepe", "邮箱地址"], "Email Address *": ["Anwani ya Barua pepe *", "邮箱地址 *"], "Ending In 30 Days": ["Inaisha Ndani ya Siku 30", "30天内结束"], "Ending In 7 Days": ["Inaisha Ndani ya Siku 7", "7天内结束"], "Ending Soon": ["Inaisha Hivi Karibuni", "即将到期"], "Estimated cost (TZS)": ["Makadirio ya gharama (TZS)", "预计费用 (TZS)"], "Excel": ["Excel", "Excel"], "Expense": ["Matumizi", "支出"], "Expenses": ["Matumizi", "支出"], "Expenses (This Month)": ["Matumizi (Mwezi Huu)", "支出（本月）"], "Expired / Suspended": ["Imeisha / Imesimamishwa", "已过期 / 已暂停"], "Extension": ["Nyongeza", "延期"], "Financial year starts in *": ["Mwaka wa fedha unaanza mwezi *", "财政年度起始月份 *"], "For": ["Kwa", "用于"], "For the limits: leave empty = plan default, 0 = unlimited.": ["Kwa mipaka: acha wazi = chaguo-msingi la mpango, 0 = bila kikomo.", "关于限额：留空=套餐默认，0=不限。"], "Forgot Password": ["Umesahau Password", "忘记密码"], "Forgot password?": ["Umesahau password?", "忘记密码？"], "From": ["Kuanzia", "从"], "Full Name": ["Jina Kamili", "姓名"], "Full Name *": ["Jina Kamili *", "姓名 *"], "Full backup": ["Nakala rudufu kamili", "完整备份"], "Full name": ["Jina kamili", "姓名"], "Full name *": ["Jina kamili *", "姓名 *"], "Generate Invoice": ["Tengeneza Ankara", "生成发票"], "Groups & Units": ["Makundi na Vyumba", "分组与单元"], "HIGH": ["JUU", "高"], "Halopesa": ["Halopesa", "Halopesa"], "Hotel": ["Hoteli", "酒店"], "House": ["Nyumba", "住宅"], "How many": ["Ngapi", "数量"], "How tenants pay you (printed on invoices)": ["Jinsi wapangaji wanavyokulipa (inachapishwa kwenye ankara)", "租户付款方式（印在发票上）"], "ID Number *": ["Namba ya Kitambulisho *", "证件号码 *"], "ID Type": ["Aina ya Kitambulisho", "证件类型"], "ID Type: Driving License": ["Aina ya Kitambulisho: Leseni ya Udereva", "证件类型：驾驶证"], "ID Type: NIDA": ["Aina ya Kitambulisho: NIDA", "证件类型：NIDA"], "ID Type: Passport": ["Aina ya Kitambulisho: Pasipoti", "证件类型：护照"], "ID Type: Voter ID": ["Aina ya Kitambulisho: Kadi ya Mpiga Kura", "证件类型：选民证"], "If you add more than one, they are numbered automatically (A-1, A-2, A-3...).": ["Ukiongeza zaidi ya kimoja, vinahesabiwa kiotomatiki (A-1, A-2, A-3...).", "添加多个时将自动编号（A-1、A-2、A-3...）。"], "In progress": ["Inaendelea", "进行中"], "Included in rent": ["Imo ndani ya kodi", "含在租金内"], "Included in rent price": ["Imo ndani ya bei ya kodi", "含在租金价格内"], "Invoice": ["Ankara", "发票"], "Invoice #": ["Ankara #", "发票号"], "Invoice *": ["Ankara *", "发票 *"], "Invoice for *": ["Ankara ya *", "发票对象 *"], "Invoices": ["Ankara", "发票"], "Invoices & Payments": ["Ankara na Malipo", "发票与付款"], "Invoices, Payments & Receipts": ["Ankara, Malipo na Risiti", "发票、付款与收据"], "Issue": ["Toa", "开具"], "Issue Invoice": ["Toa Ankara", "开具发票"], "Issue date": ["Tarehe ya kutoa", "开具日期"], "Keep current plan": ["Endelea na mpango wa sasa", "保持当前套餐"], "LOW": ["CHINI", "低"], "Last 6 Months": ["Miezi 6 Iliyopita", "最近6个月"], "Lease End (Optional)": ["Mwisho wa Mkataba (Si lazima)", "租期结束（可选）"], "Lease End Date": ["Tarehe ya Mwisho wa Mkataba", "租期结束日期"], "Lease Period": ["Muda wa Mkataba", "租期"], "Lease Start *": ["Mwanzo wa Mkataba *", "租期开始 *"], "Light / Dark": ["Mwanga / Giza", "浅色 / 深色"], "Loading": ["Inapakia", "加载中"], "Loading companies...": ["Inapakia kampuni...", "正在加载公司..."], "Loading properties...": ["Inapakia mali...", "正在加载房产..."], "Loading...": ["Inapakia...", "加载中..."], "Luku": ["Luku", "预付电 Luku"], "Luku (Prepaid Electricity)": ["Luku (Umeme wa Kulipia Kabla)", "Luku（预付电）"], "Luku Token": ["Tokeni ya Luku", "Luku 电码"], "Luku Token Generated": ["Tokeni ya Luku Imetengenezwa", "Luku 电码已生成"], "M-Pesa": ["M-Pesa", "M-Pesa"], "MEDIUM": ["WASTANI", "中"], "Maintenance": ["Matengenezo", "维修"], "Maintenance / support": ["Matengenezo / msaada", "维修 / 支持"], "Maintenance Ticket": ["Tiketi ya Matengenezo", "维修工单"], "Maintenance report": ["Ripoti ya matengenezo", "维修报表"], "Maintenance tickets": ["Tiketi za matengenezo", "维修工单"], "Manage Company": ["Simamia Kampuni", "管理公司"], "Manager": ["Meneja", "经理"], "Max properties": ["Mali za juu zaidi", "最大房产数"], "Max staff": ["Wafanyakazi wa juu zaidi", "最大员工数"], "Method": ["Njia", "方式"], "Min 6 characters": ["Angalau herufi 6", "至少6位"], "Min 8 characters": ["Angalau herufi 8", "至少8位"], "Mobile Money": ["Pesa za Simu", "移动支付"], "Month": ["Mwezi", "月"], "Months Paid": ["Miezi Iliyolipwa", "已付月数"], "More details": ["Maelezo zaidi", "更多详情"], "My Owner Account": ["Akaunti Yangu ya Mmiliki", "我的所有者账户"], "NIDA": ["NIDA", "NIDA"], "Name": ["Jina", "名称"], "Name of the monthly service charge (optional)": ["Jina la ada ya huduma ya kila mwezi (si lazima)", "月度服务费名称（可选）"], "Name of the service charge": ["Jina la ada ya huduma", "服务费名称"], "Need pricing or activation? Pricing depends on the size of your company.": ["Unahitaji bei au kuwashiwa huduma? Bei inategemea ukubwa wa kampuni yako.", "需要报价或开通？价格取决于您公司的规模。"], "Needs your attention": ["Inahitaji umakini wako", "需要您关注"], "New": ["Mpya", "新建"], "New Lease End": ["Mwisho Mpya wa Mkataba", "新租期结束"], "New Lease Start *": ["Mwanzo Mpya wa Mkataba *", "新租期开始 *"], "New Password": ["Password Mpya", "新密码"], "New feature": ["Kipengele kipya", "新功能"], "New password": ["Password mpya", "新密码"], "New password (leave empty to keep)": ["Password mpya (acha wazi kuendelea na ya zamani)", "新密码（留空则保持不变）"], "New rent price (leave empty = no change)": ["Bei mpya ya kodi (acha wazi = hakuna mabadiliko)", "新租金（留空=不变）"], "New service charge": ["Ada mpya ya huduma", "新服务费"], "No change": ["Hakuna mabadiliko", "不变"], "No data yet.": ["Bado hakuna data.", "暂无数据。"], "No email access?": ["Huna ufikiaji wa barua pepe?", "无法访问邮箱？"], "No expenses.": ["Hakuna matumizi.", "没有支出。"], "No invoices issued yet.": ["Bado hakuna ankara zilizotolewa.", "尚未开具发票。"], "No payments yet.": ["Bado hakuna malipo.", "暂无付款。"], "No sales yet.": ["Bado hakuna mauzo.", "暂无销售。"], "No tenants loaded yet.": ["Bado hakuna wapangaji.", "尚无租户。"], "No tickets yet.": ["Bado hakuna tiketi.", "暂无工单。"], "No tokens uploaded yet.": ["Bado hakuna tokeni zilizopakiwa.", "尚未上传电码。"], "Nobody owes money right now.": ["Hakuna anayedaiwa sasa.", "目前无人欠款。"], "Not set": ["Haijawekwa", "未设置"], "Notes": ["Maelezo ya ziada", "备注"], "Notes (only you see this)": ["Maelezo (wewe tu unayaona)", "备注（仅您可见）"], "Notes (printed on the invoice)": ["Maelezo (yanachapishwa kwenye ankara)", "备注（印在发票上）"], "Nothing urgent": ["Hakuna cha dharura", "暂无紧急事项"], "Number of Months": ["Idadi ya Miezi", "月数"], "Occupancy": ["Uwepo wa wapangaji", "入住率"], "Occupied": ["Imekaliwa", "已入住"], "Off": ["Zima", "关"], "Office": ["Ofisi", "办公室"], "On": ["Washa", "开"], "One-time (permanent)": ["Mara moja (ya kudumu)", "一次性（永久）"], "One-time payment - permanent access": ["Malipo ya mara moja - huduma ya kudumu", "一次性付款 - 永久访问"], "Open": ["Wazi", "未处理"], "Or pick from all reports": ["Au chagua kwenye ripoti zote", "或从全部报表中选择"], "Other": ["Nyingine", "其他"], "Overdue": ["Imechelewa", "逾期"], "Owing": ["Anadaiwa", "欠款"], "Owing Money": ["Wanaodaiwa", "欠款者"], "Owner / Director Full Name *": ["Jina Kamili la Mmiliki / Mkurugenzi *", "所有者/董事姓名 *"], "PDF": ["PDF", "PDF"], "PNG or JPG. It is printed on your invoices and receipts. You can change it later in Settings.": ["PNG au JPG. Inachapishwa kwenye ankara na risiti zako. Unaweza kubadilisha baadaye kwenye Mipangilio.", "PNG 或 JPG。将印在发票和收据上，之后可在设置中更改。"], "PRO": ["PRO", "PRO"], "Paid": ["Imelipwa", "已付"], "Paid By": ["Amelipa", "付款人"], "Paid by": ["Amelipa", "付款人"], "Paid to": ["Amelipwa", "收款方"], "Paid to (person / shop)": ["Amelipwa (mtu / duka)", "收款方（个人/商店）"], "Partial": ["Sehemu", "部分付款"], "Passport": ["Pasipoti", "护照"], "Password": ["Password", "密码"], "Password *": ["Password *", "密码 *"], "Password * (min 6)": ["Password * (angalau 6)", "密码 *（至少6位）"], "Past Tenants": ["Wapangaji wa Zamani", "过往租户"], "Payment For": ["Malipo ya", "付款用途"], "Payment Type": ["Aina ya Malipo", "付款类型"], "Payment date": ["Tarehe ya malipo", "付款日期"], "Payment reference / transaction ID (optional)": ["Namba ya kumbukumbu / muamala (si lazima)", "付款参考号/交易号（可选）"], "Payments": ["Malipo", "付款"], "Payments Received From This Company": ["Malipo Yaliyopokelewa Kutoka Kampuni Hii", "已收到此公司的付款"], "Penalty": ["Faini", "罚金"], "Penalty / late fee": ["Faini / ada ya kuchelewa", "罚金/滞纳金"], "Per Day": ["Kwa Siku", "每天"], "Per Month": ["Kwa Mwezi", "每月"], "Per Week": ["Kwa Wiki", "每周"], "Per Year": ["Kwa Mwaka", "每年"], "Period from": ["Kipindi kuanzia", "期间自"], "Period to": ["Kipindi hadi", "期间至"], "Phone": ["Simu", "电话"], "Phone Number *": ["Namba ya Simu *", "电话号码 *"], "Plan": ["Mpango", "套餐"], "Plan default": ["Chaguo-msingi la mpango", "套餐默认"], "Platform Admin": ["Msimamizi wa Mfumo", "平台管理"], "Price": ["Bei", "价格"], "Price *": ["Bei *", "价格 *"], "Print": ["Chapisha", "打印"], "Priority": ["Kipaumbele", "优先级"], "Pro": ["Pro", "Pro"], "Pro (full access)": ["Pro (ufikiaji kamili)", "Pro（完整权限）"], "Pro Feature": ["Kipengele cha Pro", "Pro 功能"], "Problem *": ["Tatizo *", "问题 *"], "Profit (Collected - Expenses)": ["Faida (Makusanyo - Matumizi)", "利润（收款 − 支出）"], "Properties": ["Mali", "房产"], "Properties & Units": ["Mali na Vyumba", "房产与单元"], "Property": ["Mali", "房产"], "Property *": ["Mali *", "房产 *"], "Property / Unit": ["Mali / Chumba", "房产 / 单元"], "Property Management System": ["Mfumo wa Usimamizi wa Mali", "房产管理系统"], "Property Manager": ["Meneja wa Mali", "物业经理"], "Property Name *": ["Jina la Mali *", "房产名称 *"], "Property Performance": ["Utendaji wa Mali", "房产业绩"], "Property Type *": ["Aina ya Mali *", "房产类型 *"], "Property Wizard": ["Msaidizi wa Mali", "房产向导"], "Property name *": ["Jina la mali *", "房产名称 *"], "Quick period": ["Kipindi cha haraka", "快速选择期间"], "Real cost (TZS)": ["Gharama halisi (TZS)", "实际费用 (TZS)"], "Receipt": ["Risiti", "收据"], "Receipt #": ["Risiti #", "收据号"], "Receipts": ["Risiti", "收据"], "Received This Month": ["Yaliyopokelewa Mwezi Huu", "本月已收"], "Recent Sales": ["Mauzo ya Hivi Karibuni", "最近销售"], "Record Expense": ["Rekodi Matumizi", "记录支出"], "Record Payment": ["Rekodi Malipo", "记录付款"], "Record Payment Received": ["Rekodi Malipo Yaliyopokelewa", "记录收到的付款"], "Reference": ["Kumbukumbu", "参考号"], "Reference no.": ["Namba ya kumbukumbu", "参考编号"], "Register Company": ["Sajili Kampuni", "注册公司"], "Register your real estate company. Access starts after your payment is confirmed.": ["Sajili kampuni yako ya mali. Huduma inaanza baada ya malipo yako kuthibitishwa.", "注册您的房地产公司。付款确认后即可使用。"], "Remaining Balance": ["Salio Lililobaki", "剩余余额"], "Remove": ["Ondoa", "移除"], "Renew & Create Invoice →": ["Sasisha & Tengeneza Ankara →", "续约并生成发票 →"], "Renew Contract": ["Sasisha Mkataba", "续签合同"], "Rent": ["Kodi", "租金"], "Rent (extra)": ["Kodi (ya ziada)", "租金（额外）"], "Rent Collected (This Month)": ["Kodi Iliyokusanywa (Mwezi Huu)", "已收租金（本月）"], "Rent Price (TZS) *": ["Bei ya Kodi (TZS) *", "租金 (TZS) *"], "Rent price (TZS) *": ["Bei ya kodi (TZS) *", "租金 (TZS) *"], "Repair": ["Ukarabati", "维修"], "Repair / damage": ["Ukarabati / uharibifu", "维修 / 损坏"], "Repeat new password": ["Rudia password mpya", "重复新密码"], "Report": ["Ripoti", "报表"], "Reports": ["Ripoti", "报表"], "Reset Owner Password": ["Weka Upya Password ya Mmiliki", "重置所有者密码"], "Resolved": ["Imetatuliwa", "已解决"], "Role": ["Cheo", "角色"], "Roles:": ["Vyeo:", "角色："], "Run Database Setup": ["Endesha Usanidi wa Hifadhidata", "运行数据库设置"], "STANDARD PLAN": ["MPANGO WA STANDARD", "标准套餐"], "Save": ["Hifadhi", "保存"], "Save Account": ["Hifadhi Akaunti", "保存账户"], "Save Changes": ["Hifadhi Mabadiliko", "保存更改"], "Save Details": ["Hifadhi Taarifa", "保存资料"], "Save Expense": ["Hifadhi Matumizi", "保存支出"], "Save New Password": ["Hifadhi Password Mpya", "保存新密码"], "Save Payment & Show Receipt": ["Hifadhi Malipo & Onyesha Risiti", "保存付款并显示收据"], "Save Payment & Update Access": ["Hifadhi Malipo & Sasisha Huduma", "保存付款并更新权限"], "Save Property & All Units →": ["Hifadhi Mali & Vyumba Vyote →", "保存房产及所有单元 →"], "Save Tenant & Generate Auto Invoice →": ["Hifadhi Mpangaji & Tengeneza Ankara →", "保存租户并自动生成发票 →"], "Save Ticket": ["Hifadhi Tiketi", "保存工单"], "Save User": ["Hifadhi Mtumiaji", "保存用户"], "Search Property...": ["Tafuta Mali...", "搜索房产..."], "Search Unit...": ["Tafuta Chumba...", "搜索单元..."], "Search apartment, house, unit, technician, problem...": ["Tafuta apartment, nyumba, chumba, fundi, tatizo...", "搜索公寓、住宅、单元、技术员、问题..."], "Search company, owner, phone...": ["Tafuta kampuni, mmiliki, simu...", "搜索公司、所有者、电话..."], "Search name, phone, ID, unit...": ["Tafuta jina, simu, kitambulisho, chumba...", "搜索姓名、电话、证件、单元..."], "Search property or unit...": ["Tafuta mali au chumba...", "搜索房产或单元..."], "Search tenant, invoice #, unit...": ["Tafuta mpangaji, ankara #, chumba...", "搜索租户、发票号、单元..."], "Search tenant, unit, property... (Enter)": ["Tafuta mpangaji, chumba, mali... (Enter)", "搜索租户、单元、房产...（回车）"], "Search...": ["Tafuta...", "搜索..."], "Select property first": ["Chagua mali kwanza", "请先选择房产"], "Sell Token": ["Uza Tokeni", "出售电码"], "Sell a Token": ["Uza Tokeni", "出售电码"], "Send Reset Link": ["Tuma Kiungo cha Kubadilisha", "发送重置链接"], "Service Charge (This Month)": ["Ada ya Huduma (Mwezi Huu)", "服务费（本月）"], "Service Charges": ["Ada za Huduma", "服务费"], "Service charge": ["Ada ya huduma", "服务费"], "Service charge / month": ["Ada ya huduma / mwezi", "服务费 / 月"], "Service charge is": ["Ada ya huduma", "服务费"], "Service charge paid now (optional)": ["Ada ya huduma inayolipwa sasa (si lazima)", "本次支付的服务费（可选）"], "Settings": ["Mipangilio", "设置"], "Share": ["Shiriki", "分享"], "Shop": ["Duka", "商铺"], "Show / hide password": ["Onyesha / ficha password", "显示/隐藏密码"], "Show Report": ["Onyesha Ripoti", "显示报表"], "Shown on the menu, invoices, receipts and PDF reports. PNG or JPG.": ["Inaonekana kwenye menyu, ankara, risiti na ripoti za PDF. PNG au JPG.", "显示在菜单、发票、收据和PDF报表上。PNG 或 JPG。"], "Sign In": ["Ingia", "登录"], "Sign In →": ["Ingia →", "登录 →"], "Sign Out": ["Toka", "退出"], "Sold": ["Imeuzwa", "已售"], "Special Access For This Company": ["Ufikiaji Maalum kwa Kampuni Hii", "此公司的特殊权限"], "Standard": ["Standard", "标准"], "Status": ["Hali", "状态"], "Subscription (monthly)": ["Usajili (wa kila mwezi)", "订阅（按月）"], "Subscription (monthly) - gives access": ["Usajili (wa kila mwezi) - unatoa ufikiaji", "订阅（按月）- 提供访问权限"], "Suspended (no access)": ["Imesimamishwa (hakuna ufikiaji)", "已暂停（无法访问）"], "Switch light or dark mode": ["Badilisha mwanga au giza", "切换浅色或深色模式"], "System Check": ["Ukaguzi wa Mfumo", "系统检查"], "System Owner Sign In": ["Kuingia kwa Mmiliki wa Mfumo", "系统所有者登录"], "TIN number": ["Namba ya TIN", "TIN 号码"], "Technician": ["Fundi", "技术员"], "Template": ["Kiolezo", "模板"], "Tenant": ["Mpangaji", "租户"], "Tenant *": ["Mpangaji *", "租户 *"], "Tenant Details & History": ["Taarifa na Historia ya Mpangaji", "租户资料与历史"], "Tenant Onboarding": ["Usajili wa Mpangaji", "租户登记"], "Tenants & Leases": ["Wapangaji na Mikataba", "租户与租约"], "These details are printed on invoices, receipts and reports. The financial year decides the \"This / Last financial year\" choices in Reports.": ["Taarifa hizi zinachapishwa kwenye ankara, risiti na ripoti. Mwaka wa fedha unaamua chaguo za \"Mwaka huu / uliopita wa fedha\" kwenye Ripoti.", "这些信息会印在发票、收据和报表上。财政年度决定报表中“本财年/上财年”的选项。"], "This feature is available on the Pro plan.": ["Kipengele hiki kinapatikana kwenye mpango wa Pro.", "此功能在 Pro 套餐中提供。"], "Ticket": ["Tiketi", "工单"], "Tigo Pesa": ["Tigo Pesa", "Tigo Pesa"], "To": ["Hadi", "至"], "To charge for more time, use \"Extend Stay\" or \"Renew Contract\" instead.": ["Kutoza muda zaidi, tumia \"Ongeza Muda\" au \"Sasisha Mkataba\".", "如需收取更多时间的费用，请使用“延长入住”或“续签合同”。"], "Token": ["Tokeni", "电码"], "Token Stock": ["Akiba ya Tokeni", "电码库存"], "Total": ["Jumla", "合计"], "Total Owed To You": ["Jumla Unayodai", "应收总额"], "Total Rent": ["Jumla ya Kodi", "租金合计"], "Total To Pay": ["Jumla ya Kulipa", "应付合计"], "Total tickets": ["Jumla ya tiketi", "工单总数"], "Total to pay": ["Jumla ya kulipa", "应付合计"], "Transaction ID": ["Namba ya Muamala", "交易号"], "Type your email. We will send you a link to choose a new password.": ["Andika barua pepe yako. Tutakutumia kiungo cha kuweka password mpya.", "请输入邮箱，我们会发送设置新密码的链接。"], "URGENT": ["DHARURA", "紧急"], "Under maintenance": ["Inatengenezwa", "维修中"], "Unit": ["Chumba", "单元"], "Unit (optional)": ["Chumba (si lazima)", "单元（可选）"], "Unit *": ["Chumba *", "单元 *"], "Unit / Meter group *": ["Chumba / Kundi la mita *", "单元 / 电表组 *"], "Unit / Type": ["Chumba / Aina", "单元 / 类型"], "Unit name *": ["Jina la chumba *", "单元名称 *"], "Unit name / number *": ["Jina / namba ya chumba *", "单元名称/编号 *"], "Units (kWh)": ["Uniti (kWh)", "度数 (kWh)"], "Units Occupied": ["Vyumba Vilivyokaliwa", "已入住单元"], "Unpaid": ["Haijalipwa", "未付"], "Upgrade / Support: HUGO TECH": ["Kuboresha / Msaada: HUGO TECH", "升级 / 支持：HUGO TECH"], "Upgrade with HUGO TECH": ["Boresha na HUGO TECH", "通过 HUGO TECH 升级"], "Upload": ["Pakia", "上传"], "Upload Tokens (Excel/CSV)": ["Pakia Tokeni (Excel/CSV)", "上传电码 (Excel/CSV)"], "Usage": ["Matumizi ya umeme", "用量"], "User": ["Mtumiaji", "用户"], "User Management": ["Usimamizi wa Watumiaji", "用户管理"], "Utility": ["Huduma", "公用事业"], "Utility bill (water / electricity)": ["Bili ya huduma (maji / umeme)", "公用事业账单（水/电）"], "Vacant": ["Wazi", "空置"], "Vacant Units": ["Vyumba Vitupu", "空置单元"], "Vacant units only": ["Vyumba vitupu tu", "仅空置单元"], "Viewer": ["Mtazamaji", "查看者"], "Viewer (view only)": ["Mtazamaji (kuangalia tu)", "查看者（仅查看）"], "Voter ID": ["Kadi ya Mpiga Kura", "选民证"], "Waiting Payment": ["Inasubiri Malipo", "等待付款"], "Waiting Payment (no access)": ["Inasubiri Malipo (hakuna ufikiaji)", "等待付款（无法访问）"], "Warn me when Luku tokens are below": ["Nionye tokeni za Luku zikiwa chini ya", "Luku 电码低于此数时提醒我"], "When resolved, add the cost to Expenses": ["Ikitatuliwa, ongeza gharama kwenye Matumizi", "解决后将费用计入支出"], "Where": ["Wapi", "地点"], "Your Account": ["Akaunti Yako", "您的账户"], "Your Name": ["Jina Lako", "您的姓名"], "Your Plan": ["Mpango Wako", "您的套餐"], "Your account is not active.": ["Akaunti yako haijawashwa.", "您的账户未激活。"], "e.g. A or 101": ["mf. A au 101", "例如 A 或 101"], "e.g. Mikadi Beach Apartments": ["mf. Mikadi Beach Apartments", "例如 Mikadi Beach Apartments"], "e.g. Taka - November 2026": ["mf. Taka - Novemba 2026", "例如 垃圾费 - 2026年11月"], "e.g. Taka, Ulinzi, Service charge": ["mf. Taka, Ulinzi, Service charge", "例如 垃圾费、保安、服务费"], "e.g. Water leaking in bathroom": ["mf. Maji yanavuja bafuni", "例如 浴室漏水"], "everything ·": ["kila kitu ·", "全部 ·"], "money & reports ·": ["pesa na ripoti ·", "资金与报表 ·"], "needs renew / move out": ["inahitaji kusasishwa / kuhama", "需续约/搬出"], "only their tickets ·": ["tiketi zao tu ·", "仅限其工单 ·"], "per month — the first month is billed together with the rent.": ["kwa mwezi — mwezi wa kwanza unatozwa pamoja na kodi.", "每月 — 首月与租金一并收取。"], "plan default": ["chaguo-msingi la mpango", "套餐默认"], "properties, tenants, payments ·": ["mali, wapangaji, malipo ·", "房产、租户、付款 ·"], "to": ["hadi", "至"], "view only.": ["kuangalia tu.", "仅查看。"], "Action completed successfully.": ["Kitendo kimekamilika.", "操作已完成。"], "Activity": ["Shughuli", "活动"], "All categories": ["Makundi yote", "所有类别"], "All houses / apartments": ["Nyumba / apartment zote", "所有住宅/公寓"], "All properties": ["Mali zote", "所有房产"], "All technicians": ["Mafundi wote", "所有技术员"], "Amount paid": ["Kiasi kilicholipwa", "已付金额"], "Amount received": ["Kiasi kilichopokelewa", "收到金额"], "BEST": ["BORA", "最佳"], "Bathrooms": ["Bafu", "浴室"], "Bedrooms": ["Vyumba vya kulala", "卧室"], "Billed to": ["Imetozwa kwa", "开票给"], "Both files are the same version.": ["Mafaili yote ni toleo moja.", "两个文件版本一致。"], "Choose a tenant.": ["Chagua mpangaji.", "请选择租户。"], "Choose the unit and the price.": ["Chagua chumba na bei.", "请选择单元和价格。"], "Company updated.": ["Kampuni imesasishwa.", "公司已更新。"], "Currency *": ["Sarafu *", "货币 *"], "Delete": ["Futa", "删除"], "Download failed:": ["Kupakua kumeshindwa:", "下载失败："], "Due:": ["Mwisho:", "到期："], "Edit": ["Hariri", "编辑"], "Ended": ["Imeisha", "已结束"], "Enter at least one new price.": ["Weka angalau bei moja mpya.", "请至少输入一个新价格。"], "Enter your current password to save.": ["Weka password yako ya sasa ili kuhifadhi.", "请输入当前密码以保存。"], "Error loading invoice:": ["Hitilafu kupakia ankara:", "加载发票出错："], "Euro": ["Euro", "欧元"], "Extend": ["Ongeza", "延长"], "Extend Stay": ["Ongeza Muda wa Kukaa", "延长入住"], "Failed:": ["Imeshindwa:", "失败："], "For invoice": ["Kwa ankara", "对应发票"], "Furnished": ["Ina samani", "带家具"], "Furnishing Status": ["Hali ya Samani", "家具情况"], "Group Name *": ["Jina la Kundi *", "分组名称 *"], "How to pay": ["Jinsi ya kulipa", "付款方式"], "INVOICE": ["ANKARA", "发票"], "Included in rent (hotel / Air-Bnb)": ["Imo ndani ya kodi (hoteli / Air-Bnb)", "含在租金内（酒店/Air-Bnb）"], "Inclusive": ["Imejumuishwa", "已包含"], "Invoice total": ["Jumla ya ankara", "发票合计"], "Leases": ["Mikataba", "租约"], "Leases (newest first)": ["Mikataba (mipya kwanza)", "租约（最新优先）"], "Manage": ["Simamia", "管理"], "Move Out": ["Hama", "搬出"], "Moved Out": ["Amehama", "已搬出"], "NOT paid": ["HAIJALIPWA", "未付款"], "New Invoice": ["Ankara Mpya", "新建发票"], "No activity recorded yet.": ["Bado hakuna shughuli zilizorekodiwa.", "尚无活动记录。"], "No companies in this view.": ["Hakuna kampuni kwenye orodha hii.", "此视图中没有公司。"], "No contracts ending within 30 days.": ["Hakuna mikataba inayoisha ndani ya siku 30.", "30天内没有到期合同。"], "No expenses in this period.": ["Hakuna matumizi kwenye kipindi hiki.", "此期间没有支出。"], "No invoices found.": ["Hakuna ankara zilizopatikana.", "未找到发票。"], "No invoices.": ["Hakuna ankara.", "没有发票。"], "No occupied units with a service charge.": ["Hakuna vyumba vilivyokaliwa vyenye ada ya huduma.", "没有带服务费的已入住单元。"], "No payments found.": ["Hakuna malipo yaliyopatikana.", "未找到付款。"], "No payments recorded yet.": ["Bado hakuna malipo yaliyorekodiwa.", "尚无付款记录。"], "No properties found.": ["Hakuna mali zilizopatikana.", "未找到房产。"], "No properties yet.": ["Bado hakuna mali.", "暂无房产。"], "No records for this period.": ["Hakuna rekodi kwenye kipindi hiki.", "此期间没有记录。"], "No service charges set. Add one on a unit.": ["Hakuna ada za huduma. Ongeza kwenye chumba.", "未设置服务费，请在单元上添加。"], "No tenants found in this view.": ["Hakuna wapangaji kwenye orodha hii.", "此视图中没有租户。"], "No tenants with a current contract": ["Hakuna wapangaji wenye mkataba wa sasa", "没有当前有合同的租户"], "No tickets here.": ["Hakuna tiketi hapa.", "这里没有工单。"], "No tokens in stock": ["Hakuna tokeni kwenye akiba", "没有库存电码"], "No tokens uploaded yet. Download the template, fill it, then Upload.": ["Bado hakuna tokeni. Pakua kiolezo, kijaze, kisha Pakia.", "尚未上传电码。请下载模板，填写后上传。"], "No units yet.": ["Bado hakuna vyumba.", "暂无单元。"], "No unpaid invoices": ["Hakuna ankara ambazo hazijalipwa", "没有未付发票"], "No users.": ["Hakuna watumiaji.", "没有用户。"], "No vacant units available": ["Hakuna vyumba vitupu", "没有空置单元"], "No vacant units.": ["Hakuna vyumba vitupu.", "没有空置单元。"], "Not assigned": ["Hajapangiwa", "未分配"], "Not paid yet": ["Bado haijalipwa", "尚未支付"], "Nothing here.": ["Hakuna kitu hapa.", "这里没有内容。"], "Nothing matches your search.": ["Hakuna kinachofanana na utafutaji wako.", "没有符合搜索的结果。"], "Onboarding Error:": ["Hitilafu ya Usajili:", "登记出错："], "Paid to date": ["Kilicholipwa hadi sasa", "已付至今"], "Pay": ["Lipa", "支付"], "Payment": ["Malipo", "付款"], "Payment Method *": ["Njia ya Malipo *", "付款方式 *"], "Payment method": ["Njia ya malipo", "付款方式"], "Payments received": ["Malipo yaliyopokelewa", "已收付款"], "Please check the Rent Price and the dates / number of periods.": ["Tafadhali kagua Bei ya Kodi na tarehe / idadi ya vipindi.", "请检查租金以及日期/期数。"], "Please choose a PNG or JPG picture.": ["Tafadhali chagua picha ya PNG au JPG.", "请选择 PNG 或 JPG 图片。"], "Please choose an invoice.": ["Tafadhali chagua ankara.", "请选择发票。"], "Please choose the new end date.": ["Tafadhali chagua tarehe mpya ya mwisho.", "请选择新的结束日期。"], "Please enter the Rent Price and make sure the lease dates / number of periods are correct.": ["Tafadhali weka Bei ya Kodi na hakikisha tarehe / idadi ya vipindi ni sahihi.", "请输入租金，并确认租期日期/期数正确。"], "Please enter the amount received.": ["Tafadhali weka kiasi kilichopokelewa.", "请输入收到的金额。"], "Please select a Property and a Unit before saving.": ["Tafadhali chagua Mali na Chumba kabla ya kuhifadhi.", "保存前请选择房产和单元。"], "Please type the problem.": ["Tafadhali andika tatizo.", "请填写问题。"], "Pound": ["Pauni", "英镑"], "RECEIPT": ["RISITI", "收据"], "Received by:": ["Amepokea:", "收款人："], "Received from": ["Imepokelewa kutoka", "收款自"], "Registration Failed:": ["Usajili Umeshindwa:", "注册失败："], "Remove Group": ["Ondoa Kundi", "移除分组"], "Renew": ["Sasisha", "续约"], "Renewed": ["Imesasishwa", "已续约"], "Rent Amount *": ["Kiasi cha Kodi *", "租金金额 *"], "Rent Timeline *": ["Ratiba ya Kodi *", "租金期限 *"], "Saved.": ["Imehifadhiwa.", "已保存。"], "See all in Properties": ["Ona zote kwenye Mali", "在房产中查看全部"], "See who has not paid": ["Ona ambao hawajalipa", "查看谁未付款"], "Show numbers": ["Onyesha namba", "显示数字"], "Signature / Stamp": ["Sahihi / Muhuri", "签名 / 印章"], "Subscription Ended": ["Usajili Umeisha", "订阅已结束"], "Suspended": ["Imesimamishwa", "已暂停"], "TSH": ["TSH", "TSH"], "Technicians: unfinished jobs": ["Mafundi: kazi ambazo hazijaisha", "技术员：未完成工作"], "Tenant updated.": ["Mpangaji amesasishwa.", "租户已更新。"], "Thank you for your business.": ["Asante kwa kufanya biashara nasi.", "感谢您的惠顾。"], "The PDF was downloaded. In WhatsApp, attach it with the paper-clip button and send.": ["PDF imepakuliwa. Kwenye WhatsApp, iambatanishe kwa kitufe cha kipande cha karatasi kisha tuma.", "PDF 已下载。请在 WhatsApp 中用回形针按钮添加后发送。"], "This picture is too big. Please use a smaller one.": ["Picha hii ni kubwa mno. Tafadhali tumia ndogo zaidi.", "图片太大，请使用较小的图片。"], "This tenant has no current lease.": ["Mpangaji huyu hana mkataba wa sasa.", "该租户没有当前租约。"], "Token copied!": ["Tokeni imenakiliwa!", "电码已复制！"], "Total Billed": ["Jumla Iliyotozwa", "已开票合计"], "Total Paid": ["Jumla Iliyolipwa", "已付合计"], "USD": ["USD", "美元"], "Unassigned": ["Haijapangiwa", "未分配"], "Unfurnished": ["Haina samani", "无家具"], "Units in Group *": ["Vyumba kwenye Kundi *", "分组内单元 *"], "View": ["Angalia", "查看"], "Your session has ended. Please sign in again.": ["Muda wako umeisha. Tafadhali ingia tena.", "登录已过期，请重新登录。"], "inclusive": ["imejumuishwa", "已包含"], "occupied": ["imekaliwa", "已入住"], "paid": ["imelipwa", "已付"], "permanent": ["ya kudumu", "永久"], "remove unsold": ["ondoa ambazo hazijauzwa", "移除未售出"], "to add your first one.": ["kuongeza ya kwanza.", "添加第一个。"], "token(s) left.": ["tokeni zimebaki.", "个电码剩余。"], "units": ["vyumba", "单元"], "vacant": ["wazi", "空置"], "— Whole property / common area —": ["— Mali nzima / eneo la pamoja —", "— 整个房产 / 公共区域 —"], "Invalid Email or Password.": ["Barua pepe au Password si sahihi.", "邮箱或密码不正确。"], "Email and Password are required.": ["Barua pepe na Password vinahitajika.", "必须填写邮箱和密码。"], "Login Failed!": ["Kuingia Kumeshindwa!", "登录失败！"], "Access Denied: Unauthorized role permission.": ["Imekataliwa: huna ruhusa ya cheo hiki.", "拒绝访问：您的角色无此权限。"], "Your current password is not correct.": ["Password yako ya sasa si sahihi.", "当前密码不正确。"], "Password must be at least 6 characters.": ["Password iwe na angalau herufi 6.", "密码至少需要6位。"], "New password must be at least 8 characters.": ["Password mpya iwe na angalau herufi 8.", "新密码至少需要8位。"], "This email is already used by another account.": ["Barua pepe hii inatumiwa na akaunti nyingine.", "此邮箱已被其他账户使用。"], "Please enter a valid email address.": ["Tafadhali weka barua pepe sahihi.", "请输入有效的邮箱地址。"], "Too many login attempts. Please try again after 15 minutes.": ["Majaribio mengi ya kuingia. Jaribu tena baada ya dakika 15.", "登录尝试次数过多，请15分钟后再试。"], "Server error": ["Hitilafu ya seva", "服务器错误"], "Send test email": ["Tuma barua pepe ya majaribio", "发送测试邮件"], "Email is not set up. In Railway > Variables add SMTP_USER (your Gmail address) and SMTP_PASS (a Gmail App Password), then redeploy.": ["Barua pepe haijawekwa. Kwenye Railway > Variables ongeza SMTP_USER (Gmail yako) na SMTP_PASS (App Password ya Gmail), kisha deploy tena.", "邮件尚未设置。请在 Railway > Variables 中添加 SMTP_USER（您的 Gmail）和 SMTP_PASS（Gmail 应用密码），然后重新部署。"], "Email failed:": ["Barua pepe imeshindwa:", "邮件发送失败："]};
+    var RULES = [["^(\\d+) token\\(s\\) left\\.$", "Tokeni \\1 zimebaki.", "剩余 \\1 个电码。"], ["^Welcome, (.+)$", "Karibu, \\1", "欢迎，\\1"], ["^Page (\\d+) of (\\d+)$", "Ukurasa \\1 wa \\2", "第 \\1 页，共 \\2 页"], ["^(\\d+) days? left$", "Siku \\1 zimebaki", "剩余 \\1 天"], ["^(\\d+) units?$", "Vyumba \\1", "\\1 个单元"], ["^(\\d+) properties$", "Mali \\1", "\\1 处房产"]].map(function (r) { return [new RegExp(r[0]), r[1], r[2]]; });
+    var LANG = 'en';
+    try { LANG = localStorage.getItem('keyarch_lang') || 'en'; } catch (e) { }
+    if (['en', 'sw', 'zh'].indexOf(LANG) < 0) LANG = 'en';
+    window.KA_LANG = function () { return LANG; };
+
+    function idx() { return LANG === 'sw' ? 0 : 1; }
+    function lookup(k) {
+        var hit = DICT[k]; if (hit) return hit[idx()];
+        for (var i = 0; i < RULES.length; i++) {
+            var m = RULES[i][0].exec(k);
+            if (m) { var tpl = RULES[i][LANG === 'sw' ? 1 : 2]; return tpl.replace(/\\(\d)/g, function (_, n) { return m[+n] || ''; }); }
+        }
+        return null;
+    }
+    // translate one string (keeps spaces around it); unknown text stays as it is
+    function T(str) {
+        if (LANG === 'en' || str === null || str === undefined) return str;
+        str = String(str);
+        if (!/[A-Za-z]/.test(str)) return str;
+        var lead = str.match(/^\s*/)[0], trail = str.match(/\s*$/)[0];
+        var k = str.replace(/\s+/g, ' ').trim();
+        if (!k) return str;
+        var out = lookup(k);
+        if (out !== null) return lead + out + trail;
+        if (k.indexOf('\n') >= 0 || str.indexOf('\n') >= 0) {
+            var lines = str.split('\n'), changed = false;
+            lines = lines.map(function (l) { var t = T(l); if (t !== l) changed = true; return t; });
+            if (changed) return lines.join('\n');
+        }
+        var c = k.indexOf(': ');
+        if (c > 0) {
+            var pre = lookup(k.slice(0, c + 1));
+            if (pre !== null) { var rest = k.slice(c + 2); return lead + pre + ' ' + (lookup(rest) || rest) + trail; }
+        }
+        return str;
+    }
+    window.T = T;
+
+    var origText = new WeakMap(), lastText = new WeakMap();
+    function trNode(n) {
+        var cur = n.nodeValue, src;
+        if (lastText.has(n) && lastText.get(n) === cur) src = origText.get(n); else { src = cur; origText.set(n, cur); }
+        var out = LANG === 'en' ? src : T(src);
+        if (out !== cur) n.nodeValue = out;
+        lastText.set(n, out);
+    }
+    var ATTRS = ['placeholder', 'title', 'aria-label'];
+    var origAttr = new WeakMap();
+    function trAttrs(el) {
+        for (var i = 0; i < ATTRS.length; i++) {
+            var a = ATTRS[i], v = el.getAttribute(a); if (v === null) continue;
+            var rec = origAttr.get(el); if (!rec) { rec = {}; origAttr.set(el, rec); }
+            var r = rec[a], src;
+            if (r && r.last === v) src = r.orig; else src = v;
+            var out = LANG === 'en' ? src : T(src);
+            rec[a] = { orig: src, last: out };
+            if (out !== v) el.setAttribute(a, out);
+        }
+    }
+    var SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, NOSCRIPT: 1 };
+    function walk(root) {
+        if (!root) return;
+        if (root.nodeType === 3) { if (root.parentNode && !SKIP[root.parentNode.nodeName]) trNode(root); return; }
+        if (root.nodeType !== 1 || SKIP[root.nodeName]) return;
+        trAttrs(root);
+        var w = document.createTreeWalker(root, 5, null), n;
+        while ((n = w.nextNode())) {
+            if (n.nodeType === 3) { if (!SKIP[n.parentNode.nodeName]) trNode(n); }
+            else if (n.nodeType === 1) { if (SKIP[n.nodeName]) { /* skip */ } else trAttrs(n); }
+        }
+    }
+    var pending = new Set(), scheduled = false;
+    function flush() {
+        scheduled = false;
+        var list = Array.from(pending); pending.clear();
+        list.forEach(function (n) { if (document.contains(n) || n === document.body) walk(n); });
+    }
+    function queue(n) { pending.add(n); if (!scheduled) { scheduled = true; requestAnimationFrame(flush); } }
+    var obs = new MutationObserver(function (recs) {
+        recs.forEach(function (r) {
+            if (r.type === 'childList') r.addedNodes.forEach(function (n) { queue(n); });
+            else if (r.type === 'characterData') queue(r.target);
+            else if (r.type === 'attributes') queue(r.target);
+        });
+    });
+    function applyAll() { walk(document.body); document.title = LANG === 'en' ? 'KEY ARCH — Property Management System' : 'KEY ARCH'; document.documentElement.setAttribute('lang', LANG === 'zh' ? 'zh' : (LANG === 'sw' ? 'sw' : 'en')); paintLangSwitch(); }
+
+    // language switch buttons (sidebar and login pages)
+    function paintLangSwitch() {
+        document.querySelectorAll('.ka-lang-switch').forEach(function (box) {
+            box.innerHTML = '';
+            [['en', 'EN'], ['sw', 'SW'], ['zh', '中文']].forEach(function (l) {
+                var b = document.createElement('button'); b.type = 'button'; b.textContent = l[1];
+                b.className = 'ka-lang-btn' + (LANG === l[0] ? ' on' : '');
+                b.setAttribute('data-keep', '1');
+                b.onclick = function () { window.setLang(l[0]); };
+                box.appendChild(b);
+            });
+        });
+    }
+    window.setLang = function (l) {
+        if (['en', 'sw', 'zh'].indexOf(l) < 0) return;
+        LANG = l; try { localStorage.setItem('keyarch_lang', l); } catch (e) { }
+        applyAll();
+    };
+
+    var _alert = window.alert;
+    window.alert = function (m) { return _alert.call(window, T(m)); };
+    var _confirm = window.confirm;
+    window.confirm = function (m) { return _confirm.call(window, T(m)); };
+
+    function start() {
+        applyAll();
+        obs.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+</script>
+<!--I18N_END-->
+
+
+
 </body>
 </html>
