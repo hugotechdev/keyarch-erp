@@ -981,9 +981,12 @@
                         <div class="flex flex-wrap gap-2">
                             <button onclick="openIncomeModal()" class="can-fin bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-plus"></i> Income</button>
                             <button onclick="openExpenseModal()" class="can-fin bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-plus"></i> Expense</button>
+                            <button onclick="openPaymentModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-money-bill-wave"></i> Record Payment</button>
                             <button onclick="showPage('invoices')" class="bg-[#14223d] border border-[#233863] text-gray-200 text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-file-invoice"></i> Invoices & Receipts</button>
+                            <button onclick="showPage('reports')" class="bg-[#14223d] border border-[#233863] text-gray-200 text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-chart-column"></i> Reports</button>
                         </div>
                     </div>
+                    <div id="fin-top" class="grid md:grid-cols-2 gap-3"></div>
                     <div class="flex gap-1 overflow-x-auto text-xs font-bold">
                         <button id="fin-tabbtn-overview" onclick="setFinTab('overview')" class="fin-tabbtn px-4 py-2 rounded-xl">Overview</button>
                         <button id="fin-tabbtn-transactions" onclick="setFinTab('transactions')" class="fin-tabbtn px-4 py-2 rounded-xl">Transactions</button>
@@ -1348,6 +1351,7 @@
                             <div class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">3. Payment</div>
                             <div class="grid grid-cols-2 gap-3 mb-3">
                                 <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Currency of this contract</label><select id="tenant-currency" onchange="onbCurrencyChanged()" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs outline-none"><option value="TZS">TSh (Tanzanian shillings)</option><option value="USD">USD (US dollars)</option></select></div>
+                                <div id="tenant-rate-wrap" class="hidden col-span-2"><label class="block text-[11px] font-semibold text-gray-400 mb-1">Exchange rate: 1 USD = how many TSh? *</label><input type="text" inputmode="decimal" id="tenant-rate" oninput="onbConvert()" placeholder="e.g. 2,600" class="money-input w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs outline-none"><div id="tenant-rate-note" class="text-[10px] text-amber-300 mt-1"></div></div>
                                 <div><label class="block text-[11px] font-semibold text-gray-400 mb-1">Money goes into account</label><select id="tenant-account" class="w-full p-3 rounded-xl bg-[#14223d] border border-[#1e2f52] text-white text-xs outline-none"></select></div>
                             </div>
                             <div class="grid grid-cols-2 gap-3">
@@ -1617,7 +1621,7 @@
                 <div><label class="lbl">Invoice *</label><select id="pay-invoice-id" onchange="updatePaymentHint(true)" class="inp" required></select></div>
                 <div id="pay-hint" class="text-[11px] text-gray-400 bg-[#14223d] rounded-xl p-2.5"></div>
                 <div class="grid grid-cols-2 gap-3">
-                    <div><label class="lbl" id="pay-cur-label">Amount received (TZS) *</label><input id="pay-amount" inputmode="decimal" class="money-input inp" placeholder="0" required></div>
+                    <div><label class="lbl" id="pay-cur-label">Amount received (TZS) *</label><input id="pay-amount" oninput="payConvNote()" inputmode="decimal" class="money-input inp" placeholder="0" required></div>
                     <div><label class="lbl">Payment date</label><input id="pay-date" type="date" class="inp"></div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -1625,6 +1629,8 @@
                         <select id="pay-method" class="inp"><option>Cash</option><option>M-Pesa</option><option>Tigo Pesa</option><option>Airtel Money</option><option>Halopesa</option><option>Bank Transfer</option><option>Cheque</option></select></div>
                     <div><label class="lbl">Reference no.</label><input id="pay-ref" class="inp" placeholder="Transaction ID"></div>
                 </div>
+                <div class="grid grid-cols-2 gap-3"><div><label class="lbl">Customer paid in</label><select id="pay-recv-cur" onchange="payRecvChanged(true)" class="inp"><option value="TZS">TSh</option><option value="USD">USD</option></select></div><div id="pay-rate-wrap" class="hidden"><label class="lbl">Rate: 1 USD = ? TSh *</label><input id="pay-rate" inputmode="decimal" oninput="payConvNote()" class="money-input inp" placeholder="2,600"></div></div>
+                <div id="pay-conv-note" class="text-[11px] text-emerald-300 font-bold"></div>
                 <div><label class="lbl">Money goes into account</label><select id="pay-account" class="inp"></select></div>
                 <div><label class="lbl">Notes</label><input id="pay-notes" class="inp"></div>
                 <button class="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl text-white font-bold text-xs shadow-lg">Save Payment & Show Receipt</button>
@@ -2425,7 +2431,7 @@
 
             document.getElementById('prop-dropdown-list').classList.add('hidden');
 
-            document.getElementById('tenant-unit-id').value = '';
+            document.getElementById('tenant-unit-id').value = ''; onbBase = 0; onbSvcBase = 0;
             const unitLabel = document.getElementById('unit-selected-label');
             unitLabel.innerText = '-- Select Vacant Unit --';
             unitLabel.className = 'text-gray-400 truncate';
@@ -2433,12 +2439,16 @@
             loadPropertyUnits(propId);
         }
 
-        function selectUnitOption(unitId, unitText, rentAmount, svc, incl) {
+        let onbBase = 0, onbSvcBase = 0, onbUnitCur = 'TZS';
+        function selectUnitOption(unitId, unitText, rentAmount, svc, incl, ucur) {
+            onbBase = Number(rentAmount) || 0; onbSvcBase = Number(svc) || 0; onbUnitCur = ucur === 'USD' ? 'USD' : 'TZS';
+            // a unit priced in USD starts a USD contract (and the other way round); the user may still change it
+            const cs = document.getElementById('tenant-currency'); if (cs) cs.value = onbUnitCur;
             const wrap = document.getElementById('tenant-svc-wrap');
             if (wrap) {
                 const on = Number(svc) > 0 && !(incl === true || incl === 'true');
                 wrap.classList.toggle('hidden', !on);
-                setText('tenant-svc-amount', money(svc));
+                setText('tenant-svc-amount', money(onbConv(svc), onbCur()));
                 const pr = findProp(document.getElementById('tenant-property-id').value);
                 setText('tenant-svc-label', (pr && pr.service_charge_label) || 'Service charge');
                 document.getElementById('tenant-svc-paid').value = '';
@@ -2451,11 +2461,7 @@
             document.getElementById('unit-dropdown-list').classList.add('hidden');
 
             // Fill the rent price from the unit (user can still change it)
-            const rentInput = document.getElementById('tenant-rent');
-            if (rentAmount) {
-                rentInput.value = formatMoney(rentAmount);
-            }
-            calculateAmountDue();
+            onbCurrencyChanged();
         }
 
         // LOAD PROPERTIES WITH SEARCHABLE OPTIONS
@@ -2503,11 +2509,12 @@
                 }
 
                 container.innerHTML = units.map(u => {
-                    const displayText = `${u.unit_number} (TZS ${parseFloat(u.rent_amount).toLocaleString('en-US')})`;
+                    const ucur = String(u.currency || '').toUpperCase() === 'USD' ? 'USD' : 'TZS';
+                    const displayText = `${u.unit_number} (${ucur} ${parseFloat(u.rent_amount).toLocaleString('en-US')})`;
                     return `
-                        <div data-id="${esc(u.unit_id)}" data-text="${esc(displayText)}" data-rent="${esc(u.rent_amount)}" data-svc="${esc(u.service_charge || 0)}" data-incl="${u.service_inclusive ? 'true' : 'false'}" onclick="selectUnitOption(this.dataset.id, this.dataset.text, parseFloat(this.dataset.rent), parseFloat(this.dataset.svc), this.dataset.incl)" class="dropdown-item p-2 hover:bg-[#1e2f52] rounded-lg cursor-pointer text-xs text-gray-200 transition flex justify-between items-center">
+                        <div data-id="${esc(u.unit_id)}" data-text="${esc(displayText)}" data-rent="${esc(u.rent_amount)}" data-svc="${esc(u.service_charge || 0)}" data-incl="${u.service_inclusive ? 'true' : 'false'}" data-cur="${ucur}" onclick="selectUnitOption(this.dataset.id, this.dataset.text, parseFloat(this.dataset.rent), parseFloat(this.dataset.svc), this.dataset.incl, this.dataset.cur)" class="dropdown-item p-2 hover:bg-[#1e2f52] rounded-lg cursor-pointer text-xs text-gray-200 transition flex justify-between items-center">
                             <span class="font-semibold text-white">Unit ${esc(u.unit_number)}</span>
-                            <span class="text-[11px] text-emerald-400 font-bold">TZS ${parseFloat(u.rent_amount).toLocaleString('en-US')}</span>
+                            <span class="text-[11px] text-emerald-400 font-bold">${ucur} ${parseFloat(u.rent_amount).toLocaleString('en-US')}</span>
                         </div>
                     `;
                 }).join('');
@@ -2627,11 +2634,28 @@
 
         function onbCur() { const el = document.getElementById('tenant-currency'); return el && el.value === 'USD' ? 'USD' : 'TZS'; }
         function onbMoney(n) { return money(n, onbCur()); }
+        function onbRate() { const el = document.getElementById('tenant-rate'); return el ? parseMoney(el.value) : 0; }
+        // convert an amount listed in the unit's currency into the contract currency
+        function onbConv(n) {
+            const c = onbCur(), r = onbRate();
+            if (c === onbUnitCur) return n;
+            if (!(r > 0)) return 0;
+            return c === 'USD' ? Math.round(n / r * 100) / 100 : Math.round(n * r);
+        }
+        function onbConvert() {
+            const diff = onbCur() !== onbUnitCur;
+            document.getElementById('tenant-rate-wrap').classList.toggle('hidden', !diff);
+            const rentInput = document.getElementById('tenant-rent');
+            if (onbBase > 0) rentInput.value = (diff && !(onbRate() > 0)) ? '' : formatMoney(onbConv(onbBase));
+            document.getElementById('tenant-rate-note').innerText = diff ? `The unit is priced in ${onbUnitCur === 'USD' ? 'USD' : 'TSh'}: ${money(onbBase, onbUnitCur)}. Enter the rate and the rent is converted.` : '';
+            setText('tenant-svc-amount', money(onbConv(onbSvcBase), onbCur()));
+            calculateAmountDue();
+        }
         async function onbCurrencyChanged() {
             if (!finAccounts.length) await loadFinAccounts();
             document.querySelectorAll('.onb-lbl').forEach(el => el.innerText = el.dataset.pre + onbCur() + el.dataset.post);
             fillAccountSelect('tenant-account', onbCur(), document.getElementById('tenant-account').value);
-            calculateAmountDue();
+            onbConvert();
         }
         function calculateAmountDue() {
             const f = getPaymentFigures();
@@ -2698,7 +2722,7 @@
                 payment_method: document.getElementById('tenant-pay-method').value,
                 payment_reference: document.getElementById('tenant-pay-ref').value,
                 service_paid: parseMoney(document.getElementById('tenant-svc-paid').value),
-                currency: document.getElementById('tenant-currency').value, account_id: document.getElementById('tenant-account').value || undefined
+                currency: document.getElementById('tenant-currency').value, exchange_rate: onbRate() || undefined, account_id: document.getElementById('tenant-account').value || undefined
                 // the server calculates total_rent, total_to_pay, balance and status again
             };
 
@@ -2717,7 +2741,7 @@
                 document.getElementById('form-tenant-onboard').reset();
 
                 document.getElementById('tenant-property-id').value = '';
-                document.getElementById('tenant-unit-id').value = '';
+                document.getElementById('tenant-unit-id').value = ''; onbBase = 0; onbSvcBase = 0;
                 document.getElementById('prop-selected-label').innerText = '-- Select Property --';
                 document.getElementById('prop-selected-label').className = 'text-gray-400 truncate';
                 document.getElementById('unit-selected-label').innerText = '-- Select Property First --';
@@ -4452,19 +4476,45 @@
             const hint = document.getElementById('pay-hint');
             if (!inv) { hint.innerText = 'There are no unpaid invoices.'; return; }
             hint.innerHTML = `${esc(inv.tenant_name)} · ${esc(inv.property_name)} (${esc(inv.unit_number)})<br>Total ${money(inv.amount_due, inv.currency)} · Paid ${money(inv.paid, inv.currency)} · <b class="text-rose-400">Balance ${money(inv.balance, inv.currency)}</b>`;
-            document.getElementById('pay-cur-label').innerText = 'Amount received (' + (inv.currency === 'USD' ? 'USD' : 'TZS') + ') *'; fillAccountSelect('pay-account', inv.currency === 'USD' ? 'USD' : 'TZS', document.getElementById('pay-account').value);
-            if (prefill) document.getElementById('pay-amount').value = formatMoney(inv.balance);
+            if (prefill) document.getElementById('pay-recv-cur').value = inv.currency === 'USD' ? 'USD' : 'TZS';
+            payRecvChanged(false);
+            if (prefill) { document.getElementById('pay-rate').value = ''; document.getElementById('pay-amount').value = formatMoney(inv.balance); }
+            payConvNote();
+        }
+        function payInv() { return currentInvoices.find(i => String(i.invoice_id) === document.getElementById('pay-invoice-id').value); }
+        function payRecvChanged(userChanged) {
+            const inv = payInv(); if (!inv) return;
+            const rc = document.getElementById('pay-recv-cur').value, ic = inv.currency === 'USD' ? 'USD' : 'TZS';
+            document.getElementById('pay-cur-label').innerText = 'Amount received (' + rc + ') *';
+            document.getElementById('pay-rate-wrap').classList.toggle('hidden', rc === ic);
+            fillAccountSelect('pay-account', rc, userChanged ? '' : document.getElementById('pay-account').value);
+            if (userChanged) document.getElementById('pay-amount').value = rc === ic ? formatMoney(inv.balance) : '';
+            payConvNote();
+        }
+        // how much of the invoice the money pays, using the rate
+        function payConvNote() {
+            const inv = payInv(), box = document.getElementById('pay-conv-note'); if (!inv || !box) return;
+            const rc = document.getElementById('pay-recv-cur').value, ic = inv.currency === 'USD' ? 'USD' : 'TZS';
+            const amt = parseMoney(document.getElementById('pay-amount').value), rate = parseMoney(document.getElementById('pay-rate').value);
+            if (rc === ic || !(amt > 0)) { box.innerText = ''; return; }
+            if (!(rate > 0)) { box.innerText = 'Enter the exchange rate.'; return; }
+            const credited = ic === 'USD' ? Math.round(amt / rate * 100) / 100 : Math.round(amt * rate);
+            box.innerText = '= ' + money(credited, ic) + ' will be taken off this invoice';
         }
         async function submitPayment(e) {
             e.preventDefault();
             const invoiceId = document.getElementById('pay-invoice-id').value;
             const amount = parseMoney(document.getElementById('pay-amount').value);
+            const inv0 = payInv(), rc = document.getElementById('pay-recv-cur').value, other = inv0 && rc !== (inv0.currency === 'USD' ? 'USD' : 'TZS');
+            const rate = parseMoney(document.getElementById('pay-rate').value);
+            if (other && !(rate > 0)) return alert('Please enter the exchange rate.');
             if (!invoiceId) return alert('Please choose an invoice.');
             if (!(amount > 0)) return alert('Please enter the amount received.');
             const r = await api('/api/payments/record', 'POST', {
                 invoice_id: parseInt(invoiceId), amount, payment_method: document.getElementById('pay-method').value,
                 payment_date: document.getElementById('pay-date').value || undefined, reference: document.getElementById('pay-ref').value, notes: document.getElementById('pay-notes').value,
-                account_id: document.getElementById('pay-account').value || undefined
+                account_id: document.getElementById('pay-account').value || undefined,
+                received_currency: other ? rc : undefined, exchange_rate: other ? rate : undefined
             });
             if (!r.ok) return alert(r.data.error || 'Failed');
             closeModal('modal-payment'); loadAllData();
@@ -4497,6 +4547,7 @@
             if (!r.ok) return alert(r.data.error || 'Could not load the receipt.');
             const d = lastReceiptData = r.data;
             const moneyC = n => money(n, d.currency);
+            const recvLine = d.received_currency ? `<div style="font-size:11px;margin-top:6px">Paid in ${esc(d.received_currency)}: ${money(d.received_amount, d.received_currency)} at 1 USD = TZS ${fmtN(d.exchange_rate)}</div>` : '';
             document.getElementById('receipt-printable-area').innerHTML = `
                 <div class="space-y-5">
                 <div class="flex justify-between items-start border-b pb-4 gap-4">
@@ -4513,7 +4564,7 @@
                 <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-center">
                     <div class="text-[11px] uppercase tracking-wider text-emerald-700 font-bold">Amount received</div>
                     <div class="text-3xl font-black text-emerald-800">${esc(d.currency || 'TZS')} ${fmtN(d.amount_paid)}</div>
-                    <div class="text-[11px] text-emerald-700 capitalize mt-1">${esc(d.amount_words)}</div>
+                    <div class="text-[11px] text-emerald-700 capitalize mt-1">${esc(d.amount_words)}</div>${recvLine}
                 </div>
                 <div class="text-xs space-y-1">
                     <div class="flex justify-between"><span class="text-slate-500">Invoice total</span><span>${moneyC(d.invoice.total)}</span></div>
@@ -4742,7 +4793,24 @@
             const [y, m] = p.split('-'); return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][parseInt(m, 10) - 1] + ' ' + y;
         }
 
+        // quick review at the very top: this month and this year, TSh and USD side by side
+        async function loadFinOverview() {
+            const r = await api('/api/finance/overview'); if (!r.ok) return;
+            const d = r.data, yr = d.today.slice(0, 4);
+            const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][parseInt(d.today.slice(5, 7), 10) - 1];
+            const cell = (label, v, cls, c) => `<div class="p-2 rounded-xl bg-[#14223d] border border-[#233863]"><div class="text-[10px] text-gray-400 uppercase font-bold">${label}</div><div class="text-sm font-black ${cls} break-words">${money(v, c)}</div></div>`;
+            document.getElementById('fin-top').innerHTML = ['TZS', 'USD'].map(c => { const x = d[c];
+                return `<div class="p-4 rounded-2xl bg-[#0d172d] border border-[#182848]">
+                    <div class="flex justify-between items-center mb-3"><div class="text-xs font-bold text-white uppercase tracking-wider">${c === 'USD' ? 'USD account' : 'TSh account'}</div><span class="px-2 py-0.5 rounded text-[10px] bg-[#14223d] border border-[#233863] text-gray-300">${c}</span></div>
+                    <div class="grid grid-cols-2 gap-2">
+                        ${cell('Income ' + mon, x.month_income, 'text-emerald-400', c)}${cell('Expenses ' + mon, x.month_expense, 'text-rose-400', c)}
+                        ${cell('Income ' + yr, x.year_income, 'text-emerald-400', c)}${cell('Expenses ' + yr, x.year_expense, 'text-rose-400', c)}
+                    </div>
+                    <div class="flex justify-between text-[11px] mt-3 text-gray-400"><span>Net ${mon}: <b class="${x.month_income - x.month_expense >= 0 ? 'text-sky-300' : 'text-rose-300'}">${money(x.month_income - x.month_expense, c)}</b></span><span>Net ${yr}: <b class="${x.year_income - x.year_expense >= 0 ? 'text-sky-300' : 'text-rose-300'}">${money(x.year_income - x.year_expense, c)}</b></span></div></div>`; }).join('');
+        }
+
         async function loadFinance() {
+            loadFinOverview();
             const r = await api('/api/finance/ledger?' + finQuery().toString());
             if (!r.ok) { document.getElementById('fin-cards').innerHTML = `<div class="text-rose-300 text-xs">${esc(r.data.error || 'Could not load.')}</div>`; return; }
             finData = r.data; renderFinance();
