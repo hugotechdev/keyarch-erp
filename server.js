@@ -153,7 +153,8 @@ function payStatusOf(toPay, paid) {
 const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MONTHS_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-function todayStr() { return new Date().toISOString().slice(0, 10); }
+// Dates follow Tanzania time (UTC+3), so a payment recorded after midnight there is not called "future"
+function todayStr() { return new Date(Date.now() + 3 * 3600 * 1000).toISOString().slice(0, 10); }
 function isDateStr(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s + 'T00:00:00Z').getTime()); }
 function niceDate(s) {            // 2026-11-05 -> 05 Nov 2026
     if (!isDateStr(String(s).slice(0, 10))) return s || '';
@@ -167,7 +168,7 @@ function fmtMoney(n) { return Number(n || 0).toLocaleString('en-US', { maximumFr
 function periodWord(period, n) { return `${period}${Number(n) === 1 ? '' : 's'}`; }
 const wrapAsync = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(err => {
     console.error('Route error:', req.method, req.originalUrl, err.message);
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
 });
 
 // who can do what
@@ -175,6 +176,10 @@ const R_ADMIN = ['SUPER_ADMIN', 'COMPANY_ADMIN'];
 const R_MANAGE = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'];
 const R_MONEY = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT'];
 const R_VIEW_MONEY = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT', 'VIEWER']; // everyone except TECHNICIAN
+const R_FIN_VIEW = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'ACCOUNTANT', 'PROPERTY_MANAGER'];
+const R_FIN_WRITE = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'ACCOUNTANT'];
+const CURRENCIES = ['TZS', 'USD'];
+const cleanCur = v => (String(v || '').toUpperCase() === 'USD' ? 'USD' : 'TZS');
 const R_TICKETS = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'TECHNICIAN'];
 const ALL_ROLES = ['COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT', 'TECHNICIAN', 'VIEWER'];
 
@@ -189,16 +194,28 @@ async function createInvoice(client, o) {
     const seq = await client.query("SELECT nextval('invoice_seq')");
     const number = `INV-${new Date().getFullYear()}-${seq.rows[0].nextval}`;
     const issue = isDateStr(o.issueDate) ? o.issueDate : todayStr();
+    const curRow = await client.query('SELECT COALESCE(currency, \'TZS\') AS currency FROM leases WHERE lease_id = $1', [o.leaseId]);
+    const currency = cleanCur(o.currency || (curRow.rows[0] && curRow.rows[0].currency));
     const r = await client.query(
         `INSERT INTO invoices (company_id, lease_id, invoice_number, amount_due, due_date, status, invoice_type, description, subtotal, discount,
-                               issue_date, period_start, period_end, notes, lease_charge, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+                               issue_date, period_start, period_end, notes, lease_charge, created_by, currency)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
         [o.companyId, o.leaseId, number, total, o.dueDate || issue, o.status || (total <= 0 ? 'PAID' : 'PENDING'),
          o.type || 'RENT', o.description || null, subtotal, discount, issue,
          isDateStr(o.periodStart) ? o.periodStart : null, isDateStr(o.periodEnd) ? o.periodEnd : null,
-         o.notes || null, o.leaseCharge !== false, o.userId || null]
+         o.notes || null, o.leaseCharge !== false, o.userId || null, currency]
     );
     return r.rows[0];
+}
+
+// A finance account must belong to the company and use the same currency as the money going in or out.
+async function checkAccount(db, companyId, accountId, currency) {
+    if (accountId === undefined || accountId === null || accountId === '') return null;
+    const r = await db.query('SELECT currency, is_active FROM finance_accounts WHERE account_id = $1 AND company_id = $2', [accountId, companyId]);
+    if (r.rows.length === 0) { const e = new Error('Account not found.'); e.status = 400; throw e; }
+    if (r.rows[0].currency !== currency) { const e = new Error(`This account holds ${r.rows[0].currency}, but the money is in ${currency}. Choose an account in ${currency}.`); e.status = 400; throw e; }
+    if (r.rows[0].is_active === false) { const e = new Error('This account is closed. Choose another one.'); e.status = 400; throw e; }
+    return parseInt(accountId, 10);
 }
 
 // Saves a payment and gives it a receipt number (RCT-2026-100001)
@@ -208,11 +225,14 @@ async function addPayment(client, o) {
     let when = null;
     if (isDateStr(o.date) && o.date !== todayStr()) when = o.date + ' 12:00:00';
     const detail = o.methodDetail ? String(o.methodDetail).slice(0, 40) : null;
+    const invCur = await client.query('SELECT COALESCE(currency, \'TZS\') AS currency FROM invoices WHERE invoice_id = $1', [o.invoiceId]);
+    const currency = cleanCur(invCur.rows[0] && invCur.rows[0].currency);
+    const accountId = await checkAccount(client, o.companyId, o.accountId, currency);
     const r = await client.query(
-        `INSERT INTO payments (company_id, invoice_id, amount_paid, payment_date, payment_method, method_detail, reference_no, notes, receipt_number, recorded_by)
-         VALUES ($1, $2, $3, COALESCE($4::timestamp, NOW()), $5, $6, $7, $8, $9, $10) RETURNING *`,
+        `INSERT INTO payments (company_id, invoice_id, amount_paid, payment_date, payment_method, method_detail, reference_no, notes, receipt_number, recorded_by, currency, account_id)
+         VALUES ($1, $2, $3, COALESCE($4::timestamp, (NOW() AT TIME ZONE 'Africa/Dar_es_Salaam')), $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
         [o.companyId, o.invoiceId, o.amount, when, normalizePaymentMethod(o.method), detail,
-         o.reference ? String(o.reference).slice(0, 100) : null, o.notes || null, receipt, o.userId || null]
+         o.reference ? String(o.reference).slice(0, 100) : null, o.notes || null, receipt, o.userId || null, currency, accountId]
     );
     return r.rows[0];
 }
@@ -383,7 +403,7 @@ async function checkLimit(user, limitKey, countSql, what) {
 // Every step runs on its own: one problem never stops the others.
 // The Super Admin can also run it from Platform Admin > Run Database Setup.
 // ============================================================
-const SERVER_VERSION = 'v8.2 - 2026-11-06 - select and delete, edit requests';
+const SERVER_VERSION = 'v8.3 - 2026-11-06 - finance, USD accounts';
 
 const SETUP_STEPS = [
     { name: "Base columns (leases, users)", sql: `
@@ -674,6 +694,51 @@ const SETUP_STEPS = [
             created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         CREATE INDEX IF NOT EXISTS idx_edit_requests_company ON edit_requests (company_id, status)
+    ` }
+    ,{ name: "Finance: currency, accounts, income", sql: `
+        ALTER TABLE leases ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'TZS';
+        ALTER TABLE invoices ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'TZS';
+        ALTER TABLE payments ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'TZS';
+        ALTER TABLE payments ADD COLUMN IF NOT EXISTS account_id INTEGER;
+        ALTER TABLE expenses ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'TZS';
+        ALTER TABLE expenses ADD COLUMN IF NOT EXISTS account_id INTEGER;
+        CREATE TABLE IF NOT EXISTS finance_accounts (
+            account_id SERIAL PRIMARY KEY,
+            company_id INTEGER NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            currency VARCHAR(3) NOT NULL DEFAULT 'TZS',
+            kind VARCHAR(20) DEFAULT 'CASH',
+            opening_balance NUMERIC(14, 2) DEFAULT 0,
+            is_active BOOLEAN DEFAULT true,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS finance_income (
+            income_id SERIAL PRIMARY KEY,
+            company_id INTEGER NOT NULL,
+            account_id INTEGER,
+            property_id INTEGER,
+            description TEXT NOT NULL,
+            amount NUMERIC(14, 2) NOT NULL,
+            currency VARCHAR(3) DEFAULT 'TZS',
+            category VARCHAR(30) DEFAULT 'OTHER',
+            income_date DATE DEFAULT CURRENT_DATE,
+            payer VARCHAR(120),
+            reference VARCHAR(100),
+            notes TEXT,
+            recorded_by INTEGER,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_fin_income_company ON finance_income (company_id, income_date);
+        CREATE INDEX IF NOT EXISTS idx_fin_accounts_company ON finance_accounts (company_id)
+    ` }
+    ,{ name: "Finance: TSh-only views", sql: `
+        DROP VIEW IF EXISTS payments_tzs;
+        DROP VIEW IF EXISTS invoices_tzs;
+        DROP VIEW IF EXISTS expenses_tzs;
+        CREATE VIEW payments_tzs AS SELECT * FROM payments WHERE COALESCE(currency, 'TZS') = 'TZS';
+        CREATE VIEW invoices_tzs AS SELECT * FROM invoices WHERE COALESCE(currency, 'TZS') = 'TZS';
+        CREATE VIEW expenses_tzs AS SELECT * FROM expenses WHERE COALESCE(currency, 'TZS') = 'TZS'
     ` }
 ];
 
@@ -1066,6 +1131,7 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
     let client;
     try {
         const { full_name, nida_passport_no, identity_type, phone_number, property_id, unit_id, start_date, end_date, discount, paid_amount, agreed_rent } = req.body;
+        const leaseCurrency = cleanCur(req.body.currency);
         let { rent_price, rent_period, number_of_periods } = req.body;
         const companyId = req.user.company_id;
 
@@ -1132,6 +1198,7 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
             ]
         );
         const lease = leaseRes.rows[0];
+        if (leaseCurrency !== 'TZS') { await client.query('UPDATE leases SET currency = $1 WHERE lease_id = $2', [leaseCurrency, lease.lease_id]); lease.currency = leaseCurrency; }
 
         await client.query("UPDATE units SET status = 'OCCUPIED' WHERE unit_id = $1 AND company_id = $2", [unit_id, companyId]);
 
@@ -1147,7 +1214,7 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
         if (calc.paid > 0) {
             payment = await addPayment(client, {
                 companyId, invoiceId: invoice.invoice_id, amount: calc.paid, method: req.body.payment_method, methodDetail: req.body.payment_method,
-                reference: req.body.payment_reference, date: start_date <= todayStr() ? start_date : todayStr(), userId: req.user.user_id
+                reference: req.body.payment_reference, date: start_date <= todayStr() ? start_date : todayStr(), userId: req.user.user_id, accountId: req.body.account_id
             });
         }
 
@@ -1166,7 +1233,7 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
             if (svcPaid > 0) {
                 await addPayment(client, {
                     companyId, invoiceId: serviceInvoice.invoice_id, amount: svcPaid, method: req.body.payment_method, methodDetail: req.body.payment_method,
-                    reference: req.body.payment_reference, date: start_date <= todayStr() ? start_date : todayStr(), userId: req.user.user_id
+                    reference: req.body.payment_reference, date: start_date <= todayStr() ? start_date : todayStr(), userId: req.user.user_id, accountId: req.body.account_id
                 });
                 if (svcPaid >= svc) await client.query("UPDATE invoices SET status = 'PAID' WHERE invoice_id = $1", [serviceInvoice.invoice_id]);
             }
@@ -1231,8 +1298,8 @@ app.get('/api/tenants', authenticateToken, allowRoles(...R_VIEW_MONEY), async (r
                        p.property_id, COALESCE(p.property_name, p.title) AS property_name,
                        (SELECT COUNT(*) FROM payments py JOIN invoices i4 ON py.invoice_id = i4.invoice_id JOIN leases l4 ON i4.lease_id = l4.lease_id
                          WHERE l4.tenant_id = t.tenant_id AND py.company_id = $1) AS payment_count,
-                       (SELECT COALESCE(SUM(GREATEST(inv.amount_due - COALESCE((SELECT SUM(py.amount_paid) FROM payments py WHERE py.invoice_id = inv.invoice_id), 0), 0)), 0)
-                          FROM invoices inv JOIN leases l2 ON inv.lease_id = l2.lease_id
+                       (SELECT COALESCE(SUM(GREATEST(inv.amount_due - COALESCE((SELECT SUM(py.amount_paid) FROM payments_tzs py WHERE py.invoice_id = inv.invoice_id), 0), 0)), 0)
+                          FROM invoices_tzs inv JOIN leases l2 ON inv.lease_id = l2.lease_id
                          WHERE l2.tenant_id = t.tenant_id AND inv.company_id = $1) AS balance_owed,
                        (SELECT COUNT(*) FROM leases l3 WHERE l3.tenant_id = t.tenant_id) AS lease_count
                 FROM tenants t
@@ -1521,6 +1588,7 @@ app.post('/api/leases/:id/renew', authenticateToken, allowRoles(...LEASE_MANAGER
             ]
         );
         const lease = leaseRes.rows[0];
+        if (old.currency && old.currency !== 'TZS') await client.query('UPDATE leases SET currency = $1 WHERE lease_id = $2', [old.currency, lease.lease_id]);
 
         const invoice = await createInvoice(client, {
             companyId, leaseId: lease.lease_id, type: 'RENT', subtotal: calc.totalRent, discount: calc.discount,
@@ -1645,8 +1713,8 @@ app.post('/api/leases/:id/end', authenticateToken, allowRoles(...LEASE_MANAGERS)
         );
 
         const owed = (await client.query(
-            `SELECT COALESCE(SUM(GREATEST(inv.amount_due - COALESCE((SELECT SUM(py.amount_paid) FROM payments py WHERE py.invoice_id = inv.invoice_id), 0), 0)), 0) AS owed
-             FROM invoices inv JOIN leases l ON inv.lease_id = l.lease_id WHERE l.tenant_id = $1 AND inv.company_id = $2`,
+            `SELECT COALESCE(SUM(GREATEST(inv.amount_due - COALESCE((SELECT SUM(py.amount_paid) FROM payments_tzs py WHERE py.invoice_id = inv.invoice_id), 0), 0)), 0) AS owed
+             FROM invoices_tzs inv JOIN leases l ON inv.lease_id = l.lease_id WHERE l.tenant_id = $1 AND inv.company_id = $2`,
             [lease.tenant_id, companyId]
         )).rows[0].owed;
 
@@ -2154,7 +2222,7 @@ app.get('/api/leases', authenticateToken, allowRoles(...R_VIEW_MONEY), async (re
 // balance = invoice total - sum of its payments
 // ============================================================
 const INVOICE_BALANCES_SQL = `
-    SELECT inv.invoice_id, inv.invoice_number, inv.status, inv.due_date, inv.amount_due, inv.invoice_type, inv.description,
+    SELECT COALESCE(inv.currency, 'TZS') AS currency, inv.invoice_id, inv.invoice_number, inv.status, inv.due_date, inv.amount_due, inv.invoice_type, inv.description,
            inv.issue_date, COALESCE(inv.discount, 0) AS discount, COALESCE(inv.lease_charge, true) AS lease_charge,
            COALESCE(pay.paid, 0) AS paid,
            inv.amount_due - COALESCE(pay.paid, 0) AS balance,
@@ -2242,7 +2310,7 @@ app.post('/api/payments/record', authenticateToken, allowRoles(...R_MONEY), asyn
 
         const payment = await addPayment(client, {
             companyId, invoiceId: invoice_id, amount: amt, method: payment_method, methodDetail: payment_method,
-            reference, notes: String(notes || '').trim() || null, date: payment_date, userId: req.user.user_id
+            reference, notes: String(notes || '').trim() || null, date: payment_date, userId: req.user.user_id, accountId: req.body.account_id
         });
 
         const sum = await client.query('SELECT COALESCE(SUM(amount_paid), 0) AS paid FROM payments WHERE invoice_id = $1 AND company_id = $2', [invoice_id, companyId]);
@@ -2272,7 +2340,7 @@ app.get('/api/payments', authenticateToken, allowRoles(...R_VIEW_MONEY), wrapAsy
     if (isDateStr(req.query.from)) { params.push(req.query.from); where += ` AND py.payment_date::date >= $${params.length}`; }
     if (isDateStr(req.query.to)) { params.push(req.query.to); where += ` AND py.payment_date::date <= $${params.length}`; }
     const rows = (await pool.query(
-        `SELECT py.payment_id, py.receipt_number, py.amount_paid, py.payment_date, py.payment_method, py.method_detail, py.reference_no,
+        `SELECT py.payment_id, py.receipt_number, py.amount_paid, py.payment_date, py.payment_method, py.method_detail, py.reference_no, COALESCE(py.currency, 'TZS') AS currency, py.account_id,
                 inv.invoice_id, inv.invoice_number, inv.invoice_type, t.full_name AS tenant_name, u.unit_number, COALESCE(p.property_name, p.title) AS property_name
          FROM payments py
          JOIN invoices inv ON py.invoice_id = inv.invoice_id
@@ -2319,7 +2387,7 @@ async function getReceiptData(cId, payId) {
     }
 
     const inv = (await pool.query(
-        `SELECT inv.invoice_id, inv.invoice_number, inv.invoice_type, inv.description, inv.amount_due,
+        `SELECT inv.invoice_id, inv.invoice_number, inv.invoice_type, inv.description, inv.amount_due, COALESCE(inv.currency, 'TZS') AS currency,
                 t.full_name AS tenant_name, t.phone_number AS tenant_phone, u.unit_number, COALESCE(p.property_name, p.title) AS property_name
          FROM invoices inv JOIN leases l ON inv.lease_id = l.lease_id JOIN tenants t ON l.tenant_id = t.tenant_id
          JOIN units u ON l.unit_id = u.unit_id JOIN properties p ON u.property_id = p.property_id
@@ -2333,7 +2401,7 @@ async function getReceiptData(cId, payId) {
     const total = parseFloat(inv.amount_due);
     return {
         receipt_number: pay.receipt_number, payment_id: pay.payment_id, payment_date: pay.payment_date,
-        amount_paid: parseFloat(pay.amount_paid), amount_words: amountInWords(pay.amount_paid) + ' shillings only',
+        amount_paid: parseFloat(pay.amount_paid), currency: inv.currency || 'TZS', amount_words: amountInWords(pay.amount_paid) + (inv.currency === 'USD' ? ' US dollars only' : ' shillings only'),
         method: pay.method_detail || pay.payment_method, reference: pay.reference_no, notes: pay.notes, received_by: pay.received_by,
         invoice: { invoice_id: inv.invoice_id, invoice_number: inv.invoice_number, invoice_type: inv.invoice_type, description: inv.description, total },
         paid_to_date: paidToDate, balance_after: Math.max(0, Math.round((total - paidToDate) * 100) / 100), extra_paid: Math.max(0, Math.round((paidToDate - total) * 100) / 100),
@@ -2381,7 +2449,7 @@ async function getInvoicePrintData(cId, invId) {
         invoice: {
             invoice_id: row.invoice_id, invoice_number: row.invoice_number, invoice_type: row.invoice_type || 'RENT', status: row.status,
             issue_date: row.issue_date || String(row.created_at).slice(0, 10), due_date: row.due_date, period_start: row.period_start, period_end: row.period_end,
-            notes: row.notes, description, subtotal, discount, total, paid, balance: Math.round((total - paid) * 100) / 100
+            currency: row.currency || 'TZS', notes: row.notes, description, subtotal, discount, total, paid, balance: Math.round((total - paid) * 100) / 100
         },
         lines: [{ description, amount: subtotal }],
         payments,
@@ -2437,7 +2505,7 @@ function writeInvoicePdf(res, filename, d) {
     // lines table
     y = doc.y;
     doc.save().rect(left, y, usable, 20).fill('#1F3A5F').restore();
-    doc.fillColor('#fff').font('Helvetica-Bold').fontSize(9).text('Description', left + 6, y + 6).text('Amount (TZS)', left, y + 6, { width: usable - 6, align: 'right' });
+    doc.fillColor('#fff').font('Helvetica-Bold').fontSize(9).text('Description', left + 6, y + 6).text('Amount (' + (inv.currency || 'TZS') + ')', left, y + 6, { width: usable - 6, align: 'right' });
     y += 24;
     (d.lines || []).forEach(l => {
         const h = doc.heightOfString(l.description || '', { width: usable - 140 });
@@ -2462,7 +2530,7 @@ function writeInvoicePdf(res, filename, d) {
         doc.fillColor('#111').font('Helvetica-Bold').fontSize(10).text('Payments received', left, doc.y);
         doc.moveDown(0.3);
         d.payments.forEach(p => doc.font('Helvetica').fontSize(9).fillColor('#333')
-            .text(`${niceDate(String(p.payment_date).slice(0, 10))}   ${p.receipt_number || ''}   ${p.method_detail || p.payment_method || ''}   TZS ${fmtMoney(p.amount_paid)}`, left, doc.y));
+            .text(`${niceDate(String(p.payment_date).slice(0, 10))}   ${p.receipt_number || ''}   ${p.method_detail || p.payment_method || ''}   ${inv.currency || 'TZS'} ${fmtMoney(p.amount_paid)}`, left, doc.y));
         doc.moveDown(0.6);
     }
     if (d.company && d.company.payment_instructions) {
@@ -2494,13 +2562,13 @@ function writeReceiptPdf(res, filename, d) {
     doc.y += 14; y = doc.y;
     doc.save().roundedRect(left, y, usable, 54, 6).fill('#EEF3FA').restore();
     doc.fillColor('#555').font('Helvetica').fontSize(9).text('AMOUNT RECEIVED', left + 14, y + 10);
-    doc.fillColor('#1F3A5F').font('Helvetica-Bold').fontSize(20).text('TZS ' + fmtMoney(d.amount_paid), left + 14, y + 24);
+    doc.fillColor('#1F3A5F').font('Helvetica-Bold').fontSize(20).text((d.currency || 'TZS') + ' ' + fmtMoney(d.amount_paid), left + 14, y + 24);
     doc.y = y + 66;
     doc.fillColor('#555').font('Helvetica').fontSize(9).text(d.amount_words || '', left, doc.y, { width: usable });
     doc.moveDown(0.8);
     y = doc.y;
     const row = (l, v, color) => { doc.fillColor('#333').font('Helvetica').fontSize(10).text(l, left, y, { width: 200 });
-        doc.fillColor(color || '#111').font('Helvetica-Bold').text('TZS ' + fmtMoney(v), left, y, { width: usable, align: 'right' }); y += 18; };
+        doc.fillColor(color || '#111').font('Helvetica-Bold').text((d.currency || 'TZS') + ' ' + fmtMoney(v), left, y, { width: usable, align: 'right' }); y += 18; };
     row('Invoice total', d.invoice.total); row('Paid to date', d.paid_to_date, '#166534');
     row('Balance remaining', d.balance_after, d.balance_after > 0 ? '#B91C1C' : '#166534');
     if (d.extra_paid > 0) row('Extra paid (credit)', d.extra_paid);
@@ -2551,7 +2619,7 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
         const owed = (await pool.query(
             `${INVOICE_BALANCES_SQL} AND inv.amount_due - COALESCE(pay.paid, 0) > 0 ORDER BY inv.due_date ASC`,
             [cId]
-        )).rows;
+        )).rows.filter(r => r.currency === 'TZS');
 
         const bucket = (rows) => ({
             count: rows.length,
@@ -2575,7 +2643,7 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
         const debtors = Object.values(byTenant).sort((a, b) => b.balance - a.balance).slice(0, 5);
 
         const collectedRow = (await pool.query(
-            "SELECT COALESCE(SUM(amount_paid), 0) AS total FROM payments WHERE company_id = $1 AND payment_date >= date_trunc('month', CURRENT_DATE)",
+            "SELECT COALESCE(SUM(amount_paid), 0) AS total FROM payments_tzs WHERE company_id = $1 AND payment_date >= date_trunc('month', CURRENT_DATE)",
             [cId]
         )).rows[0];
         const collectedThisMonth = parseFloat(collectedRow.total);
@@ -2600,10 +2668,10 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
                  SELECT u.property_id,
                         SUM(inv.amount_due) AS billed,
                         SUM(LEAST(COALESCE(pay.paid, 0), inv.amount_due)) AS collected
-                 FROM invoices inv
+                 FROM invoices_tzs inv
                  JOIN leases l ON inv.lease_id = l.lease_id
                  JOIN units u ON l.unit_id = u.unit_id
-                 LEFT JOIN (SELECT invoice_id, SUM(amount_paid) AS paid FROM payments WHERE company_id = $1 GROUP BY invoice_id) pay
+                 LEFT JOIN (SELECT invoice_id, SUM(amount_paid) AS paid FROM payments_tzs WHERE company_id = $1 GROUP BY invoice_id) pay
                         ON pay.invoice_id = inv.invoice_id
                  WHERE inv.company_id = $1
                  GROUP BY u.property_id
@@ -2637,7 +2705,7 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
             [cId]
         );
         const expenseRows = await safeRows(
-            "SELECT COALESCE(SUM(amount), 0) AS total FROM expenses WHERE company_id = $1 AND expense_date >= date_trunc('month', CURRENT_DATE)",
+            "SELECT COALESCE(SUM(amount), 0) AS total FROM expenses_tzs WHERE company_id = $1 AND expense_date >= date_trunc('month', CURRENT_DATE)",
             [cId]
         );
         const expensesThisMonth = expenseRows ? parseFloat(expenseRows[0].total) : null;
@@ -2660,13 +2728,13 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
 
         const paySeries = (await pool.query(
             `SELECT to_char(m.month, 'YYYY-MM') AS ym,
-                    COALESCE((SELECT SUM(amount_paid) FROM payments WHERE company_id = $1 AND date_trunc('month', payment_date) = m.month), 0) AS collected
+                    COALESCE((SELECT SUM(amount_paid) FROM payments_tzs WHERE company_id = $1 AND date_trunc('month', payment_date) = m.month), 0) AS collected
              FROM generate_series(date_trunc('month', CURRENT_DATE) - interval '5 months', date_trunc('month', CURRENT_DATE), interval '1 month') AS m(month)
              ORDER BY m.month`, [cId]
         )).rows;
         const expSeries = await safeRows(
             `SELECT to_char(m.month, 'YYYY-MM') AS ym,
-                    COALESCE((SELECT SUM(amount) FROM expenses WHERE company_id = $1 AND date_trunc('month', expense_date) = m.month), 0) AS expenses
+                    COALESCE((SELECT SUM(amount) FROM expenses_tzs WHERE company_id = $1 AND date_trunc('month', expense_date) = m.month), 0) AS expenses
              FROM generate_series(date_trunc('month', CURRENT_DATE) - interval '5 months', date_trunc('month', CURRENT_DATE), interval '1 month') AS m(month)
              ORDER BY m.month`, [cId]
         );
@@ -2837,15 +2905,17 @@ app.get('/api/expenses', authenticateToken, allowRoles(...R_VIEW_MONEY), wrapAsy
     if (req.query.property_id) { params.push(req.query.property_id); where += ` AND e.property_id = $${params.length}`; }
     if (req.query.category) { params.push(req.query.category); where += ` AND e.category = $${params.length}`; }
     const rows = (await pool.query(
-        `SELECT e.expense_id, e.description, e.amount, e.category, e.expense_date, e.property_id, e.payee, e.notes, e.ticket_id,
+        `SELECT e.expense_id, e.description, e.amount, e.category, e.expense_date, e.property_id, e.payee, e.notes, e.ticket_id, COALESCE(e.currency, 'TZS') AS currency, e.account_id, fa.name AS account_name,
                 COALESCE(p.property_name, p.title) AS property_name, u.full_name AS recorded_by_name
-         FROM expenses e LEFT JOIN properties p ON p.property_id = e.property_id LEFT JOIN users u ON u.user_id = e.recorded_by
+         FROM expenses e LEFT JOIN properties p ON p.property_id = e.property_id LEFT JOIN users u ON u.user_id = e.recorded_by LEFT JOIN finance_accounts fa ON fa.account_id = e.account_id
          WHERE e.company_id = $1 ${where} ORDER BY e.expense_date DESC, e.expense_id DESC LIMIT 1000`, params
     )).rows;
-    const total = rows.reduce((s, r) => s + parseFloat(r.amount), 0);
+    const tz = rows.filter(r => r.currency === 'TZS');
+    const total = tz.reduce((s, r) => s + parseFloat(r.amount), 0);
+    const totalUsd = rows.filter(r => r.currency === 'USD').reduce((s, r) => s + parseFloat(r.amount), 0);
     const byCategory = {};
-    rows.forEach(r => { byCategory[r.category] = (byCategory[r.category] || 0) + parseFloat(r.amount); });
-    res.json({ total, byCategory, rows });
+    tz.forEach(r => { byCategory[r.category] = (byCategory[r.category] || 0) + parseFloat(r.amount); });
+    res.json({ total, total_usd: totalUsd, byCategory, rows });
 }));
 
 function readExpenseBody(b) {
@@ -2855,7 +2925,7 @@ function readExpenseBody(b) {
     const category = EXPENSE_CATEGORIES.includes(b.category) ? b.category : 'MISC';
     const date = isDateStr(b.expense_date) ? b.expense_date : todayStr();
     if (date > todayStr()) return { error: 'Expense date cannot be in the future.' };
-    return { value: { description: String(b.description).trim(), amount, category, date, property_id: b.property_id || null, payee: String(b.payee || '').trim() || null, notes: String(b.notes || '').trim() || null } };
+    return { value: { currency: cleanCur(b.currency), account_id: b.account_id || null, description: String(b.description).trim(), amount, category, date, property_id: b.property_id || null, payee: String(b.payee || '').trim() || null, notes: String(b.notes || '').trim() || null } };
 }
 
 app.post('/api/expenses', authenticateToken, allowRoles(...R_MONEY), wrapAsync(async (req, res) => {
@@ -2866,10 +2936,11 @@ app.post('/api/expenses', authenticateToken, allowRoles(...R_MONEY), wrapAsync(a
         const ok = await pool.query('SELECT 1 FROM properties WHERE property_id = $1 AND company_id = $2', [v.property_id, req.user.company_id]);
         if (ok.rows.length === 0) return res.status(404).json({ error: 'Property not found.' });
     }
+    const accId = await checkAccount(pool, req.user.company_id, v.account_id, v.currency);
     const ins = await pool.query(
-        `INSERT INTO expenses (company_id, property_id, description, amount, category, recorded_by, expense_date, payee, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING expense_id`,
-        [req.user.company_id, v.property_id, v.description, v.amount, v.category, req.user.user_id, v.date, v.payee, v.notes]
+        `INSERT INTO expenses (company_id, property_id, description, amount, category, recorded_by, expense_date, payee, notes, currency, account_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING expense_id`,
+        [req.user.company_id, v.property_id, v.description, v.amount, v.category, req.user.user_id, v.date, v.payee, v.notes, v.currency, accId]
     );
     await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Recorded Expense', 'EXPENSES', req.ip, { expense_id: ins.rows[0].expense_id, amount: v.amount });
     res.status(201).json({ message: 'Expense saved.', expense_id: ins.rows[0].expense_id });
@@ -2879,10 +2950,11 @@ app.put('/api/expenses/:id', authenticateToken, allowRoles(...R_MONEY), wrapAsyn
     const r = readExpenseBody(req.body);
     if (r.error) return res.status(400).json({ error: r.error });
     const v = r.value;
+    const accId = await checkAccount(pool, req.user.company_id, v.account_id, v.currency);
     const upd = await pool.query(
-        `UPDATE expenses SET property_id = $1, description = $2, amount = $3, category = $4, expense_date = $5, payee = $6, notes = $7
+        `UPDATE expenses SET property_id = $1, description = $2, amount = $3, category = $4, expense_date = $5, payee = $6, notes = $7, currency = $10, account_id = $11
          WHERE expense_id = $8 AND company_id = $9 RETURNING expense_id`,
-        [v.property_id, v.description, v.amount, v.category, v.date, v.payee, v.notes, req.params.id, req.user.company_id]
+        [v.property_id, v.description, v.amount, v.category, v.date, v.payee, v.notes, req.params.id, req.user.company_id, v.currency, accId]
     );
     if (upd.rows.length === 0) return res.status(404).json({ error: 'Expense not found.' });
     await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Edited Expense', 'EXPENSES', req.ip, { expense_id: req.params.id });
@@ -3309,7 +3381,7 @@ const OPEN_INVOICES_SQL = (q, extra = '') => `
            inv.invoice_number AS invoice, inv.invoice_type AS type, to_char(inv.due_date, 'YYYY-MM-DD') AS due_date,
            (CURRENT_DATE - inv.due_date::date) AS days_late, inv.amount_due AS total, COALESCE(pay.paid, 0) AS paid,
            inv.amount_due - COALESCE(pay.paid, 0) AS balance
-    FROM invoices inv
+    FROM invoices_tzs inv
     JOIN leases l ON inv.lease_id = l.lease_id JOIN tenants t ON l.tenant_id = t.tenant_id
     JOIN units u ON l.unit_id = u.unit_id JOIN properties p ON u.property_id = p.property_id
     LEFT JOIN (SELECT invoice_id, SUM(amount_paid) AS paid FROM payments WHERE company_id = $1 GROUP BY invoice_id) pay ON pay.invoice_id = inv.invoice_id
@@ -3323,16 +3395,16 @@ const REPORTS = {
             const q1 = qb(c.cId), a1 = q1.p(c.from), b1 = q1.p(c.to), pr1 = c.propertyId ? q1.p(c.propertyId) : null;
             const billed = await trySql(
                 `SELECT to_char(date_trunc('month', COALESCE(inv.issue_date, inv.created_at::date)), 'YYYY-MM') AS ym, SUM(inv.amount_due) AS v
-                 FROM invoices inv JOIN leases l ON inv.lease_id = l.lease_id JOIN units u ON l.unit_id = u.unit_id
+                 FROM invoices_tzs inv JOIN leases l ON inv.lease_id = l.lease_id JOIN units u ON l.unit_id = u.unit_id
                  WHERE inv.company_id = $1 AND COALESCE(inv.issue_date, inv.created_at::date) BETWEEN ${a1} AND ${b1} ${pr1 ? `AND u.property_id = ${pr1}` : ''} GROUP BY 1`, q1.params);
             const q2 = qb(c.cId), a2 = q2.p(c.from), b2 = q2.p(c.to), pr2 = c.propertyId ? q2.p(c.propertyId) : null;
             const collected = await trySql(
                 `SELECT to_char(date_trunc('month', py.payment_date), 'YYYY-MM') AS ym, SUM(py.amount_paid) AS v
-                 FROM payments py JOIN invoices inv ON py.invoice_id = inv.invoice_id JOIN leases l ON inv.lease_id = l.lease_id JOIN units u ON l.unit_id = u.unit_id
+                 FROM payments_tzs py JOIN invoices_tzs inv ON py.invoice_id = inv.invoice_id JOIN leases l ON inv.lease_id = l.lease_id JOIN units u ON l.unit_id = u.unit_id
                  WHERE py.company_id = $1 AND py.payment_date::date BETWEEN ${a2} AND ${b2} ${pr2 ? `AND u.property_id = ${pr2}` : ''} GROUP BY 1`, q2.params);
             const q3 = qb(c.cId), a3 = q3.p(c.from), b3 = q3.p(c.to), pr3 = c.propertyId ? q3.p(c.propertyId) : null;
             const expenses = await trySql(
-                `SELECT to_char(date_trunc('month', expense_date), 'YYYY-MM') AS ym, SUM(amount) AS v FROM expenses
+                `SELECT to_char(date_trunc('month', expense_date), 'YYYY-MM') AS ym, SUM(amount) AS v FROM expenses_tzs
                  WHERE company_id = $1 AND expense_date BETWEEN ${a3} AND ${b3} ${pr3 ? `AND property_id = ${pr3}` : ''} GROUP BY 1`, q3.params);
             const q4 = qb(c.cId);
             const open = await trySql(OPEN_INVOICES_SQL(q4, c.propertyId ? `AND p.property_id = ${q4.p(c.propertyId)}` : ''), q4.params);
@@ -3399,7 +3471,7 @@ const REPORTS = {
                         inv.amount_due AS total, COALESCE(pay.paid, 0) AS paid, inv.amount_due - COALESCE(pay.paid, 0) AS balance,
                         CASE WHEN inv.amount_due - COALESCE(pay.paid, 0) <= 0 THEN 'Paid' WHEN COALESCE(pay.paid, 0) > 0 THEN 'Partial'
                              WHEN inv.due_date < CURRENT_DATE THEN 'Overdue' ELSE 'Unpaid' END AS status
-                 FROM invoices inv JOIN leases l ON inv.lease_id = l.lease_id JOIN tenants t ON l.tenant_id = t.tenant_id
+                 FROM invoices_tzs inv JOIN leases l ON inv.lease_id = l.lease_id JOIN tenants t ON l.tenant_id = t.tenant_id
                  JOIN units u ON l.unit_id = u.unit_id JOIN properties p ON u.property_id = p.property_id
                  LEFT JOIN (SELECT invoice_id, SUM(amount_paid) AS paid FROM payments WHERE company_id = $1 GROUP BY invoice_id) pay ON pay.invoice_id = inv.invoice_id
                  WHERE inv.company_id = $1 AND COALESCE(inv.issue_date, inv.created_at::date) BETWEEN ${a} AND ${b} ${pr ? `AND p.property_id = ${pr}` : ''}
@@ -3499,7 +3571,7 @@ const REPORTS = {
             const q = qb(c.cId), a = q.p(c.from), b = q.p(c.to), pr = c.propertyId ? q.p(c.propertyId) : null;
             const props = (await pool.query(
                 `SELECT COALESCE(p.property_name, p.title) AS property,
-                        COALESCE((SELECT SUM(py.amount_paid) FROM payments py JOIN invoices inv ON py.invoice_id = inv.invoice_id JOIN leases l ON inv.lease_id = l.lease_id
+                        COALESCE((SELECT SUM(py.amount_paid) FROM payments_tzs py JOIN invoices_tzs inv ON py.invoice_id = inv.invoice_id JOIN leases l ON inv.lease_id = l.lease_id
                                   JOIN units u ON l.unit_id = u.unit_id WHERE u.property_id = p.property_id AND py.company_id = $1 AND py.payment_date::date BETWEEN ${a} AND ${b}), 0) AS income,
                         (SELECT COUNT(*) FROM units u WHERE u.property_id = p.property_id) AS units,
                         (SELECT COUNT(*) FROM units u WHERE u.property_id = p.property_id AND u.status = 'OCCUPIED') AS occupied,
@@ -3507,7 +3579,7 @@ const REPORTS = {
                  FROM properties p WHERE p.company_id = $1 ${pr ? `AND p.property_id = ${pr}` : ''} ORDER BY property`, q.params
             )).rows;
             const q2 = qb(c.cId), a2 = q2.p(c.from), b2 = q2.p(c.to);
-            const exp = await trySql(`SELECT property_id, SUM(amount) AS v FROM expenses WHERE company_id = $1 AND expense_date BETWEEN ${a2} AND ${b2} GROUP BY property_id`, q2.params);
+            const exp = await trySql(`SELECT property_id, SUM(amount) AS v FROM expenses_tzs WHERE company_id = $1 AND expense_date BETWEEN ${a2} AND ${b2} GROUP BY property_id`, q2.params);
             const rows = props.map(p => {
                 const e = exp.find(x => String(x.property_id) === String(p.property_id));
                 const income = parseFloat(p.income), expenses = e ? parseFloat(e.v) : 0;
@@ -3541,8 +3613,8 @@ const REPORTS = {
                  FROM properties p
                  LEFT JOIN units u ON u.property_id = p.property_id
                  LEFT JOIN leases l ON l.unit_id = u.unit_id
-                 LEFT JOIN invoices inv ON inv.lease_id = l.lease_id
-                 LEFT JOIN payments py ON py.invoice_id = inv.invoice_id AND py.company_id = $1 AND py.payment_date::date BETWEEN ${a} AND ${b}
+                 LEFT JOIN invoices_tzs inv ON inv.lease_id = l.lease_id
+                 LEFT JOIN payments_tzs py ON py.invoice_id = inv.invoice_id AND py.company_id = $1 AND py.payment_date::date BETWEEN ${a} AND ${b}
                  WHERE p.company_id = $1 ${pr ? `AND p.property_id = ${pr}` : ''}
                  GROUP BY p.property_id, p.property_name, p.title ORDER BY total DESC, property`, q.params
             )).rows.map(r => ({ ...r, payments: parseInt(r.payments) }));
@@ -3606,8 +3678,8 @@ const REPORTS = {
                            CASE WHEN l.lease_state = 'CURRENT' THEN 'Active' ELSE 'Moved out' END AS status,
                            to_char(l.start_date, 'YYYY-MM-DD') AS start_date, to_char(l.end_date, 'YYYY-MM-DD') AS end_date,
                            COALESCE(l.total_to_pay, l.agreed_rent, 0) AS contract_total,
-                           (SELECT COALESCE(SUM(GREATEST(inv.amount_due - COALESCE((SELECT SUM(py.amount_paid) FROM payments py WHERE py.invoice_id = inv.invoice_id), 0), 0)), 0)
-                              FROM invoices inv JOIN leases l2 ON inv.lease_id = l2.lease_id WHERE l2.tenant_id = t.tenant_id AND inv.company_id = $1) AS balance
+                           (SELECT COALESCE(SUM(GREATEST(inv.amount_due - COALESCE((SELECT SUM(py.amount_paid) FROM payments_tzs py WHERE py.invoice_id = inv.invoice_id), 0), 0)), 0)
+                              FROM invoices_tzs inv JOIN leases l2 ON inv.lease_id = l2.lease_id WHERE l2.tenant_id = t.tenant_id AND inv.company_id = $1) AS balance
                     FROM tenants t JOIN leases l ON l.tenant_id = t.tenant_id JOIN units u ON u.unit_id = l.unit_id JOIN properties p ON p.property_id = u.property_id
                     WHERE t.company_id = $1 ${c.propertyId ? `AND p.property_id = ${q.p(c.propertyId)}` : ''}
                     ORDER BY t.tenant_id, (l.lease_state = 'CURRENT') DESC, l.lease_id DESC
@@ -3661,7 +3733,7 @@ const REPORTS = {
                 `SELECT COALESCE(to_char(inv.period_start, 'YYYY-MM'), '') AS month, COALESCE(p.property_name, p.title) AS property, u.unit_number AS unit, t.full_name AS tenant, t.phone_number AS phone,
                         inv.invoice_number AS invoice, inv.amount_due AS total, COALESCE(pay.paid, 0) AS paid, inv.amount_due - COALESCE(pay.paid, 0) AS balance,
                         CASE WHEN inv.amount_due - COALESCE(pay.paid, 0) <= 0 THEN 'Paid' WHEN COALESCE(pay.paid, 0) > 0 THEN 'Partial' ELSE 'Not paid' END AS status
-                 FROM invoices inv JOIN leases l ON inv.lease_id = l.lease_id JOIN tenants t ON l.tenant_id = t.tenant_id JOIN units u ON l.unit_id = u.unit_id JOIN properties p ON u.property_id = p.property_id
+                 FROM invoices_tzs inv JOIN leases l ON inv.lease_id = l.lease_id JOIN tenants t ON l.tenant_id = t.tenant_id JOIN units u ON l.unit_id = u.unit_id JOIN properties p ON u.property_id = p.property_id
                  LEFT JOIN (SELECT invoice_id, SUM(amount_paid) AS paid FROM payments WHERE company_id = $1 GROUP BY invoice_id) pay ON pay.invoice_id = inv.invoice_id
                  WHERE inv.company_id = $1 AND inv.invoice_type = 'SERVICE' AND COALESCE(inv.period_start, inv.issue_date) BETWEEN ${a} AND ${b} ${pr ? `AND p.property_id = ${pr}` : ''}
                  ORDER BY inv.period_start, p.property_id, u.unit_number`, q.params
@@ -3937,6 +4009,328 @@ app.get('/api/reports/export', authenticateToken, allowRoles(...R_VIEW_MONEY), a
         }]);
     } catch (err) {
         if (!err.status) console.error('Report export error:', err);
+        if (!res.headersSent) res.status(err.status || (err.code === 'MISSING_PACKAGE' ? 501 : 500)).json({ error: err.message, code: err.code });
+        else res.end();
+    }
+});
+
+
+// ============================================================
+// FINANCE (accountant's small finance system)
+// Accounts, manual income, one ledger of every money movement, reports to PDF / Excel
+// ============================================================
+const INCOME_CATEGORIES = ['RENT', 'DEPOSIT', 'SERVICE', 'LUKU', 'INTEREST', 'SALE', 'OTHER'];
+
+app.get('/api/finance/accounts', authenticateToken, allowRoles(...R_FIN_VIEW), wrapAsync(async (req, res) => {
+    const cId = req.user.company_id;
+    const rows = (await pool.query(
+        `SELECT a.account_id, a.name, a.currency, a.kind, a.opening_balance, a.is_active, a.created_at,
+                COALESCE((SELECT SUM(amount_paid) FROM payments WHERE account_id = a.account_id AND company_id = $1), 0) AS rent_in,
+                COALESCE((SELECT SUM(amount) FROM finance_income WHERE account_id = a.account_id AND company_id = $1), 0) AS other_in,
+                COALESCE((SELECT SUM(amount) FROM expenses WHERE account_id = a.account_id AND company_id = $1), 0) AS spent
+         FROM finance_accounts a WHERE a.company_id = $1 ORDER BY a.is_active DESC, a.currency, a.name`, [cId]
+    )).rows;
+    const canSee = req.user.role !== 'PROPERTY_MANAGER';
+    res.json(rows.map(r => {
+        const inn = parseFloat(r.rent_in) + parseFloat(r.other_in), out = parseFloat(r.spent), open = parseFloat(r.opening_balance);
+        const o = { account_id: r.account_id, name: r.name, currency: r.currency, kind: r.kind, is_active: r.is_active };
+        if (canSee) Object.assign(o, { opening_balance: open, money_in: inn, money_out: out, balance: Math.round((open + inn - out) * 100) / 100 });
+        return o;
+    }));
+}));
+
+function readAccountBody(b) {
+    const name = String(b.name || '').trim().slice(0, 100);
+    if (!name) return { error: 'Please give the account a name.' };
+    const opening = b.opening_balance === undefined || b.opening_balance === '' ? 0 : parseFloat(b.opening_balance);
+    if (isNaN(opening)) return { error: 'Opening balance must be a number.' };
+    const kind = ['CASH', 'BANK', 'MOBILE', 'OTHER'].includes(b.kind) ? b.kind : 'CASH';
+    return { value: { name, currency: cleanCur(b.currency), kind, opening } };
+}
+
+app.post('/api/finance/accounts', authenticateToken, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
+    const r = readAccountBody(req.body);
+    if (r.error) return res.status(400).json({ error: r.error });
+    const v = r.value;
+    const dup = await pool.query('SELECT 1 FROM finance_accounts WHERE company_id = $1 AND LOWER(name) = LOWER($2) AND currency = $3', [req.user.company_id, v.name, v.currency]);
+    if (dup.rows.length) return res.status(400).json({ error: 'You already have an account with this name and currency.' });
+    const ins = await pool.query(
+        'INSERT INTO finance_accounts (company_id, name, currency, kind, opening_balance, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING account_id',
+        [req.user.company_id, v.name, v.currency, v.kind, v.opening, req.user.user_id]);
+    await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Created Finance Account', 'FINANCE', req.ip, { account_id: ins.rows[0].account_id, name: v.name });
+    res.status(201).json({ message: 'Account created.', account_id: ins.rows[0].account_id });
+}));
+
+app.put('/api/finance/accounts/:id', authenticateToken, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
+    const r = readAccountBody(req.body);
+    if (r.error) return res.status(400).json({ error: r.error });
+    const v = r.value;
+    const cur = (await pool.query('SELECT currency FROM finance_accounts WHERE account_id = $1 AND company_id = $2', [req.params.id, req.user.company_id])).rows[0];
+    if (!cur) return res.status(404).json({ error: 'Account not found.' });
+    if (cur.currency !== v.currency) {
+        const used = await pool.query(
+            `SELECT (SELECT COUNT(*) FROM payments WHERE account_id = $1) + (SELECT COUNT(*) FROM expenses WHERE account_id = $1) + (SELECT COUNT(*) FROM finance_income WHERE account_id = $1) AS n`, [req.params.id]);
+        if (parseInt(used.rows[0].n) > 0) return res.status(400).json({ error: 'The currency cannot be changed because this account already has records.' });
+    }
+    await pool.query('UPDATE finance_accounts SET name = $1, currency = $2, kind = $3, opening_balance = $4, is_active = $5 WHERE account_id = $6 AND company_id = $7',
+        [v.name, v.currency, v.kind, v.opening, req.body.is_active === false ? false : true, req.params.id, req.user.company_id]);
+    await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Edited Finance Account', 'FINANCE', req.ip, { account_id: req.params.id });
+    res.json({ message: 'Account saved.' });
+}));
+
+app.delete('/api/finance/accounts/:id', authenticateToken, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
+    const used = await pool.query(
+        `SELECT (SELECT COUNT(*) FROM payments WHERE account_id = $1) + (SELECT COUNT(*) FROM expenses WHERE account_id = $1) + (SELECT COUNT(*) FROM finance_income WHERE account_id = $1) AS n`, [req.params.id]);
+    if (parseInt(used.rows[0].n) > 0) {
+        const c = await pool.query('UPDATE finance_accounts SET is_active = false WHERE account_id = $1 AND company_id = $2 RETURNING account_id', [req.params.id, req.user.company_id]);
+        if (!c.rows.length) return res.status(404).json({ error: 'Account not found.' });
+        return res.json({ message: 'This account has records, so it was closed (hidden from new entries) instead of deleted.', closed: true });
+    }
+    const d = await pool.query('DELETE FROM finance_accounts WHERE account_id = $1 AND company_id = $2 RETURNING account_id', [req.params.id, req.user.company_id]);
+    if (!d.rows.length) return res.status(404).json({ error: 'Account not found.' });
+    await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Deleted Finance Account', 'FINANCE', req.ip, { account_id: req.params.id });
+    res.json({ message: 'Account deleted.' });
+}));
+
+// ---- manual income (money that is not a tenant invoice payment)
+function readIncomeBody(b) {
+    const amount = parseFloat(b.amount);
+    if (!String(b.description || '').trim()) return { error: 'Please describe the income.' };
+    if (!(amount > 0)) return { error: 'Amount must be greater than 0.' };
+    const date = isDateStr(b.income_date) ? b.income_date : todayStr();
+    if (date > todayStr()) return { error: 'Income date cannot be in the future.' };
+    return { value: { description: String(b.description).trim(), amount, currency: cleanCur(b.currency), account_id: b.account_id || null,
+        category: INCOME_CATEGORIES.includes(b.category) ? b.category : 'OTHER', date, property_id: b.property_id || null,
+        payer: String(b.payer || '').trim() || null, reference: String(b.reference || '').trim().slice(0, 100) || null, notes: String(b.notes || '').trim() || null } };
+}
+async function checkPropertyOwn(companyId, propertyId) {
+    if (!propertyId) return;
+    const ok = await pool.query('SELECT 1 FROM properties WHERE property_id = $1 AND company_id = $2', [propertyId, companyId]);
+    if (!ok.rows.length) { const e = new Error('Property not found.'); e.status = 404; throw e; }
+}
+app.post('/api/finance/income', authenticateToken, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
+    const r = readIncomeBody(req.body);
+    if (r.error) return res.status(400).json({ error: r.error });
+    const v = r.value;
+    await checkPropertyOwn(req.user.company_id, v.property_id);
+    const acc = await checkAccount(pool, req.user.company_id, v.account_id, v.currency);
+    const ins = await pool.query(
+        `INSERT INTO finance_income (company_id, account_id, property_id, description, amount, currency, category, income_date, payer, reference, notes, recorded_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING income_id`,
+        [req.user.company_id, acc, v.property_id, v.description, v.amount, v.currency, v.category, v.date, v.payer, v.reference, v.notes, req.user.user_id]);
+    await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Recorded Income', 'FINANCE', req.ip, { income_id: ins.rows[0].income_id, amount: v.amount, currency: v.currency });
+    res.status(201).json({ message: 'Income saved.', income_id: ins.rows[0].income_id });
+}));
+app.put('/api/finance/income/:id', authenticateToken, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
+    const r = readIncomeBody(req.body);
+    if (r.error) return res.status(400).json({ error: r.error });
+    const v = r.value;
+    await checkPropertyOwn(req.user.company_id, v.property_id);
+    const acc = await checkAccount(pool, req.user.company_id, v.account_id, v.currency);
+    const u = await pool.query(
+        `UPDATE finance_income SET account_id = $1, property_id = $2, description = $3, amount = $4, currency = $5, category = $6, income_date = $7, payer = $8, reference = $9, notes = $10
+         WHERE income_id = $11 AND company_id = $12 RETURNING income_id`,
+        [acc, v.property_id, v.description, v.amount, v.currency, v.category, v.date, v.payer, v.reference, v.notes, req.params.id, req.user.company_id]);
+    if (!u.rows.length) return res.status(404).json({ error: 'Income record not found.' });
+    await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Edited Income', 'FINANCE', req.ip, { income_id: req.params.id });
+    res.json({ message: 'Income updated.' });
+}));
+app.delete('/api/finance/income/:id', authenticateToken, allowRoles(...R_FIN_WRITE), wrapAsync(async (req, res) => {
+    const d = await pool.query('DELETE FROM finance_income WHERE income_id = $1 AND company_id = $2 RETURNING income_id', [req.params.id, req.user.company_id]);
+    if (!d.rows.length) return res.status(404).json({ error: 'Income record not found.' });
+    await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Deleted Income', 'FINANCE', req.ip, { income_id: req.params.id });
+    res.json({ message: 'Income deleted.' });
+}));
+
+// ---- the ledger: every shilling and dollar in and out, with filters
+const idList = v => String(v || '').split(',').map(x => parseInt(x, 10)).filter(x => x > 0);
+
+async function buildLedger(req) {
+    const cId = req.user.company_id;
+    const q = req.query;
+    const to = isDateStr(q.to) ? q.to : todayStr();
+    const from = isDateStr(q.from) ? q.from : to.slice(0, 8) + '01';
+    const cur = ['TZS', 'USD'].includes(String(q.currency || '').toUpperCase()) ? String(q.currency).toUpperCase() : 'ALL';
+    const props = idList(q.property_ids), units = idList(q.unit_ids);
+    const accountId = parseInt(q.account_id, 10) || null;
+    const kind = ['income', 'expense'].includes(q.kind) ? q.kind : 'all';
+    const group = ['day', 'week', 'month', 'year'].includes(q.group) ? q.group : 'month';
+    const wantLuku = q.luku !== '0';
+
+    const rows = [];
+    const bind = (arr, v) => { arr.push(v); return '$' + arr.length; };
+
+    if (kind !== 'expense') {
+        // rent / invoice payments
+        const a = [cId, from, to];
+        let w = ' AND py.payment_date::date BETWEEN $2 AND $3';
+        if (cur !== 'ALL') w += ` AND COALESCE(py.currency, 'TZS') = ${bind(a, cur)}`;
+        if (props.length) w += ` AND p.property_id = ANY(${bind(a, props)}::int[])`;
+        if (units.length) w += ` AND u.unit_id = ANY(${bind(a, units)}::int[])`;
+        if (accountId) w += ` AND py.account_id = ${bind(a, accountId)}`;
+        const r1 = await pool.query(
+            `SELECT py.payment_id, py.payment_date::date AS date, py.amount_paid AS amount, COALESCE(py.currency, 'TZS') AS currency, py.account_id, fa.name AS account_name,
+                    py.receipt_number, py.payment_method, inv.invoice_type, inv.invoice_number, t.full_name AS tenant_name, u.unit_id, u.unit_number,
+                    p.property_id, COALESCE(p.property_name, p.title) AS property_name
+             FROM payments py JOIN invoices inv ON py.invoice_id = inv.invoice_id JOIN leases l ON inv.lease_id = l.lease_id
+             JOIN tenants t ON l.tenant_id = t.tenant_id JOIN units u ON l.unit_id = u.unit_id JOIN properties p ON u.property_id = p.property_id
+             LEFT JOIN finance_accounts fa ON fa.account_id = py.account_id
+             WHERE py.company_id = $1 ${w} ORDER BY py.payment_date DESC LIMIT 20000`, a);
+        r1.rows.forEach(r => rows.push({
+            id: 'P' + r.payment_id, type: 'INCOME', source: 'PAYMENT', date: String(r.date).slice(0, 10), category: r.invoice_type || 'RENT',
+            description: `${r.tenant_name} - ${r.invoice_number}${r.receipt_number ? ' (' + r.receipt_number + ')' : ''}`,
+            property_id: r.property_id, property: r.property_name, unit_id: r.unit_id, unit: r.unit_number, account_id: r.account_id, account: r.account_name || '',
+            currency: r.currency, amount: parseFloat(r.amount), reference: r.receipt_number || '', payment_id: r.payment_id }));
+
+        // other income (manual)
+        if (!units.length) {
+            const b = [cId, from, to];
+            let w2 = ' AND fi.income_date BETWEEN $2 AND $3';
+            if (cur !== 'ALL') w2 += ` AND fi.currency = ${bind(b, cur)}`;
+            if (props.length) w2 += ` AND fi.property_id = ANY(${bind(b, props)}::int[])`;
+            if (accountId) w2 += ` AND fi.account_id = ${bind(b, accountId)}`;
+            const r2 = await pool.query(
+                `SELECT fi.*, fa.name AS account_name, COALESCE(p.property_name, p.title) AS property_name
+                 FROM finance_income fi LEFT JOIN finance_accounts fa ON fa.account_id = fi.account_id LEFT JOIN properties p ON p.property_id = fi.property_id
+                 WHERE fi.company_id = $1 ${w2} ORDER BY fi.income_date DESC LIMIT 20000`, b);
+            r2.rows.forEach(r => rows.push({
+                id: 'I' + r.income_id, type: 'INCOME', source: 'MANUAL', date: String(r.income_date).slice(0, 10), category: r.category,
+                description: r.description + (r.payer ? ' - ' + r.payer : ''), property_id: r.property_id, property: r.property_name || '', unit_id: null, unit: '',
+                account_id: r.account_id, account: r.account_name || '', currency: r.currency, amount: parseFloat(r.amount), reference: r.reference || '', income_id: r.income_id, raw: r.description, party: r.payer || '', notes: r.notes || '' }));
+        }
+
+        // Luku (electricity token) sales are in TSh and are not tied to a property
+        if (wantLuku && !props.length && !units.length && !accountId && cur !== 'USD') {
+            try {
+                const r3 = await pool.query(
+                    `SELECT voucher_id, sold_at::date AS date, amount, tenant_name, unit_name, meter_number
+                     FROM luku_vouchers WHERE company_id = $1 AND sold_at IS NOT NULL AND sold_at::date BETWEEN $2 AND $3 ORDER BY sold_at DESC LIMIT 20000`, [cId, from, to]);
+                r3.rows.forEach(r => rows.push({
+                    id: 'L' + r.voucher_id, type: 'INCOME', source: 'LUKU', date: String(r.date).slice(0, 10), category: 'LUKU',
+                    description: `Luku ${r.meter_number || ''} - ${r.tenant_name || r.unit_name || ''}`.trim(), property_id: null, property: '', unit_id: null, unit: r.unit_name || '',
+                    account_id: null, account: '', currency: 'TZS', amount: parseFloat(r.amount), reference: '' }));
+            } catch (e) { /* no luku table yet: skip */ }
+        }
+    }
+
+    if (kind !== 'income' && !units.length) {   // expenses are not tied to a unit, so a unit filter leaves them out
+        const a = [cId, from, to];
+        let w = ' AND e.expense_date BETWEEN $2 AND $3';
+        if (cur !== 'ALL') w += ` AND COALESCE(e.currency, 'TZS') = ${bind(a, cur)}`;
+        if (props.length) w += ` AND e.property_id = ANY(${bind(a, props)}::int[])`;
+        if (accountId) w += ` AND e.account_id = ${bind(a, accountId)}`;
+        const r4 = await pool.query(
+            `SELECT e.*, COALESCE(e.currency, 'TZS') AS cur, fa.name AS account_name, COALESCE(p.property_name, p.title) AS property_name
+             FROM expenses e LEFT JOIN finance_accounts fa ON fa.account_id = e.account_id LEFT JOIN properties p ON p.property_id = e.property_id
+             WHERE e.company_id = $1 ${w} ORDER BY e.expense_date DESC LIMIT 20000`, a);
+        r4.rows.forEach(r => rows.push({
+            id: 'E' + r.expense_id, type: 'EXPENSE', source: 'EXPENSE', date: String(r.expense_date).slice(0, 10), category: r.category,
+            description: r.description + (r.payee ? ' - ' + r.payee : ''), property_id: r.property_id, property: r.property_name || '', unit_id: null, unit: '',
+            account_id: r.account_id, account: r.account_name || '', currency: r.cur, amount: parseFloat(r.amount), reference: '', expense_id: r.expense_id, raw: r.description, party: r.payee || '', notes: r.notes || '' }));
+    }
+
+    rows.sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0));
+
+    // totals per currency, by category, account and source, and a time series
+    const round2 = n => Math.round(n * 100) / 100;
+    const totals = {};
+    const ensure = c => (totals[c] = totals[c] || { income: 0, expense: 0, net: 0 });
+    const byCategory = {}, byAccount = {}, bySource = {}, series = {};
+    const periodKey = d => {
+        if (group === 'day') return d;
+        if (group === 'year') return d.slice(0, 4);
+        if (group === 'month') return d.slice(0, 7);
+        const dt = new Date(d + 'T00:00:00Z'); const wd = (dt.getUTCDay() + 6) % 7; dt.setUTCDate(dt.getUTCDate() - wd);
+        return dt.toISOString().slice(0, 10);
+    };
+    rows.forEach(r => {
+        const t = ensure(r.currency), isIn = r.type === 'INCOME';
+        t[isIn ? 'income' : 'expense'] += r.amount;
+        const ck = `${r.type}|${r.category}|${r.currency}`;
+        byCategory[ck] = byCategory[ck] || { type: r.type, category: r.category, currency: r.currency, total: 0 }; byCategory[ck].total += r.amount;
+        const ak = `${r.account_id || 0}|${r.currency}`;
+        byAccount[ak] = byAccount[ak] || { account_id: r.account_id, account: r.account || '(no account)', currency: r.currency, income: 0, expense: 0 };
+        byAccount[ak][isIn ? 'income' : 'expense'] += r.amount;
+        const sk = `${r.source}|${r.currency}`;
+        bySource[sk] = bySource[sk] || { source: r.source, currency: r.currency, total: 0 }; bySource[sk].total += r.amount;
+        const pk = `${periodKey(r.date)}|${r.currency}`;
+        series[pk] = series[pk] || { period: periodKey(r.date), currency: r.currency, income: 0, expense: 0 };
+        series[pk][isIn ? 'income' : 'expense'] += r.amount;
+    });
+    Object.values(totals).forEach(t => { t.income = round2(t.income); t.expense = round2(t.expense); t.net = round2(t.income - t.expense); });
+    const fix = o => Object.values(o).map(x => { Object.keys(x).forEach(k => { if (typeof x[k] === 'number' && k !== 'account_id') x[k] = round2(x[k]); }); return x; });
+    const company = (await pool.query('SELECT company_name FROM companies WHERE company_id = $1', [cId])).rows[0] || {};
+    return {
+        from, to, currency: cur, group, kind, company_name: company.company_name || '', property_ids: props, unit_ids: units, account_id: accountId,
+        totals, rows: rows.slice(0, 5000), row_count: rows.length, truncated: rows.length > 5000,
+        by_category: fix(byCategory), by_account: fix(byAccount), by_source: fix(bySource), series: fix(series).sort((x, y) => (x.period < y.period ? -1 : 1))
+    };
+}
+
+app.get('/api/finance/ledger', authenticateToken, allowRoles(...R_FIN_VIEW), wrapAsync(async (req, res) => {
+    res.json(await buildLedger(req));
+}));
+
+// units for the filter (all units of the chosen properties)
+app.get('/api/finance/units', authenticateToken, allowRoles(...R_FIN_VIEW), wrapAsync(async (req, res) => {
+    const props = idList(req.query.property_ids);
+    const a = [req.user.company_id]; let w = '';
+    if (props.length) { a.push(props); w = ' AND u.property_id = ANY($2::int[])'; }
+    const rows = (await pool.query(
+        `SELECT u.unit_id, u.unit_number, u.property_id, COALESCE(p.property_name, p.title) AS property_name
+         FROM units u JOIN properties p ON p.property_id = u.property_id WHERE u.company_id = $1 ${w} ORDER BY p.property_id, u.unit_number LIMIT 2000`, a)).rows;
+    res.json(rows);
+}));
+
+function ledgerReport(L, view) {
+    const periodLabel = `${niceDate(L.from)} - ${niceDate(L.to)}`;
+    const summary = [];
+    Object.keys(L.totals).sort().forEach(c => {
+        summary.push({ label: `${c} income`, value: L.totals[c].income, type: 'money' });
+        summary.push({ label: `${c} expenses`, value: L.totals[c].expense, type: 'money' });
+        summary.push({ label: `${c} net`, value: L.totals[c].net, type: 'money' });
+    });
+    const single = L.currency !== 'ALL';
+    let columns, rows, title;
+    if (view === 'summary') {
+        title = 'Income and expenses summary';
+        columns = [{ key: 'period', label: 'Period', type: 'text' }, { key: 'currency', label: 'Currency', type: 'text' },
+                   { key: 'income', label: 'Income', type: 'money', total: single }, { key: 'expense', label: 'Expenses', type: 'money', total: single },
+                   { key: 'net', label: 'Net', type: 'money', total: single }];
+        rows = L.series.map(x => ({ period: x.period, currency: x.currency, income: x.income, expense: x.expense, net: Math.round((x.income - x.expense) * 100) / 100 }));
+    } else if (view === 'accounts') {
+        title = 'Accounts report';
+        columns = [{ key: 'account', label: 'Account', type: 'text' }, { key: 'currency', label: 'Currency', type: 'text' },
+                   { key: 'income', label: 'Money in', type: 'money', total: single }, { key: 'expense', label: 'Money out', type: 'money', total: single },
+                   { key: 'net', label: 'Net', type: 'money', total: single }];
+        rows = L.by_account.map(x => ({ account: x.account, currency: x.currency, income: x.income, expense: x.expense, net: Math.round((x.income - x.expense) * 100) / 100 }));
+    } else {
+        title = view === 'expenses' ? 'Expenses report' : view === 'income' ? 'Income report' : 'Finance statement';
+        columns = [{ key: 'date', label: 'Date', type: 'date' }, { key: 'type', label: 'Type', type: 'text' }, { key: 'category', label: 'Category', type: 'text' },
+                   { key: 'description', label: 'Description', type: 'text', wide: true }, { key: 'property', label: 'Property', type: 'text' }, { key: 'unit', label: 'Unit', type: 'text' },
+                   { key: 'account', label: 'Account', type: 'text' }, { key: 'currency', label: 'Currency', type: 'text' },
+                   { key: 'income', label: 'Income', type: 'money', total: single }, { key: 'expense', label: 'Expense', type: 'money', total: single }];
+        rows = L.rows.map(r => ({ date: r.date, type: r.type === 'INCOME' ? 'Income' : 'Expense', category: r.category, description: r.description, property: r.property, unit: r.unit,
+            account: r.account, currency: r.currency, income: r.type === 'INCOME' ? r.amount : 0, expense: r.type === 'EXPENSE' ? r.amount : 0 }));
+    }
+    return { type: 'finance-' + view, title, company_name: L.company_name, period: periodLabel, property: L.property_ids.length ? `${L.property_ids.length} propert${L.property_ids.length === 1 ? 'y' : 'ies'} selected` : 'All properties',
+             from: L.from, to: L.to, summary, columns, rows };
+}
+
+app.get('/api/finance/export', authenticateToken, allowRoles(...R_FIN_VIEW), async (req, res) => {
+    try {
+        const L = await buildLedger(req);
+        const view = ['statement', 'summary', 'accounts', 'income', 'expenses'].includes(req.query.view) ? req.query.view : 'statement';
+        const k = view === 'income' ? 'income' : view === 'expenses' ? 'expense' : null;
+        if (k && L.kind === 'all') { L.rows = L.rows.filter(r => r.type === (k === 'income' ? 'INCOME' : 'EXPENSE')); }
+        const rep = ledgerReport(L, view);
+        const base = `finance-${view}-${L.from}-to-${L.to}`;
+        if (req.query.format === 'pdf') return writeReportPdf(res, base + '.pdf', rep);
+        await writeWorkbookTo(res, base + '.xlsx', [{
+            name: rep.title, heading: [rep.company_name, rep.title, `Period: ${rep.period}   |   ${rep.property}`],
+            summary: rep.summary, columns: rep.columns, rows: rep.rows }]);
+    } catch (err) {
+        if (!err.status) console.error('Finance export error:', err);
         if (!res.headersSent) res.status(err.status || (err.code === 'MISSING_PACKAGE' ? 501 : 500)).json({ error: err.message, code: err.code });
         else res.end();
     }
