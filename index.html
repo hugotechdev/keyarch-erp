@@ -300,6 +300,43 @@
         html[data-theme="light"] .ka-lang-btn.on { background: #2563eb; color: #fff; border-color: #2563eb; }
         html[data-theme="coffee"] .ka-lang-btn { background: #241B14; border-color: #4a3826; color: #cdb98f; }
         html[data-theme="coffee"] .ka-lang-btn.on { background: var(--ka-gold, #D9AE4E); color: #1a130d; border-color: #D9AE4E; }
+        /* ===== Dark = calm neutral charcoal (#151617), blue only as a small accent ===== */
+        html[data-theme="dark"] { background-color: #151617; }
+        html[data-theme="dark"], html[data-theme="dark"] body { background-image: none; }
+        html[data-theme="dark"] .ka-blobs { display: none; }
+        html[data-theme="dark"] aside.bg-\[\#0a1224\] { background-color: #111213; }
+        html[data-theme="dark"] .bg-\[\#0d172d\], html[data-theme="dark"] .bg-\[\#0a1224\], html[data-theme="dark"] .bg-\[\#0e1930\] { background-color: #1c1d1f; }
+        html[data-theme="dark"] .bg-\[\#0a1224\]\/90 { background-color: rgba(21,22,23,.92); }
+        html[data-theme="dark"] .bg-\[\#0d172d\]\/50 { background-color: rgba(28,29,31,.55); }
+        html[data-theme="dark"] .bg-\[\#0d172d\]:not(tr):not(thead) { box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+        html[data-theme="dark"] .bg-\[\#101b33\], html[data-theme="dark"] .bg-\[\#101d38\] { background-color: #202123; }
+        html[data-theme="dark"] .bg-\[\#14223d\], html[data-theme="dark"] .inp, html[data-theme="dark"] .inp option { background-color: #242628; }
+        html[data-theme="dark"] .bg-\[\#14223d\]\/60, html[data-theme="dark"] .bg-\[\#14223d\]\/40 { background-color: rgba(36,38,40,.7); }
+        html[data-theme="dark"] .bg-\[\#1e2f52\] { background-color: #2e3033; }
+        html[data-theme="dark"] .hover\:bg-\[\#1e2f52\]:hover, html[data-theme="dark"] .hover\:bg-\[\#14223d\]:hover, html[data-theme="dark"] .hover\:bg-\[\#101d38\]:hover { background-color: #2a2c2f; }
+        html[data-theme="dark"] .hover\:bg-\[\#14223d\]\/50:hover { background-color: rgba(42,44,47,.7); }
+        html[data-theme="dark"] .border-\[\#182848\], html[data-theme="dark"] .border-\[\#1e2f52\], html[data-theme="dark"] .border-\[\#1d325c\] { border-color: #2c2e31; }
+        html[data-theme="dark"] .border-\[\#233863\], html[data-theme="dark"] .inp { border-color: #383b3f; }
+        html[data-theme="dark"] .divide-\[\#182848\] > :not([hidden]) ~ :not([hidden]) { border-color: #2c2e31; }
+        html[data-theme="dark"] .border-gray-600\/40 { border-color: #3a3d41; }
+        html[data-theme="dark"] .bg-gray-800 { background-color: #242628; }
+        html[data-theme="dark"] select option { background: #242628; color: #e8e9ea; }
+        html[data-theme="dark"] input::placeholder, html[data-theme="dark"] textarea::placeholder { color: #7d8288; }
+        html[data-theme="dark"] ::-webkit-scrollbar-track { background: #151617; }
+        html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3a3d41; }
+        html[data-theme="dark"] .lbl, html[data-theme="dark"] .text-gray-400, html[data-theme="dark"] .text-gray-300 { color: #b6babf; }
+        html[data-theme="dark"] .text-gray-500, html[data-theme="dark"] .text-gray-600 { color: #8f949a; }
+        html[data-theme="dark"] .nav-item.bg-blue-600\/20 { background: rgba(59,130,246,.16); color: #8ab8ff; box-shadow: none; }
+        html[data-theme="dark"] button.bg-blue-600, html[data-theme="dark"] .bg-gradient-to-r.from-blue-600 { box-shadow: none; }
+        html[data-theme="dark"] .inp:focus, html[data-theme="dark"] input:focus, html[data-theme="dark"] select:focus, html[data-theme="dark"] textarea:focus { box-shadow: 0 0 0 3px rgba(59,130,246,.18); border-color: #3b82f6; }
+        html[data-theme="dark"] .ka-kpi-on { outline-color: #3b82f6; }
+        html[data-theme="dark"] button.bg-red-600, html[data-theme="dark"] .bg-red-600 { background-color: #b9423a; }
+        html[data-theme="dark"] button.bg-red-600:hover { background-color: #c9483f; }
+        html[data-theme="dark"] #ka-loader { background: #151617; }
+        @media (max-width: 1023px), (pointer: coarse) {
+            html[data-theme="dark"] { background-color: #151617; }
+            html[data-theme="dark"] header.sticky { background-color: #151617 !important; }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between text-gray-100 font-sans">
