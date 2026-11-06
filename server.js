@@ -227,12 +227,13 @@ async function addPayment(client, o) {
     const detail = o.methodDetail ? String(o.methodDetail).slice(0, 40) : null;
     const invCur = await client.query('SELECT COALESCE(currency, \'TZS\') AS currency FROM invoices WHERE invoice_id = $1', [o.invoiceId]);
     const currency = cleanCur(invCur.rows[0] && invCur.rows[0].currency);
-    const accountId = await checkAccount(client, o.companyId, o.accountId, currency);
+    const recvCur = o.receivedCurrency && cleanCur(o.receivedCurrency) !== currency ? cleanCur(o.receivedCurrency) : null;
+    const accountId = await checkAccount(client, o.companyId, o.accountId, recvCur || currency);
     const r = await client.query(
-        `INSERT INTO payments (company_id, invoice_id, amount_paid, payment_date, payment_method, method_detail, reference_no, notes, receipt_number, recorded_by, currency, account_id)
-         VALUES ($1, $2, $3, COALESCE($4::timestamp, (NOW() AT TIME ZONE 'Africa/Dar_es_Salaam')), $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+        `INSERT INTO payments (company_id, invoice_id, amount_paid, payment_date, payment_method, method_detail, reference_no, notes, receipt_number, recorded_by, currency, account_id, received_currency, received_amount, exchange_rate)
+         VALUES ($1, $2, $3, COALESCE($4::timestamp, (NOW() AT TIME ZONE 'Africa/Dar_es_Salaam')), $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
         [o.companyId, o.invoiceId, o.amount, when, normalizePaymentMethod(o.method), detail,
-         o.reference ? String(o.reference).slice(0, 100) : null, o.notes || null, receipt, o.userId || null, currency, accountId]
+         o.reference ? String(o.reference).slice(0, 100) : null, o.notes || null, receipt, o.userId || null, currency, accountId, recvCur, recvCur ? o.receivedAmount : null, recvCur ? o.rate : null]
     );
     return r.rows[0];
 }
@@ -700,6 +701,9 @@ const SETUP_STEPS = [
         ALTER TABLE invoices ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'TZS';
         ALTER TABLE payments ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'TZS';
         ALTER TABLE payments ADD COLUMN IF NOT EXISTS account_id INTEGER;
+        ALTER TABLE payments ADD COLUMN IF NOT EXISTS received_currency VARCHAR(3);
+        ALTER TABLE payments ADD COLUMN IF NOT EXISTS received_amount NUMERIC(14, 2);
+        ALTER TABLE payments ADD COLUMN IF NOT EXISTS exchange_rate NUMERIC(14, 4);
         ALTER TABLE expenses ADD COLUMN IF NOT EXISTS currency VARCHAR(3) DEFAULT 'TZS';
         ALTER TABLE expenses ADD COLUMN IF NOT EXISTS account_id INTEGER;
         CREATE TABLE IF NOT EXISTS finance_accounts (
@@ -1158,7 +1162,7 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
         await client.query('BEGIN');
 
         const unitCheck = await client.query(
-            `SELECT u.status, u.property_id, u.service_charge, u.service_inclusive, p.service_charge_label AS service_label
+            `SELECT u.status, u.property_id, u.service_charge, u.service_inclusive, u.currency AS unit_currency, p.service_charge_label AS service_label
              FROM units u JOIN properties p ON p.property_id = u.property_id WHERE u.unit_id = $1 AND u.company_id = $2`, [unit_id, companyId]);
         if (unitCheck.rows.length === 0) throw new Error('Unit not found.');
         const unitRow = unitCheck.rows[0];
@@ -1220,7 +1224,12 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
 
         // service charge of the first month (unless it is already included in the rent)
         let serviceInvoice = null;
-        const svc = parseFloat(unitRow.service_charge || 0);
+        // the unit may be priced in the other currency: the service charge follows the same exchange rate as the rent
+        const unitCur = String(unitRow.unit_currency || '').toUpperCase() === 'USD' ? 'USD' : 'TZS';
+        const xr = parseFloat(req.body.exchange_rate);
+        if (unitCur !== leaseCurrency && !(xr > 0)) throw new Error('Please enter the exchange rate (TSh for 1 USD).');
+        const convUnit = n => unitCur === leaseCurrency ? n : (leaseCurrency === 'USD' ? Math.round(n / xr * 100) / 100 : Math.round(n * xr));
+        const svc = convUnit(parseFloat(unitRow.service_charge || 0));
         if (svc > 0 && !unitRow.service_inclusive) {
             const ym = String(start_date).slice(0, 7);
             const range = monthRange(ym);
@@ -2291,8 +2300,12 @@ app.delete('/api/invoices/:id', authenticateToken, allowRoles(...R_ADMIN), wrapA
 // RECORD A PAYMENT AGAINST AN INVOICE (updates invoice, lease balance and status, creates the receipt)
 app.post('/api/payments/record', authenticateToken, allowRoles(...R_MONEY), async (req, res) => {
     const { invoice_id, amount, payment_method, payment_date, reference, notes } = req.body;
-    const amt = Math.round(parseFloat(amount) * 100) / 100;
+    let amt = Math.round(parseFloat(amount) * 100) / 100;
     if (!invoice_id || !(amt > 0)) return res.status(400).json({ error: 'Invoice and a valid amount are required.' });
+    // The customer may pay in the other currency: amount is then what was handed over, and the rate (TSh per 1 USD) turns it into the invoice currency
+    const recvCur = ['TZS', 'USD'].includes(String(req.body.received_currency || '').toUpperCase()) ? String(req.body.received_currency).toUpperCase() : null;
+    const rate = parseFloat(req.body.exchange_rate);
+    let recvAmount = amt;
     if (payment_date && (!isDateStr(payment_date) || payment_date > todayStr())) return res.status(400).json({ error: 'Payment date cannot be in the future.' });
 
     let client;
@@ -2307,10 +2320,18 @@ app.post('/api/payments/record', authenticateToken, allowRoles(...R_MONEY), asyn
         );
         if (invRes.rows.length === 0) throw new Error('Invoice not found.');
         const inv = invRes.rows[0];
+        const invCurRow = await client.query('SELECT COALESCE(currency, \'TZS\') AS currency FROM invoices WHERE invoice_id = $1', [invoice_id]);
+        const invCur = invCurRow.rows[0].currency;
+        if (recvCur && recvCur !== invCur) {
+            if (!(rate > 0)) throw new Error('Please enter the exchange rate (TSh for 1 USD).');
+            amt = invCur === 'USD' ? Math.round(recvAmount / rate * 100) / 100 : Math.round(recvAmount * rate);
+            if (!(amt > 0)) throw new Error('The converted amount is too small.');
+        }
 
         const payment = await addPayment(client, {
             companyId, invoiceId: invoice_id, amount: amt, method: payment_method, methodDetail: payment_method,
-            reference, notes: String(notes || '').trim() || null, date: payment_date, userId: req.user.user_id, accountId: req.body.account_id
+            reference, notes: String(notes || '').trim() || null, date: payment_date, userId: req.user.user_id, accountId: req.body.account_id,
+            receivedCurrency: recvCur, receivedAmount: recvAmount, rate
         });
 
         const sum = await client.query('SELECT COALESCE(SUM(amount_paid), 0) AS paid FROM payments WHERE invoice_id = $1 AND company_id = $2', [invoice_id, companyId]);
@@ -2324,7 +2345,7 @@ app.post('/api/payments/record', authenticateToken, allowRoles(...R_MONEY), asyn
 
         await createAuditLog(client, companyId, req.user.user_id, 'Recorded Payment', 'PAYMENTS', req.ip, { invoice_id, amount: amt, receipt: payment.receipt_number });
         await client.query('COMMIT');
-        res.status(201).json({ message: 'Payment recorded.', invoice_status: invStatus, payment_status: leaseStatus, payment_id: payment.payment_id, receipt_number: payment.receipt_number });
+        res.status(201).json({ message: 'Payment recorded.', credited: amt, credited_currency: invCur, invoice_status: invStatus, payment_status: leaseStatus, payment_id: payment.payment_id, receipt_number: payment.receipt_number });
     } catch (err) {
         if (client) await client.query('ROLLBACK');
         res.status(400).json({ error: err.message });
@@ -2401,7 +2422,7 @@ async function getReceiptData(cId, payId) {
     const total = parseFloat(inv.amount_due);
     return {
         receipt_number: pay.receipt_number, payment_id: pay.payment_id, payment_date: pay.payment_date,
-        amount_paid: parseFloat(pay.amount_paid), currency: inv.currency || 'TZS', amount_words: amountInWords(pay.amount_paid) + (inv.currency === 'USD' ? ' US dollars only' : ' shillings only'),
+        amount_paid: parseFloat(pay.amount_paid), currency: inv.currency || 'TZS', received_currency: pay.received_currency || null, received_amount: pay.received_amount ? parseFloat(pay.received_amount) : null, exchange_rate: pay.exchange_rate ? parseFloat(pay.exchange_rate) : null, amount_words: amountInWords(pay.amount_paid) + (inv.currency === 'USD' ? ' US dollars only' : ' shillings only'),
         method: pay.method_detail || pay.payment_method, reference: pay.reference_no, notes: pay.notes, received_by: pay.received_by,
         invoice: { invoice_id: inv.invoice_id, invoice_number: inv.invoice_number, invoice_type: inv.invoice_type, description: inv.description, total },
         paid_to_date: paidToDate, balance_after: Math.max(0, Math.round((total - paidToDate) * 100) / 100), extra_paid: Math.max(0, Math.round((paidToDate - total) * 100) / 100),
@@ -4025,7 +4046,7 @@ app.get('/api/finance/accounts', authenticateToken, allowRoles(...R_FIN_VIEW), w
     const cId = req.user.company_id;
     const rows = (await pool.query(
         `SELECT a.account_id, a.name, a.currency, a.kind, a.opening_balance, a.is_active, a.created_at,
-                COALESCE((SELECT SUM(amount_paid) FROM payments WHERE account_id = a.account_id AND company_id = $1), 0) AS rent_in,
+                COALESCE((SELECT SUM(COALESCE(received_amount, amount_paid)) FROM payments WHERE account_id = a.account_id AND company_id = $1), 0) AS rent_in,
                 COALESCE((SELECT SUM(amount) FROM finance_income WHERE account_id = a.account_id AND company_id = $1), 0) AS other_in,
                 COALESCE((SELECT SUM(amount) FROM expenses WHERE account_id = a.account_id AND company_id = $1), 0) AS spent
          FROM finance_accounts a WHERE a.company_id = $1 ORDER BY a.is_active DESC, a.currency, a.name`, [cId]
@@ -4164,12 +4185,12 @@ async function buildLedger(req) {
         // rent / invoice payments
         const a = [cId, from, to];
         let w = ' AND py.payment_date::date BETWEEN $2 AND $3';
-        if (cur !== 'ALL') w += ` AND COALESCE(py.currency, 'TZS') = ${bind(a, cur)}`;
+        if (cur !== 'ALL') w += ` AND COALESCE(py.received_currency, py.currency, 'TZS') = ${bind(a, cur)}`;
         if (props.length) w += ` AND p.property_id = ANY(${bind(a, props)}::int[])`;
         if (units.length) w += ` AND u.unit_id = ANY(${bind(a, units)}::int[])`;
         if (accountId) w += ` AND py.account_id = ${bind(a, accountId)}`;
         const r1 = await pool.query(
-            `SELECT py.payment_id, py.payment_date::date AS date, py.amount_paid AS amount, COALESCE(py.currency, 'TZS') AS currency, py.account_id, fa.name AS account_name,
+            `SELECT py.payment_id, py.payment_date::date AS date, COALESCE(py.received_amount, py.amount_paid) AS amount, COALESCE(py.received_currency, py.currency, 'TZS') AS currency, py.account_id, fa.name AS account_name,
                     py.receipt_number, py.payment_method, inv.invoice_type, inv.invoice_number, t.full_name AS tenant_name, u.unit_id, u.unit_number,
                     p.property_id, COALESCE(p.property_name, p.title) AS property_name
              FROM payments py JOIN invoices inv ON py.invoice_id = inv.invoice_id JOIN leases l ON inv.lease_id = l.lease_id
@@ -4280,6 +4301,19 @@ app.get('/api/finance/units', authenticateToken, allowRoles(...R_FIN_VIEW), wrap
         `SELECT u.unit_id, u.unit_number, u.property_id, COALESCE(p.property_name, p.title) AS property_name
          FROM units u JOIN properties p ON p.property_id = u.property_id WHERE u.company_id = $1 ${w} ORDER BY p.property_id, u.unit_number LIMIT 2000`, a)).rows;
     res.json(rows);
+}));
+
+// Quick review for the top of the Finance page: this month and this year, one block per currency
+app.get('/api/finance/overview', authenticateToken, allowRoles(...R_FIN_VIEW), wrapAsync(async (req, res) => {
+    const t = todayStr();
+    const mk = async (from) => (await buildLedger({ user: req.user, query: { from, to: t, currency: 'ALL', kind: 'all', group: 'month' } }));
+    const month = await mk(t.slice(0, 8) + '01'), year = await mk(t.slice(0, 5) + '01-01');
+    const out = { today: t, TZS: {}, USD: {} };
+    ['TZS', 'USD'].forEach(c => {
+        const m = month.totals[c] || { income: 0, expense: 0 }, y = year.totals[c] || { income: 0, expense: 0 };
+        out[c] = { month_income: m.income, month_expense: m.expense, year_income: y.income, year_expense: y.expense };
+    });
+    res.json(out);
 }));
 
 function ledgerReport(L, view) {
