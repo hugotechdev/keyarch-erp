@@ -383,7 +383,7 @@ async function checkLimit(user, limitKey, countSql, what) {
 // Every step runs on its own: one problem never stops the others.
 // The Super Admin can also run it from Platform Admin > Run Database Setup.
 // ============================================================
-const SERVER_VERSION = 'v8.1 - 2026-11-06 - language switch, owner login, KEY ARCH';
+const SERVER_VERSION = 'v8.2 - 2026-11-06 - select and delete, edit requests';
 
 const SETUP_STEPS = [
     { name: "Base columns (leases, users)", sql: `
@@ -647,6 +647,33 @@ const SETUP_STEPS = [
         ALTER TABLE luku_vouchers DROP CONSTRAINT IF EXISTS luku_vouchers_token_number_key;
         ALTER TABLE luku_vouchers ADD COLUMN IF NOT EXISTS unit_name VARCHAR(80);
         ALTER TABLE luku_vouchers ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(30)
+    ` },
+    { name: "Staff must ask before editing tenants (one time)", sql: `
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'edit_requests') THEN
+                UPDATE users SET can_edit_tenants = false WHERE role NOT IN ('COMPANY_ADMIN', 'SUPER_ADMIN');
+            END IF;
+        END $$;
+    ` },
+    { name: "Edit requests table", sql: `
+        CREATE TABLE IF NOT EXISTS edit_requests (
+            request_id    SERIAL PRIMARY KEY,
+            company_id    INTEGER,
+            entity_type   VARCHAR(20) NOT NULL,
+            entity_id     INTEGER NOT NULL,
+            entity_label  VARCHAR(200),
+            section       VARCHAR(30) NOT NULL,
+            reason        TEXT,
+            requested_by  INTEGER,
+            status        VARCHAR(12) DEFAULT 'PENDING',
+            decided_by    INTEGER,
+            decided_at    TIMESTAMP,
+            decision_note TEXT,
+            expires_at    TIMESTAMP,
+            used_at       TIMESTAMP,
+            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_edit_requests_company ON edit_requests (company_id, status)
     ` }
 ];
 
@@ -1271,21 +1298,37 @@ app.get('/api/tenants/:id/history', authenticateToken, allowRoles(...R_VIEW_MONE
 });
 
 // EDIT TENANT (personal details + lease end date)
+
+// ============================================================
+// EDITING TENANTS AFTER SAVING: the owner/admin edits directly; staff ask for permission first
+// ============================================================
+const EDIT_SECTIONS = { TENANT_INFO: 'Tenant details (name, phone, ID)', LEASE_TERMS: 'Rent price, discount, periods and dates' };
+async function checkEditPermission(req, client, tenantId, section) {
+    const role = req.user.role;
+    if (role === 'COMPANY_ADMIN' || role === 'SUPER_ADMIN') return { ok: true };
+    if (section === 'TENANT_INFO' && req.user.can_edit_tenants) return { ok: true };
+    const rid = parseInt((req.body || {}).request_id);
+    const deny = { ok: false, status: 403, code: 'NEEDS_APPROVAL', error: 'You need permission from the owner/admin to edit this. Ask for permission first.' };
+    if (!rid) return deny;
+    const r = (await client.query('SELECT * FROM edit_requests WHERE request_id = $1 AND company_id = $2 AND requested_by = $3 FOR UPDATE', [rid, req.user.company_id, req.user.user_id])).rows[0];
+    if (!r || r.entity_type !== 'TENANT' || Number(r.entity_id) !== Number(tenantId) || r.section !== section) return deny;
+    if (r.status !== 'APPROVED' || r.used_at || !r.expires_at || new Date(r.expires_at) < new Date()) return { ...deny, error: 'This permission has expired or was already used. Please ask again.' };
+    return { ok: true, requestId: rid };
+}
+async function markRequestUsed(client, requestId) { if (requestId) await client.query("UPDATE edit_requests SET status = 'USED', used_at = NOW() WHERE request_id = $1", [requestId]); }
+
 app.put('/api/tenants/:id', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
     const { full_name, nida_passport_no, identity_type, phone_number, end_date, lease_id } = req.body;
     const tenantId = req.params.id;
-
-    if (!req.user.can_edit_tenants && req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'COMPANY_ADMIN') {
-        return res.status(403).json({ error: 'You do not have permission to edit tenant details.' });
-    }
     if (!full_name || !phone_number || !nida_passport_no) {
         return res.status(400).json({ error: 'Name, phone and ID number are required.' });
     }
-
     let client;
     try {
         client = await pool.connect();
         await client.query('BEGIN');
+        const gate = await checkEditPermission(req, client, tenantId, 'TENANT_INFO');
+        if (!gate.ok) { await client.query('ROLLBACK'); return res.status(gate.status).json({ error: gate.error, code: gate.code }); }
 
         const upd = await client.query(
             `UPDATE tenants SET full_name = $1, nida_passport_no = $2, phone_number = $3, identity_type = COALESCE($4, identity_type)
@@ -1303,15 +1346,14 @@ app.put('/api/tenants/:id', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPAN
             )).rows[0];
             if (!l) throw new Error('Lease not found.');
             if (end_date < l.start_str) throw new Error('End date cannot be before the start date.');
-
             if (end_date !== l.end_str) {
                 const days = Math.max(0, Math.round((new Date(end_date) - new Date(l.start_str)) / 86400000));
                 await client.query('UPDATE leases SET end_date = $1, duration_days = $2 WHERE lease_id = $3 AND company_id = $4', [end_date, days, lease_id, req.user.company_id]);
                 await logLeaseEvent(client, req.user.company_id, lease_id, tenantId, 'EDITED', `Lease end date changed from ${l.end_str} to ${end_date}`, null, req.user.user_id);
             }
         }
-
-        await createAuditLog(client, req.user.company_id, req.user.user_id, 'Updated Tenant Details', 'TENANTS', req.ip, { tenant_id: tenantId });
+        await markRequestUsed(client, gate.requestId);
+        await createAuditLog(client, req.user.company_id, req.user.user_id, 'Updated Tenant Details', 'TENANTS', req.ip, { tenant_id: tenantId, via_request: gate.requestId || null });
         await client.query('COMMIT');
         res.json({ message: 'Tenant updated successfully' });
     } catch (err) {
@@ -1321,6 +1363,124 @@ app.put('/api/tenants/:id', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPAN
         if (client) client.release();
     }
 });
+
+// correct a saved contract: price, discount, periods, dates (the invoice and balances follow)
+app.put('/api/leases/:id/correct', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT'), async (req, res) => {
+    const cId = req.user.company_id, b = req.body || {};
+    let client;
+    try {
+        client = await pool.connect();
+        await client.query('BEGIN');
+        const lease = (await client.query(
+            `SELECT *, to_char(start_date, 'YYYY-MM-DD') AS start_str, to_char(end_date, 'YYYY-MM-DD') AS end_str FROM leases WHERE lease_id = $1 AND company_id = $2 FOR UPDATE`,
+            [req.params.id, cId])).rows[0];
+        if (!lease) throw new Error('Contract not found.');
+        const gate = await checkEditPermission(req, client, lease.tenant_id, 'LEASE_TERMS');
+        if (!gate.ok) { await client.query('ROLLBACK'); return res.status(gate.status).json({ error: gate.error, code: gate.code }); }
+
+        const calc = calculatePayment({
+            rent_price: b.rent_price !== undefined && b.rent_price !== '' ? b.rent_price : lease.rent_price,
+            number_of_periods: b.number_of_periods !== undefined && b.number_of_periods !== '' ? b.number_of_periods : lease.number_of_periods,
+            discount: b.discount !== undefined && b.discount !== '' ? b.discount : lease.discount, paid_amount: 0
+        });
+        if (calc.error) throw new Error(calc.error);
+        const start = b.start_date || lease.start_str, end = b.end_date || lease.end_str;
+        if (!isDateStr(start) || !isDateStr(end)) throw new Error('Please enter valid dates.');
+        if (end < start) throw new Error('End date cannot be before the start date.');
+        const days = Math.max(0, Math.round((new Date(end) - new Date(start)) / 86400000));
+
+        const rentInv = (await client.query("SELECT invoice_id FROM invoices WHERE lease_id = $1 AND company_id = $2 AND invoice_type = 'RENT' AND COALESCE(lease_charge, true) = true ORDER BY invoice_id ASC LIMIT 1", [lease.lease_id, cId])).rows[0];
+        let others = { due: 0, sub: 0, disc: 0 };
+        if (rentInv) {
+            const o = (await client.query("SELECT COALESCE(SUM(amount_due),0) AS due, COALESCE(SUM(subtotal),0) AS sub, COALESCE(SUM(discount),0) AS disc FROM invoices WHERE lease_id = $1 AND company_id = $2 AND COALESCE(lease_charge, true) = true AND invoice_id <> $3", [lease.lease_id, cId, rentInv.invoice_id])).rows[0];
+            others = { due: parseFloat(o.due), sub: parseFloat(o.sub), disc: parseFloat(o.disc) };
+            const desc = `Rent: ${calc.periods} ${periodWord(lease.rent_period || 'Month', calc.periods)} x ${fmtMoney(calc.price)} (${niceDate(start)} - ${niceDate(end)})`;
+            await client.query('UPDATE invoices SET subtotal = $1, discount = $2, amount_due = $3, description = $4, period_start = $5, period_end = $6, issue_date = $5, due_date = $5 WHERE invoice_id = $7 AND company_id = $8',
+                [calc.totalRent, calc.discount, calc.totalToPay, desc, start, end, rentInv.invoice_id, cId]);
+            const paid = parseFloat((await client.query('SELECT COALESCE(SUM(amount_paid),0) AS s FROM payments WHERE invoice_id = $1', [rentInv.invoice_id])).rows[0].s);
+            await client.query('UPDATE invoices SET status = $1 WHERE invoice_id = $2', [paid >= calc.totalToPay ? 'PAID' : 'PENDING', rentInv.invoice_id]);
+        }
+        const toPay = calc.totalToPay + others.due;
+        await client.query(
+            `UPDATE leases SET start_date = $1, end_date = $2, duration_days = $3, rent_price = $4, number_of_periods = $5,
+                    total_rent = $6, discount = $7, total_to_pay = $8, agreed_rent = $8 WHERE lease_id = $9 AND company_id = $10`,
+            [start, end, days, calc.price, calc.periods, calc.totalRent + others.sub, calc.discount + others.disc, toPay, lease.lease_id, cId]);
+        await syncLeasePayment(client, lease.lease_id, cId);
+        await logLeaseEvent(client, cId, lease.lease_id, lease.tenant_id, 'EDITED',
+            `Contract corrected: rent ${fmtMoney(lease.rent_price)} x ${lease.number_of_periods} -> ${fmtMoney(calc.price)} x ${calc.periods}, discount ${fmtMoney(calc.discount)}, ${lease.start_str} to ${lease.end_str} -> ${start} to ${end}`,
+            toPay, req.user.user_id);
+        await markRequestUsed(client, gate.requestId);
+        await createAuditLog(client, cId, req.user.user_id, 'Corrected contract terms', 'TENANTS', req.ip, { lease_id: lease.lease_id, via_request: gate.requestId || null });
+        await client.query('COMMIT');
+        res.json({ message: 'Contract updated. The invoice and the balance were updated too.' });
+    } catch (err) {
+        if (client) { try { await client.query('ROLLBACK'); } catch (e) { } }
+        res.status(400).json({ error: err.message });
+    } finally { if (client) client.release(); }
+});
+
+// ---- requests for permission to edit ----
+app.post('/api/edit-requests', authenticateToken, allowRoles('PROPERTY_MANAGER', 'ACCOUNTANT'), wrapAsync(async (req, res) => {
+    const cId = req.user.company_id, b = req.body || {};
+    const tenantId = parseInt(b.tenant_id), section = String(b.section || '');
+    if (!EDIT_SECTIONS[section]) return res.status(400).json({ error: 'Please choose what you want to edit.' });
+    const reason = String(b.reason || '').trim().slice(0, 500);
+    if (reason.length < 3) return res.status(400).json({ error: 'Please write what was wrong (the reason).' });
+    const t = (await pool.query(
+        `SELECT t.full_name, (SELECT COALESCE(p.property_name, p.title) || ' (' || u.unit_number || ')' FROM leases l JOIN units u ON l.unit_id = u.unit_id JOIN properties p ON u.property_id = p.property_id
+                              WHERE l.tenant_id = t.tenant_id ORDER BY (l.lease_state = 'CURRENT') DESC, l.lease_id DESC LIMIT 1) AS place
+         FROM tenants t WHERE t.tenant_id = $1 AND t.company_id = $2`, [tenantId, cId])).rows[0];
+    if (!t) return res.status(404).json({ error: 'Tenant not found.' });
+    const dup = (await pool.query("SELECT request_id FROM edit_requests WHERE company_id = $1 AND entity_type = 'TENANT' AND entity_id = $2 AND section = $3 AND requested_by = $4 AND status = 'PENDING'", [cId, tenantId, section, req.user.user_id])).rows[0];
+    if (dup) return res.status(400).json({ error: 'You already asked for this. Wait for the owner/admin to answer.' });
+    const label = (t.full_name + (t.place ? ' · ' + t.place : '')).slice(0, 200);
+    const r = await pool.query("INSERT INTO edit_requests (company_id, entity_type, entity_id, entity_label, section, reason, requested_by) VALUES ($1, 'TENANT', $2, $3, $4, $5, $6) RETURNING request_id", [cId, tenantId, label, section, reason, req.user.user_id]);
+    await createAuditLog(pool, cId, req.user.user_id, 'Asked permission to edit', 'TENANTS', req.ip, { tenant_id: tenantId, section });
+    res.status(201).json({ message: 'Request sent. The owner/admin will see it.', request_id: r.rows[0].request_id });
+}));
+
+app.get('/api/edit-requests', authenticateToken, allowRoles('COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT'), wrapAsync(async (req, res) => {
+    const isAdmin = req.user.role === 'COMPANY_ADMIN';
+    const params = [req.user.company_id]; let where = 'e.company_id = $1';
+    if (!isAdmin) { params.push(req.user.user_id); where += ' AND e.requested_by = $2'; }
+    const rows = (await pool.query(
+        `SELECT e.*, u.full_name AS requested_by_name, d.full_name AS decided_by_name,
+                (e.status = 'APPROVED' AND e.used_at IS NULL AND e.expires_at > NOW()) AS usable
+         FROM edit_requests e LEFT JOIN users u ON e.requested_by = u.user_id LEFT JOIN users d ON e.decided_by = d.user_id
+         WHERE ${where} ORDER BY (e.status = 'PENDING') DESC, e.created_at DESC LIMIT 200`, params)).rows;
+    res.json({ requests: rows.map(r => ({ ...r, section_label: EDIT_SECTIONS[r.section] || r.section })) });
+}));
+
+app.get('/api/edit-requests/summary', authenticateToken, wrapAsync(async (req, res) => {
+    const cId = req.user.company_id;
+    if (req.user.role === 'COMPANY_ADMIN') {
+        const r = (await pool.query("SELECT COUNT(*) AS n FROM edit_requests WHERE company_id = $1 AND status = 'PENDING'", [cId])).rows[0];
+        return res.json({ count: parseInt(r.n) });
+    }
+    if (['PROPERTY_MANAGER', 'ACCOUNTANT'].includes(req.user.role)) {
+        const r = (await pool.query("SELECT COUNT(*) AS n FROM edit_requests WHERE company_id = $1 AND requested_by = $2 AND status = 'APPROVED' AND used_at IS NULL AND expires_at > NOW()", [cId, req.user.user_id])).rows[0];
+        return res.json({ count: parseInt(r.n) });
+    }
+    res.json({ count: 0 });
+}));
+
+app.put('/api/edit-requests/:id/decision', authenticateToken, allowRoles('COMPANY_ADMIN'), wrapAsync(async (req, res) => {
+    const b = req.body || {}; const approve = b.approve === true || b.approve === 'true';
+    const r = (await pool.query("SELECT * FROM edit_requests WHERE request_id = $1 AND company_id = $2", [req.params.id, req.user.company_id])).rows[0];
+    if (!r) return res.status(404).json({ error: 'Request not found.' });
+    if (r.status !== 'PENDING') return res.status(400).json({ error: 'This request was already answered.' });
+    await pool.query(
+        `UPDATE edit_requests SET status = $1, decided_by = $2, decided_at = NOW(), decision_note = $3, expires_at = ${approve ? "NOW() + interval '24 hours'" : 'NULL'} WHERE request_id = $4`,
+        [approve ? 'APPROVED' : 'REJECTED', req.user.user_id, String(b.note || '').slice(0, 300) || null, r.request_id]);
+    await createAuditLog(pool, req.user.company_id, req.user.user_id, approve ? 'Allowed an edit' : 'Refused an edit', 'TENANTS', req.ip, { request_id: r.request_id });
+    res.json({ message: approve ? 'Allowed. The staff member can edit for the next 24 hours (one time).' : 'Refused.' });
+}));
+
+app.put('/api/edit-requests/:id/cancel', authenticateToken, allowRoles('PROPERTY_MANAGER', 'ACCOUNTANT'), wrapAsync(async (req, res) => {
+    const r = await pool.query("UPDATE edit_requests SET status = 'CANCELLED' WHERE request_id = $1 AND company_id = $2 AND requested_by = $3 AND status IN ('PENDING','APPROVED') RETURNING request_id", [req.params.id, req.user.company_id, req.user.user_id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Request not found.' });
+    res.json({ message: 'Cancelled.' });
+}));
 
 // RENEW CONTRACT: a NEW lease record for the same tenant and unit
 app.post('/api/leases/:id/renew', authenticateToken, allowRoles(...LEASE_MANAGERS), async (req, res) => {
@@ -1503,45 +1663,6 @@ app.post('/api/leases/:id/end', authenticateToken, allowRoles(...LEASE_MANAGERS)
 });
 
 // DELETE a tenant that was entered by mistake (only if no payment was ever recorded)
-app.delete('/api/tenants/:id', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN'), async (req, res) => {
-    const companyId = req.user.company_id;
-    const tenantId = req.params.id;
-    let client;
-    try {
-        client = await pool.connect();
-        await client.query('BEGIN');
-
-        const t = (await client.query('SELECT tenant_id FROM tenants WHERE tenant_id = $1 AND company_id = $2 FOR UPDATE', [tenantId, companyId])).rows[0];
-        if (!t) throw new Error('Tenant not found.');
-
-        const pays = (await client.query(
-            `SELECT COUNT(*) AS c FROM payments pay JOIN invoices inv ON pay.invoice_id = inv.invoice_id JOIN leases l ON inv.lease_id = l.lease_id
-             WHERE l.tenant_id = $1 AND pay.company_id = $2`, [tenantId, companyId]
-        )).rows[0].c;
-        if (parseInt(pays) > 0) throw new Error('This tenant has payment records, so it cannot be deleted. Use "Move Out" to keep the history.');
-
-        // free the units of current leases
-        await client.query(
-            "UPDATE units SET status = 'VACANT' WHERE company_id = $2 AND unit_id IN (SELECT unit_id FROM leases WHERE tenant_id = $1 AND company_id = $2 AND lease_state = 'CURRENT')",
-            [tenantId, companyId]
-        );
-        await client.query('DELETE FROM invoices WHERE company_id = $2 AND lease_id IN (SELECT lease_id FROM leases WHERE tenant_id = $1 AND company_id = $2)', [tenantId, companyId]);
-        try { await client.query('SAVEPOINT del_events'); await client.query('DELETE FROM lease_events WHERE tenant_id = $1 AND company_id = $2', [tenantId, companyId]); await client.query('RELEASE SAVEPOINT del_events'); }
-        catch (e) { await client.query('ROLLBACK TO SAVEPOINT del_events'); }
-        await client.query('DELETE FROM leases WHERE tenant_id = $1 AND company_id = $2', [tenantId, companyId]);
-        await client.query('DELETE FROM tenants WHERE tenant_id = $1 AND company_id = $2', [tenantId, companyId]);
-
-        await createAuditLog(client, companyId, req.user.user_id, 'Deleted Tenant', 'TENANTS', req.ip, { tenant_id: tenantId });
-        await client.query('COMMIT');
-        res.json({ message: 'Tenant deleted.' });
-    } catch (err) {
-        if (client) await client.query('ROLLBACK');
-        res.status(400).json({ error: err.message });
-    } finally {
-        if (client) client.release();
-    }
-});
-
 // DASHBOARD METRICS
 app.get('/api/dashboard/metrics', authenticateToken, allowRoles(...R_VIEW_MONEY), async (req, res) => {
     const cId = req.user.company_id;
@@ -1634,7 +1755,7 @@ app.post('/api/auth/register-staff', authenticateToken, allowRoles('SUPER_ADMIN'
         const hashed = await bcrypt.hash(String(password), 10);
         await pool.query(
             'INSERT INTO users (company_id, full_name, email, password_hash, role, is_active, can_edit_tenants) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-            [req.user.company_id, String(full_name).trim(), cleanEmail, hashed, role, true, role === 'PROPERTY_MANAGER']
+            [req.user.company_id, String(full_name).trim(), cleanEmail, hashed, role, true, false]
         );
         await createAuditLog(pool, req.user.company_id, req.user.user_id, `Registered staff (${role})`, 'USERS', req.ip, { email: cleanEmail });
         res.status(201).json({ message: 'Staff registered successfully.' });
@@ -1734,31 +1855,6 @@ app.put('/api/properties/:id', authenticateToken, allowRoles(...R_MANAGE), wrapA
     res.json({ message: 'Property updated.' });
 }));
 
-app.delete('/api/properties/:id', authenticateToken, allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
-    const cId = req.user.company_id;
-    const used = (await pool.query(
-        'SELECT (SELECT COUNT(*) FROM leases WHERE property_id = $1 AND company_id = $2) AS leases, (SELECT COUNT(*) FROM work_orders w JOIN units u ON w.unit_id = u.unit_id WHERE u.property_id = $1 AND u.company_id = $2) AS tickets',
-        [req.params.id, cId]
-    )).rows[0];
-    if (parseInt(used.leases) > 0) return res.status(400).json({ error: 'This property has tenant history, so it cannot be deleted.' });
-    if (parseInt(used.tickets) > 0) return res.status(400).json({ error: 'This property has maintenance tickets, so it cannot be deleted.' });
-    let client;
-    try {
-        client = await pool.connect();
-        await client.query('BEGIN');
-        await client.query('UPDATE expenses SET property_id = NULL WHERE property_id = $1 AND company_id = $2', [req.params.id, cId]);
-        const r = await client.query('DELETE FROM properties WHERE property_id = $1 AND company_id = $2 RETURNING property_id', [req.params.id, cId]);
-        if (r.rows.length === 0) throw new Error('Property not found.');
-        await createAuditLog(client, cId, req.user.user_id, 'Deleted Property', 'PROPERTIES', req.ip, { property_id: req.params.id });
-        await client.query('COMMIT');
-        res.json({ message: 'Property deleted.' });
-    } catch (err) {
-        if (client) await client.query('ROLLBACK');
-        res.status(400).json({ error: err.message });
-    } finally { if (client) client.release(); }
-}));
-
-// add one or many units INSIDE a property
 app.post('/api/properties/:id/units', authenticateToken, allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
     const { unit_number, rent_amount, service_charge, service_inclusive } = req.body;
     const count = Math.min(100, Math.max(1, parseInt(req.body.count) || 1));
@@ -1830,18 +1926,116 @@ app.put('/api/properties/:id/bulk-units', authenticateToken, allowRoles(...R_MAN
     res.json({ message: `${r.rows.length} unit(s) updated.`, updated: r.rows.length });
 }));
 
-app.delete('/api/units/:id', authenticateToken, allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
-    const cId = req.user.company_id;
-    const u = (await pool.query('SELECT unit_id, property_id, status FROM units WHERE unit_id = $1 AND company_id = $2', [req.params.id, cId])).rows[0];
-    if (!u) return res.status(404).json({ error: 'Unit not found.' });
-    if (u.status === 'OCCUPIED') return res.status(400).json({ error: 'This unit has a tenant. Move the tenant out first.' });
-    const used = (await pool.query('SELECT (SELECT COUNT(*) FROM leases WHERE unit_id = $1) AS leases, (SELECT COUNT(*) FROM work_orders WHERE unit_id = $1) AS tickets', [u.unit_id])).rows[0];
-    if (parseInt(used.leases) > 0 || parseInt(used.tickets) > 0) return res.status(400).json({ error: 'This unit has history (tenants or tickets), so it cannot be deleted. You can set it to "Under maintenance" instead.' });
-    await pool.query('DELETE FROM units WHERE unit_id = $1 AND company_id = $2', [u.unit_id, cId]);
-    await pool.query('UPDATE properties SET total_units = (SELECT COUNT(*) FROM units WHERE property_id = $1) WHERE property_id = $1', [u.property_id]);
-    await createAuditLog(pool, cId, req.user.user_id, 'Deleted Unit', 'UNITS', req.ip, { unit_id: u.unit_id });
-    res.json({ message: 'Unit deleted.' });
-}));
+
+// ============================================================
+// DELETING (tenants, units, properties) - normal delete keeps history safe,
+// "force" (owner/admin + typed confirmation) removes the history too
+// ============================================================
+async function wipeLeases(client, cId, leaseIds) {
+    if (!leaseIds.length) return;
+    await client.query('DELETE FROM payments WHERE company_id = $2 AND invoice_id IN (SELECT invoice_id FROM invoices WHERE company_id = $2 AND lease_id = ANY($1::int[]))', [leaseIds, cId]);
+    await client.query('DELETE FROM invoices WHERE company_id = $2 AND lease_id = ANY($1::int[])', [leaseIds, cId]);
+    try { await client.query('SAVEPOINT wipe_events'); await client.query('DELETE FROM lease_events WHERE company_id = $2 AND lease_id = ANY($1::int[])', [leaseIds, cId]); await client.query('RELEASE SAVEPOINT wipe_events'); }
+    catch (e) { await client.query('ROLLBACK TO SAVEPOINT wipe_events'); }
+    await client.query('DELETE FROM leases WHERE company_id = $2 AND lease_id = ANY($1::int[])', [leaseIds, cId]);
+}
+async function dropOrphanTenants(client, cId, tenantIds) {
+    if (!tenantIds.length) return;
+    await client.query('UPDATE payments SET tenant_id = NULL WHERE tenant_id = ANY($1::int[])', [tenantIds]);
+    await client.query('DELETE FROM tenants t WHERE t.company_id = $2 AND t.tenant_id = ANY($1::int[]) AND NOT EXISTS (SELECT 1 FROM leases l WHERE l.tenant_id = t.tenant_id)', [tenantIds, cId]);
+}
+function wantsForce(req) {
+    const b = req.body || {}, q = req.query || {};
+    const force = String(b.force || q.force || '') === '1' || b.force === true;
+    const confirm = String(b.confirm || q.confirm || '');
+    return force && confirm === 'DELETE' && ['COMPANY_ADMIN', 'SUPER_ADMIN'].includes(req.user.role);
+}
+async function removeTenant(client, cId, userId, ip, tenantId, force) {
+    const t = (await client.query('SELECT tenant_id, full_name FROM tenants WHERE tenant_id = $1 AND company_id = $2 FOR UPDATE', [tenantId, cId])).rows[0];
+    if (!t) throw new Error('Tenant not found.');
+    const pays = (await client.query(
+        `SELECT COUNT(*) AS c FROM payments pay JOIN invoices inv ON pay.invoice_id = inv.invoice_id JOIN leases l ON inv.lease_id = l.lease_id
+         WHERE l.tenant_id = $1 AND pay.company_id = $2`, [tenantId, cId])).rows[0].c;
+    if (parseInt(pays) > 0 && !force) throw new Error(t.full_name + ' has payment records, so it cannot be deleted. Use "Move Out" to keep the history, or delete everything with the history option.');
+    await client.query(
+        "UPDATE units SET status = 'VACANT' WHERE company_id = $2 AND unit_id IN (SELECT unit_id FROM leases WHERE tenant_id = $1 AND company_id = $2 AND lease_state = 'CURRENT')", [tenantId, cId]);
+    const leaseIds = (await client.query('SELECT lease_id FROM leases WHERE tenant_id = $1 AND company_id = $2', [tenantId, cId])).rows.map(r => r.lease_id);
+    await wipeLeases(client, cId, leaseIds);
+    await client.query('UPDATE payments SET tenant_id = NULL WHERE tenant_id = $1', [tenantId]);
+    await client.query('DELETE FROM tenants WHERE tenant_id = $1 AND company_id = $2', [tenantId, cId]);
+    await createAuditLog(client, cId, userId, force ? 'Deleted Tenant with all history' : 'Deleted Tenant', 'TENANTS', ip, { tenant_id: tenantId, name: t.full_name });
+}
+async function removeUnit(client, cId, userId, ip, unitId, force) {
+    const u = (await client.query('SELECT unit_id, unit_number, property_id, status FROM units WHERE unit_id = $1 AND company_id = $2 FOR UPDATE', [unitId, cId])).rows[0];
+    if (!u) throw new Error('Unit not found.');
+    const used = (await client.query('SELECT (SELECT COUNT(*) FROM leases WHERE unit_id = $1) AS leases, (SELECT COUNT(*) FROM work_orders WHERE unit_id = $1) AS tickets', [u.unit_id])).rows[0];
+    if (!force) {
+        if (u.status === 'OCCUPIED') throw new Error('Unit ' + u.unit_number + ' has a tenant. Move the tenant out first, or delete with the history option.');
+        if (parseInt(used.leases) > 0 || parseInt(used.tickets) > 0) throw new Error('Unit ' + u.unit_number + ' has history (tenants or tickets), so it cannot be deleted. You can set it to "Under maintenance", or delete with the history option.');
+    } else {
+        const leaseRows = (await client.query('SELECT lease_id, tenant_id FROM leases WHERE unit_id = $1 AND company_id = $2', [u.unit_id, cId])).rows;
+        await wipeLeases(client, cId, leaseRows.map(r => r.lease_id));
+        await dropOrphanTenants(client, cId, [...new Set(leaseRows.map(r => r.tenant_id))]);
+        await client.query('DELETE FROM work_orders WHERE unit_id = $1 AND company_id = $2', [u.unit_id, cId]);
+    }
+    await client.query('DELETE FROM units WHERE unit_id = $1 AND company_id = $2', [u.unit_id, cId]);
+    await client.query('UPDATE properties SET total_units = (SELECT COUNT(*) FROM units WHERE property_id = $1) WHERE property_id = $1', [u.property_id]);
+    await createAuditLog(client, cId, userId, force ? 'Deleted Unit with all history' : 'Deleted Unit', 'UNITS', ip, { unit_id: u.unit_id, unit: u.unit_number });
+}
+async function removeProperty(client, cId, userId, ip, propertyId, force) {
+    const pr = (await client.query('SELECT property_id, COALESCE(property_name, title) AS name FROM properties WHERE property_id = $1 AND company_id = $2 FOR UPDATE', [propertyId, cId])).rows[0];
+    if (!pr) throw new Error('Property not found.');
+    const used = (await client.query(
+        'SELECT (SELECT COUNT(*) FROM leases WHERE property_id = $1 AND company_id = $2) AS leases, (SELECT COUNT(*) FROM work_orders w JOIN units u ON w.unit_id = u.unit_id WHERE u.property_id = $1 AND w.company_id = $2) AS tickets', [propertyId, cId])).rows[0];
+    if (!force) {
+        if (parseInt(used.leases) > 0) throw new Error(pr.name + ' has tenant history, so it cannot be deleted. Delete with the history option if you really want it gone.');
+        if (parseInt(used.tickets) > 0) throw new Error(pr.name + ' has maintenance tickets, so it cannot be deleted. Delete with the history option if you really want it gone.');
+    } else {
+        const leaseRows = (await client.query('SELECT lease_id, tenant_id FROM leases WHERE property_id = $1 AND company_id = $2', [propertyId, cId])).rows;
+        await wipeLeases(client, cId, leaseRows.map(r => r.lease_id));
+        await dropOrphanTenants(client, cId, [...new Set(leaseRows.map(r => r.tenant_id))]);
+        await client.query('DELETE FROM work_orders WHERE company_id = $2 AND unit_id IN (SELECT unit_id FROM units WHERE property_id = $1)', [propertyId, cId]);
+    }
+    await client.query('UPDATE expenses SET property_id = NULL WHERE property_id = $1 AND company_id = $2', [propertyId, cId]);
+    await client.query('DELETE FROM units WHERE property_id = $1 AND company_id = $2', [propertyId, cId]);
+    await client.query('DELETE FROM properties WHERE property_id = $1 AND company_id = $2', [propertyId, cId]);
+    await createAuditLog(client, cId, userId, force ? 'Deleted Property with all history' : 'Deleted Property', 'PROPERTIES', ip, { property_id: propertyId, name: pr.name });
+}
+// runs one delete in its own transaction
+async function inTx(fn) {
+    const client = await pool.connect();
+    try { await client.query('BEGIN'); const r = await fn(client); await client.query('COMMIT'); return r; }
+    catch (e) { try { await client.query('ROLLBACK'); } catch (x) { } throw e; }
+    finally { client.release(); }
+}
+function makeDeleter(kind, remover, roles) {
+    // single delete
+    return {
+        one: async (req, res) => {
+            try {
+                await inTx(c => remover(c, req.user.company_id, req.user.user_id, req.ip, parseInt(req.params.id), wantsForce(req)));
+                res.json({ message: kind + ' deleted.' });
+            } catch (err) { res.status(400).json({ error: err.message }); }
+        },
+        many: async (req, res) => {
+            const ids = Array.isArray((req.body || {}).ids) ? req.body.ids.map(x => parseInt(x)).filter(x => x > 0).slice(0, 200) : [];
+            if (!ids.length) return res.status(400).json({ error: 'Nothing selected.' });
+            const force = wantsForce(req); const failed = []; let deleted = 0;
+            for (const id of ids) {
+                try { await inTx(c => remover(c, req.user.company_id, req.user.user_id, req.ip, id, force)); deleted++; }
+                catch (err) { failed.push({ id, error: err.message }); }
+            }
+            res.json({ message: deleted + ' deleted' + (failed.length ? ', ' + failed.length + ' could not be deleted.' : '.'), deleted, failed });
+        }
+    };
+}
+const delTenant = makeDeleter('Tenant', removeTenant), delUnit = makeDeleter('Unit', removeUnit), delProp = makeDeleter('Property', removeProperty);
+app.delete('/api/tenants/:id', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN'), delTenant.one);
+app.post('/api/tenants/bulk-delete', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN'), delTenant.many);
+app.delete('/api/units/:id', authenticateToken, allowRoles(...R_MANAGE), delUnit.one);
+app.post('/api/units/bulk-delete', authenticateToken, allowRoles(...R_MANAGE), delUnit.many);
+app.delete('/api/properties/:id', authenticateToken, allowRoles(...R_ADMIN), delProp.one);
+app.post('/api/properties/bulk-delete', authenticateToken, allowRoles(...R_ADMIN), delProp.many);
 
 // ============================================================
 // SERVICE CHARGES (fixed monthly amount per unit: security, garbage, water pump...)
@@ -2546,7 +2740,7 @@ app.put('/api/company/profile', authenticateToken, allowRoles(...R_ADMIN), wrapA
 // ============================================================
 app.get('/api/users', authenticateToken, allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
     const r = await pool.query(
-        `SELECT user_id, full_name, email, phone_number, role, is_active, COALESCE(can_edit_tenants, true) AS can_edit_tenants, created_at
+        `SELECT user_id, full_name, email, phone_number, role, is_active, COALESCE(can_edit_tenants, false) AS can_edit_tenants, created_at
          FROM users WHERE company_id = $1 AND role <> 'SUPER_ADMIN' ORDER BY (role = 'COMPANY_ADMIN') DESC, full_name ASC`, [req.user.company_id]
     );
     res.json(r.rows);
@@ -2573,7 +2767,7 @@ app.post('/api/users', authenticateToken, allowRoles(...R_ADMIN), wrapAsync(asyn
     const r = await pool.query(
         `INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active, can_edit_tenants)
          VALUES ($1, $2, $3, $4, $5, $6, true, $7) RETURNING user_id`,
-        [req.user.company_id, String(full_name).trim(), cleanEmail, hashed, phone_number || null, role, ['COMPANY_ADMIN', 'PROPERTY_MANAGER'].includes(role)]
+        [req.user.company_id, String(full_name).trim(), cleanEmail, hashed, phone_number || null, role, role === 'COMPANY_ADMIN']
     );
     await createAuditLog(pool, req.user.company_id, req.user.user_id, `Added user (${role})`, 'USERS', req.ip, { email: cleanEmail });
     res.status(201).json({ message: 'User added.', user_id: r.rows[0].user_id });
@@ -2598,7 +2792,7 @@ app.put('/api/users/:id', authenticateToken, allowRoles(...R_ADMIN), wrapAsync(a
     }
 
     const sets = ['full_name = $1', 'phone_number = $2', 'role = $3', 'is_active = $4', 'can_edit_tenants = $5'];
-    const vals = [String(full_name).trim(), phone_number || null, role, is_active !== false, can_edit_tenants !== false];
+    const vals = [String(full_name).trim(), phone_number || null, role, is_active !== false, can_edit_tenants === true];
     if (password) { vals.push(await bcrypt.hash(String(password), 10)); sets.push(`password_hash = $${vals.length}`); }
     vals.push(target.user_id, cId);
     await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE user_id = $${vals.length - 1} AND company_id = $${vals.length}`, vals);
