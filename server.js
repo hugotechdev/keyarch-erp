@@ -383,7 +383,7 @@ async function checkLimit(user, limitKey, countSql, what) {
 // Every step runs on its own: one problem never stops the others.
 // The Super Admin can also run it from Platform Admin > Run Database Setup.
 // ============================================================
-const SERVER_VERSION = 'v7.5 - 2026-11-05 - startup loader';
+const SERVER_VERSION = 'v8.1 - 2026-11-06 - language switch, owner login, KEY ARCH';
 
 const SETUP_STEPS = [
     { name: "Base columns (leases, users)", sql: `
@@ -651,6 +651,9 @@ const SETUP_STEPS = [
 ];
 
 async function seedMasterAdmin() {
+    // The owner of the system (SUPER_ADMIN) is created from Railway Variables, never from the code:
+    //   SUPER_ADMIN_EMAIL, SUPER_ADMIN_PASSWORD  (used only when the account is created / adopted)
+    //   RESET_SUPER_ADMIN_PASSWORD               (emergency: sets a new password, remove it after one deploy)
     const companyCheck = await pool.query("SELECT * FROM companies WHERE company_name = 'Hugo Tech Platform Master'");
     let masterCompanyId;
     if (companyCheck.rows.length === 0) {
@@ -660,26 +663,41 @@ async function seedMasterAdmin() {
         masterCompanyId = companyCheck.rows[0].company_id;
     }
 
-    const masterPassword = process.env.MASTER_ADMIN_PASSWORD || 'Admin@2026';
-    const userCheck = await pool.query("SELECT * FROM users WHERE email = 'admin@keyarch.co.tz'");
-    if (userCheck.rows.length === 0) {
-        const hashedPassword = await bcrypt.hash(masterPassword, 10);
-        await pool.query(
-            "INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active, can_edit_tenants) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-            [masterCompanyId, 'Hugo Mlula', 'admin@keyarch.co.tz', hashedPassword, '+255700000000', 'SUPER_ADMIN', true, true]
-        );
-        console.log('✅ Master Admin Seeded: admin@keyarch.co.tz');
-    } else {
-        await pool.query("UPDATE users SET company_id = $1 WHERE email = 'admin@keyarch.co.tz' AND company_id IS NULL", [masterCompanyId]);
+    const envEmail = String(process.env.SUPER_ADMIN_EMAIL || '').trim().toLowerCase();
+    const envPass = String(process.env.SUPER_ADMIN_PASSWORD || '');
+    const existingAdmins = (await pool.query("SELECT user_id, email FROM users WHERE role = 'SUPER_ADMIN' ORDER BY user_id ASC")).rows;
+    await pool.query("UPDATE users SET company_id = $1 WHERE role = 'SUPER_ADMIN' AND company_id IS NULL", [masterCompanyId]);
 
-        // Forgot the Super Admin password? Set MASTER_ADMIN_PASSWORD in Railway > Variables and redeploy:
-        // the password of admin@keyarch.co.tz becomes that value (and the account is switched back on).
-        if (process.env.MASTER_ADMIN_PASSWORD) {
-            const hashedPassword = await bcrypt.hash(process.env.MASTER_ADMIN_PASSWORD, 10);
-            await pool.query(
-                "UPDATE users SET password_hash = $1, is_active = true, role = 'SUPER_ADMIN' WHERE email = 'admin@keyarch.co.tz'",
-                [hashedPassword]
-            );
+    if (envEmail && envPass.length >= 8) {
+        const mine = (await pool.query('SELECT user_id, role FROM users WHERE LOWER(email) = $1', [envEmail])).rows[0];
+        if (!mine) {
+            const hashed = await bcrypt.hash(envPass, 10);
+            if (existingAdmins.length > 0) {
+                // an older owner account exists: it takes the new email and password (once)
+                await pool.query("UPDATE users SET email = $1, password_hash = $2, is_active = true WHERE user_id = $3", [envEmail, hashed, existingAdmins[0].user_id]);
+                console.log('✅ Super Admin account moved to the email from SUPER_ADMIN_EMAIL');
+            } else {
+                await pool.query(
+                    "INSERT INTO users (company_id, full_name, email, password_hash, phone_number, role, is_active, can_edit_tenants) VALUES ($1, $2, $3, $4, $5, 'SUPER_ADMIN', true, true)",
+                    [masterCompanyId, 'System Owner', envEmail, hashed, '']
+                );
+                console.log('✅ Super Admin created from SUPER_ADMIN_EMAIL');
+            }
+        } else if (mine.role !== 'SUPER_ADMIN') {
+            console.error('❌ SUPER_ADMIN_EMAIL belongs to a normal user. Use another email.');
+        }
+        // an account that already exists is NOT touched: the owner may have changed the password on the Super Admin page
+    } else if (existingAdmins.length === 0) {
+        console.error('⚠️ No Super Admin exists. Add SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD (min 8 characters) in Railway Variables and redeploy.');
+    }
+
+    if (process.env.RESET_SUPER_ADMIN_PASSWORD && String(process.env.RESET_SUPER_ADMIN_PASSWORD).length >= 8) {
+        const target = envEmail ? (await pool.query("SELECT user_id FROM users WHERE LOWER(email) = $1 AND role = 'SUPER_ADMIN'", [envEmail])).rows[0] : null;
+        const uid = target ? target.user_id : (existingAdmins[0] && existingAdmins[0].user_id);
+        if (uid) {
+            const hashed = await bcrypt.hash(String(process.env.RESET_SUPER_ADMIN_PASSWORD), 10);
+            await pool.query("UPDATE users SET password_hash = $1, is_active = true WHERE user_id = $2", [hashed, uid]);
+            console.log('✅ Super Admin password was reset from RESET_SUPER_ADMIN_PASSWORD (remove this variable now)');
         }
     }
 }
@@ -724,9 +742,10 @@ async function initDatabase() {
 
 app.get('/api/version', (req, res) => res.json({ server_version: SERVER_VERSION }));
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+const sendHome = (req, res) => res.sendFile(path.join(__dirname, 'index.html'));
+app.get('/', sendHome);
+app.get('/admin', sendHome);
+app.get('/admin/', sendHome);
 
 const userCache = new Map();
 function clearUserCache(userId) { userCache.delete(String(userId)); }
@@ -783,7 +802,10 @@ function allowRoles(...allowedRoles) {
 }
 
 // 1. AUTHENTICATION
-app.post('/api/auth/login', loginLimiter, async (req, res) => {
+// the owner of the system signs in on its own page (/admin) and nowhere else
+app.post('/api/auth/admin-login', loginLimiter, (req, res, next) => { req.isOwnerLogin = true; next(); }, (req, res, next) => loginHandler(req, res, next));
+app.post('/api/auth/login', loginLimiter, (req, res, next) => loginHandler(req, res, next));
+async function loginHandler(req, res) {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and Password are required.' });
 
@@ -798,10 +820,12 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         if (userQuery.rows.length === 0) return res.status(401).json({ error: 'Invalid Email or Password.' });
 
         const user = userQuery.rows[0];
+        if (req.isOwnerLogin && user.role !== 'SUPER_ADMIN') return res.status(401).json({ error: 'Invalid Email or Password.' });
         const isPasswordValid = await bcrypt.compare(password, user.password_hash);
         if (!isPasswordValid) return res.status(401).json({ error: 'Invalid Email or Password.' });
 
         if (!user.is_active) return res.status(403).json({ error: 'Account suspended.', code: 'ACCOUNT_SUSPENDED' });
+        if (user.role === 'SUPER_ADMIN' && !req.isOwnerLogin) return res.status(403).json({ error: 'Invalid Email or Password.' });
 
         let company;
         if (user.role === 'SUPER_ADMIN') {
@@ -831,14 +855,14 @@ app.post('/api/auth/login', loginLimiter, async (req, res) => {
         console.error('Login Error:', err);
         res.status(500).json({ error: 'Server error during login: ' + err.message });
     }
-});
+}
 
 
 // ============================================================
 // FORGOT PASSWORD: a reset link is sent to the user's email
 // Needs these Railway variables (Gmail example):
 //   SMTP_HOST=smtp.gmail.com   SMTP_PORT=465   SMTP_USER=youraddress@gmail.com
-//   SMTP_PASS=<Gmail "App password">   SMTP_FROM="KEY ARCH ERP <youraddress@gmail.com>"
+//   SMTP_PASS=<Gmail "App password">   SMTP_FROM="KEY ARCH <youraddress@gmail.com>"
 //   APP_URL=https://your-app.up.railway.app   (optional, the link of your system)
 // ============================================================
 const forgotLimiter = rateLimit({
@@ -846,14 +870,14 @@ const forgotLimiter = rateLimit({
     message: { error: 'Too many requests. Please try again after 15 minutes.' }
 });
 
-function mailConfigured() { return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS); }
+function mailConfigured() { return !!(process.env.SMTP_USER && process.env.SMTP_PASS); }
 
 async function sendMail(to, subject, text, html) {
     const nodemailer = loadOptional('nodemailer');
     const port = parseInt(process.env.SMTP_PORT) || 465;
     const transport = nodemailer.createTransport({
-        host: process.env.SMTP_HOST, port, secure: port === 465,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+        host: process.env.SMTP_HOST || 'smtp.gmail.com', port, secure: port === 465,
+        auth: { user: process.env.SMTP_USER, pass: String(process.env.SMTP_PASS).replace(/\s+/g, '') }
     });
     await transport.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to, subject, text, html });
 }
@@ -867,7 +891,7 @@ app.post('/api/auth/forgot', forgotLimiter, async (req, res) => {
         const u = (await pool.query('SELECT user_id, full_name, email, is_active FROM users WHERE LOWER(email) = $1', [email])).rows[0];
         if (!u || !u.is_active) return res.json(generic);
         if (!mailConfigured()) {
-            console.error('Forgot password: email is not set up. Add SMTP_HOST, SMTP_USER and SMTP_PASS in Railway Variables.');
+            console.error('Forgot password: email is not set up. Add SMTP_USER and SMTP_PASS in Railway Variables.');
             return res.status(503).json({ error: 'Email sending is not set up yet. Please contact HUGO TECH on WhatsApp +255 785 799 530 to reset your password.' });
         }
         const token = crypto.randomBytes(32).toString('hex');
@@ -878,9 +902,9 @@ app.post('/api/auth/forgot', forgotLimiter, async (req, res) => {
         const proto = String(req.headers['x-forwarded-proto'] || (/^localhost|^127\./.test(host) ? 'http' : 'https')).split(',')[0];
         const base = (process.env.APP_URL || `${proto}://${host}`).replace(/\/+$/, '');
         const link = `${base}/?reset=${token}`;
-        const text = `Habari ${u.full_name},\n\nTumepokea ombi la kubadilisha password ya KEY ARCH ERP.\nBonyeza link hii kuweka password mpya (inafanya kazi kwa saa 1):\n${link}\n\nUsipoomba wewe, puuza ujumbe huu - password yako haitabadilika.\n\n---\nHello ${u.full_name},\nWe received a request to reset your KEY ARCH ERP password. Open this link to choose a new one (valid for 1 hour):\n${link}\nIf you did not ask for this, ignore this email.\n\nHUGO TECH`;
-        const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#222"><h2 style="color:#1d4ed8">KEY ARCH ERP</h2><p>Habari <b>${String(u.full_name).replace(/[<>&"]/g, '')}</b>,</p><p>Tumepokea ombi la kubadilisha password yako. Bonyeza kitufe hapa chini kuweka password mpya (inafanya kazi kwa <b>saa 1</b>).</p><p style="text-align:center;margin:24px 0"><a href="${link}" style="background:#2563eb;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Weka Password Mpya</a></p><p style="font-size:12px;color:#666">Kama kitufe hakifanyi kazi, nakili link hii kwenye browser:<br>${link}</p><p style="font-size:12px;color:#666">Usipoomba wewe, puuza ujumbe huu - password yako haitabadilika.</p><hr><p style="font-size:12px;color:#666">Hello, we received a request to reset your password. If it was not you, ignore this email.<br>HUGO TECH</p></div>`;
-        await sendMail(u.email, 'KEY ARCH ERP - Password Reset / Weka Password Mpya', text, html);
+        const text = `Habari ${u.full_name},\n\nTumepokea ombi la kubadilisha password ya KEY ARCH.\nBonyeza link hii kuweka password mpya (inafanya kazi kwa saa 1):\n${link}\n\nUsipoomba wewe, puuza ujumbe huu - password yako haitabadilika.\n\n---\nHello ${u.full_name},\nWe received a request to reset your KEY ARCH password. Open this link to choose a new one (valid for 1 hour):\n${link}\nIf you did not ask for this, ignore this email.\n\nHUGO TECH`;
+        const html = `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#222"><h2 style="color:#1d4ed8">KEY ARCH</h2><p>Habari <b>${String(u.full_name).replace(/[<>&"]/g, '')}</b>,</p><p>Tumepokea ombi la kubadilisha password yako. Bonyeza kitufe hapa chini kuweka password mpya (inafanya kazi kwa <b>saa 1</b>).</p><p style="text-align:center;margin:24px 0"><a href="${link}" style="background:#2563eb;color:#fff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:bold">Weka Password Mpya</a></p><p style="font-size:12px;color:#666">Kama kitufe hakifanyi kazi, nakili link hii kwenye browser:<br>${link}</p><p style="font-size:12px;color:#666">Usipoomba wewe, puuza ujumbe huu - password yako haitabadilika.</p><hr><p style="font-size:12px;color:#666">Hello, we received a request to reset your password. If it was not you, ignore this email.<br>HUGO TECH</p></div>`;
+        await sendMail(u.email, 'KEY ARCH - Password Reset / Weka Password Mpya', text, html);
         await createAuditLog(pool, null, u.user_id, 'Password reset requested', 'AUTH', req.ip, {});
         res.json(generic);
     } catch (err) {
@@ -2253,7 +2277,7 @@ function writeInvoicePdf(res, filename, d) {
         doc.moveDown(0.6);
     }
     if (inv.notes) { doc.font('Helvetica').fontSize(9).fillColor('#555').text('Notes: ' + inv.notes, left, doc.y, { width: usable }); }
-    doc.fillColor('#999').font('Helvetica').fontSize(8).text('Thank you for your business.   |   KEY ARCH ERP', left, doc.page.height - 60, { width: usable, align: 'center', lineBreak: false });
+    doc.fillColor('#999').font('Helvetica').fontSize(8).text('Thank you for your business.   |   KEY ARCH', left, doc.page.height - 60, { width: usable, align: 'center', lineBreak: false });
     doc.end();
 }
 function writeReceiptPdf(res, filename, d) {
@@ -2288,7 +2312,7 @@ function writeReceiptPdf(res, filename, d) {
     if (d.extra_paid > 0) row('Extra paid (credit)', d.extra_paid);
     doc.y = y + 10;
     if (d.received_by) doc.fillColor('#555').font('Helvetica').fontSize(9).text('Received by: ' + d.received_by, left, doc.y);
-    doc.fillColor('#999').font('Helvetica').fontSize(8).text('This receipt confirms the payment above.   |   KEY ARCH ERP', left, doc.page.height - 60, { width: usable, align: 'center', lineBreak: false });
+    doc.fillColor('#999').font('Helvetica').fontSize(8).text('This receipt confirms the payment above.   |   KEY ARCH', left, doc.page.height - 60, { width: usable, align: 'center', lineBreak: false });
     doc.end();
 }
 function pdfFail(res, err) {
@@ -3568,7 +3592,7 @@ function toExcelValue(v, type) {
 async function writeWorkbookTo(res, filename, sheets) {
     const ExcelJS = loadOptional('exceljs');
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'KEY ARCH ERP'; wb.created = new Date();
+    wb.creator = 'KEY ARCH'; wb.created = new Date();
     for (const sh of sheets) {
         const ws = wb.addWorksheet(String(sh.name).replace(/[\\/?*[\]:]/g, ' ').slice(0, 31));
         let r = 1;
@@ -3702,7 +3726,7 @@ function writeReportPdf(res, filename, rep) {
     for (let i = range.start; i < range.start + range.count; i++) {
         doc.switchToPage(i);
         doc.fillColor('#777').font('Helvetica').fontSize(8)
-           .text(`Page ${i + 1} of ${range.count}   |   Generated ${niceDate(todayStr())}   |   KEY ARCH ERP`, left, doc.page.height - doc.page.margins.bottom + 6,
+           .text(`Page ${i + 1} of ${range.count}   |   Generated ${niceDate(todayStr())}   |   KEY ARCH`, left, doc.page.height - doc.page.margins.bottom + 6,
                  { width: usable, align: 'center', lineBreak: false });
     }
     doc.end();
@@ -3925,6 +3949,51 @@ app.post('/api/platform/companies/:id/reset-password', authenticateToken, allowR
         await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Platform: reset owner password', 'PLATFORM', req.ip, { company_id: req.params.id });
         res.json({ message: 'Password changed for ' + owner.email });
     } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+
+// the owner changes their own name, email and password
+app.get('/api/platform/account', authenticateToken, allowRoles('SUPER_ADMIN'), async (req, res) => {
+    try {
+        const u = (await pool.query('SELECT full_name, email, phone_number FROM users WHERE user_id = $1', [req.user.user_id])).rows[0];
+        res.json(u || {});
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.put('/api/platform/account', authenticateToken, allowRoles('SUPER_ADMIN'), async (req, res) => {
+    try {
+        const b = req.body || {};
+        const cur = (await pool.query('SELECT * FROM users WHERE user_id = $1', [req.user.user_id])).rows[0];
+        if (!cur) return res.status(404).json({ error: 'Account not found.' });
+        if (!b.current_password || !(await bcrypt.compare(String(b.current_password), cur.password_hash))) {
+            return res.status(400).json({ error: 'Your current password is not correct.' });
+        }
+        const name = String(b.full_name || cur.full_name).trim().slice(0, 120) || cur.full_name;
+        const email = String(b.email || cur.email).trim().toLowerCase();
+        if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
+        const clash = (await pool.query('SELECT user_id FROM users WHERE LOWER(email) = $1 AND user_id <> $2', [email, cur.user_id])).rows[0];
+        if (clash) return res.status(400).json({ error: 'This email is already used by another account.' });
+        let hash = cur.password_hash;
+        if (b.new_password) {
+            if (String(b.new_password).length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+            hash = await bcrypt.hash(String(b.new_password), 10);
+        }
+        await pool.query('UPDATE users SET full_name = $1, email = $2, password_hash = $3, phone_number = COALESCE($4, phone_number) WHERE user_id = $5',
+            [name, email, hash, b.phone_number ? String(b.phone_number).slice(0, 30) : null, cur.user_id]);
+        clearUserCache(cur.user_id);
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Owner changed own account details', 'PLATFORM', req.ip, { email_changed: email !== cur.email, password_changed: !!b.new_password });
+        res.json({ message: 'Saved.', full_name: name, email });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+
+// the owner checks that email sending works (forgot password uses it)
+app.post('/api/platform/test-email', authenticateToken, allowRoles('SUPER_ADMIN'), async (req, res) => {
+    try {
+        if (!mailConfigured()) return res.status(400).json({ error: 'Email is not set up. In Railway > Variables add SMTP_USER (your Gmail address) and SMTP_PASS (a Gmail App Password), then redeploy.' });
+        const to = String((req.body || {}).to || '').trim() || (await pool.query('SELECT email FROM users WHERE user_id = $1', [req.user.user_id])).rows[0].email;
+        await sendMail(to, 'KEY ARCH - test email', 'This is a test email from KEY ARCH. Email sending works.', '<p>This is a test email from <b>KEY ARCH</b>. Email sending works.</p>');
+        res.json({ message: 'Test email sent to ' + to + '. Check the inbox (and Spam).' });
+    } catch (err) { res.status(500).json({ error: 'Email failed: ' + (err.response || err.message) }); }
 });
 
 // run the database setup again and show the result on screen
