@@ -175,13 +175,13 @@ const wrapAsync = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).
 const R_ADMIN = ['SUPER_ADMIN', 'COMPANY_ADMIN'];
 const R_MANAGE = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'];
 const R_MONEY = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT'];
-const R_VIEW_MONEY = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT', 'VIEWER']; // everyone except TECHNICIAN
+const R_VIEW_MONEY = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT', 'VIEWER']; // everyone except MAINTENANCE_MANAGER
 const R_FIN_VIEW = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'ACCOUNTANT', 'PROPERTY_MANAGER'];
 const R_FIN_WRITE = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'ACCOUNTANT'];
 const CURRENCIES = ['TZS', 'USD'];
 const cleanCur = v => (String(v || '').toUpperCase() === 'USD' ? 'USD' : 'TZS');
-const R_TICKETS = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'TECHNICIAN'];
-const ALL_ROLES = ['COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT', 'TECHNICIAN', 'VIEWER'];
+const R_TICKETS = ['SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'MAINTENANCE_MANAGER'];
+const ALL_ROLES = ['COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT', 'MAINTENANCE_MANAGER', 'VIEWER'];
 
 const INVOICE_TYPES = ['RENT', 'SERVICE', 'EXTENSION', 'DEPOSIT', 'UTILITY', 'PENALTY', 'REPAIR', 'OTHER'];
 const MANUAL_INVOICE_TYPES = ['RENT', 'SERVICE', 'DEPOSIT', 'UTILITY', 'PENALTY', 'REPAIR', 'OTHER'];
@@ -404,7 +404,7 @@ async function checkLimit(user, limitKey, countSql, what) {
 // Every step runs on its own: one problem never stops the others.
 // The Super Admin can also run it from Platform Admin > Run Database Setup.
 // ============================================================
-const SERVER_VERSION = 'v8.3 - 2026-11-06 - finance, USD accounts';
+const SERVER_VERSION = 'v8.4 - 2026-11-06 - maintenance manager + workers';
 
 const SETUP_STEPS = [
     { name: "Base columns (leases, users)", sql: `
@@ -571,7 +571,7 @@ const SETUP_STEPS = [
                 EXECUTE format('ALTER TABLE users DROP CONSTRAINT %I', c.conname);
             END LOOP;
             ALTER TABLE users ADD CONSTRAINT users_role_check
-                CHECK (role IN ('SUPER_ADMIN','COMPANY_ADMIN','PROPERTY_MANAGER','ACCOUNTANT','TECHNICIAN','VIEWER'));
+                CHECK (role IN ('SUPER_ADMIN','COMPANY_ADMIN','PROPERTY_MANAGER','ACCOUNTANT','TECHNICIAN','MAINTENANCE_MANAGER','VIEWER'));
         END $$;
     ` },
     { name: "Invoice details", sql: `
@@ -743,6 +743,34 @@ const SETUP_STEPS = [
         CREATE VIEW payments_tzs AS SELECT * FROM payments WHERE COALESCE(currency, 'TZS') = 'TZS';
         CREATE VIEW invoices_tzs AS SELECT * FROM invoices WHERE COALESCE(currency, 'TZS') = 'TZS';
         CREATE VIEW expenses_tzs AS SELECT * FROM expenses WHERE COALESCE(currency, 'TZS') = 'TZS'
+    ` }
+    ,{ name: "Maintenance workers (no login) and role MAINTENANCE_MANAGER", sql: `
+        DO $$ DECLARE c record; BEGIN
+            FOR c IN SELECT conname FROM pg_constraint
+                     WHERE conrelid = 'public.users'::regclass AND contype = 'c' AND pg_get_constraintdef(oid) ILIKE '%role%'
+            LOOP EXECUTE format('ALTER TABLE users DROP CONSTRAINT %I', c.conname); END LOOP;
+            ALTER TABLE users ADD CONSTRAINT users_role_check
+                CHECK (role IN ('SUPER_ADMIN','COMPANY_ADMIN','PROPERTY_MANAGER','ACCOUNTANT','TECHNICIAN','MAINTENANCE_MANAGER','VIEWER'));
+        END $$;
+        CREATE TABLE IF NOT EXISTS maintenance_workers (
+            worker_id SERIAL PRIMARY KEY,
+            company_id INTEGER NOT NULL,
+            full_name VARCHAR(120) NOT NULL,
+            phone_number VARCHAR(40),
+            is_active BOOLEAN DEFAULT true,
+            legacy_user_id INTEGER,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_mworkers_company ON maintenance_workers(company_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_mworkers_legacy ON maintenance_workers(legacy_user_id) WHERE legacy_user_id IS NOT NULL;
+        ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS worker_id INTEGER;
+        INSERT INTO maintenance_workers (company_id, full_name, phone_number, is_active, legacy_user_id)
+            SELECT u.company_id, u.full_name, u.phone_number, u.is_active, u.user_id FROM users u
+            WHERE u.role = 'TECHNICIAN' AND u.company_id IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM maintenance_workers m WHERE m.legacy_user_id = u.user_id);
+        UPDATE work_orders w SET worker_id = m.worker_id FROM maintenance_workers m
+            WHERE w.worker_id IS NULL AND w.assigned_technician_id IS NOT NULL AND m.legacy_user_id = w.assigned_technician_id;
+        UPDATE users SET role = 'MAINTENANCE_MANAGER' WHERE role = 'TECHNICIAN';
     ` }
 ];
 
@@ -1817,7 +1845,7 @@ app.post('/api/auth/register-company', registerLimiter, async (req, res) => {
 
 app.post('/api/auth/register-staff', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN'), async (req, res) => {
     const { full_name, email, password, role } = req.body;
-    const allowed = ['PROPERTY_MANAGER', 'ACCOUNTANT', 'TECHNICIAN', 'VIEWER'];
+    const allowed = ['PROPERTY_MANAGER', 'ACCOUNTANT', 'MAINTENANCE_MANAGER', 'VIEWER'];
     if (!full_name || !email || !password) return res.status(400).json({ error: 'Please fill in all required fields.' });
     if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
     if (!allowed.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
@@ -2716,10 +2744,10 @@ app.get('/api/dashboard/overview', authenticateToken, allowRoles(...R_VIEW_MONEY
 
         // optional parts (names of columns in your tables may differ, so they fail safely)
         const workloadRows = await safeRows(
-            `SELECT tech.user_id, tech.full_name, COUNT(*) AS n, MAX(CURRENT_DATE - w.created_at::date) AS oldest
-             FROM work_orders w JOIN users tech ON tech.user_id = w.assigned_technician_id
+            `SELECT tech.worker_id AS user_id, tech.full_name, COUNT(*) AS n, MAX(CURRENT_DATE - w.created_at::date) AS oldest
+             FROM work_orders w JOIN maintenance_workers tech ON tech.worker_id = w.worker_id
              WHERE tech.company_id = $1 AND w.status IN ('OPEN','IN_PROGRESS')
-             GROUP BY tech.user_id, tech.full_name ORDER BY n DESC`, [cId]
+             GROUP BY tech.worker_id, tech.full_name ORDER BY n DESC`, [cId]
         );
         const ticketRows = await safeRows(
             "SELECT COUNT(*) AS c FROM work_orders w LEFT JOIN units u ON w.unit_id = u.unit_id WHERE COALESCE(w.company_id, u.company_id) = $1 AND w.status IN ('OPEN','IN_PROGRESS')",
@@ -2835,10 +2863,49 @@ app.get('/api/users', authenticateToken, allowRoles(...R_ADMIN), wrapAsync(async
     res.json(r.rows);
 }));
 
-app.get('/api/technicians', authenticateToken, allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
-    const r = await pool.query("SELECT user_id, full_name FROM users WHERE company_id = $1 AND role = 'TECHNICIAN' AND is_active = true ORDER BY full_name", [req.user.company_id]);
+app.get('/api/workers', authenticateToken, allowRoles(...R_TICKETS), wrapAsync(async (req, res) => {
+    const all = req.query.all === '1';
+    const r = await pool.query(
+        `SELECT m.worker_id, m.full_name, m.phone_number, m.is_active,
+                (SELECT COUNT(*) FROM work_orders w WHERE w.worker_id = m.worker_id AND w.status IN ('OPEN','IN_PROGRESS'))::int AS open_jobs
+         FROM maintenance_workers m WHERE m.company_id = $1 ${all ? '' : 'AND m.is_active = true'} ORDER BY m.is_active DESC, m.full_name`, [req.user.company_id]);
     res.json(r.rows);
 }));
+
+app.post('/api/workers', authenticateToken, allowRoles(...R_TICKETS), wrapAsync(async (req, res) => {
+    const name = String(req.body.full_name || '').trim();
+    if (!name) return res.status(400).json({ error: 'Please type the worker name.' });
+    if (name.length > 120) return res.status(400).json({ error: 'The name is too long.' });
+    const dup = await pool.query("SELECT 1 FROM maintenance_workers WHERE company_id = $1 AND LOWER(full_name) = LOWER($2) AND is_active = true", [req.user.company_id, name]);
+    if (dup.rows.length) return res.status(400).json({ error: 'A worker with this name already exists.' });
+    const r = await pool.query("INSERT INTO maintenance_workers (company_id, full_name, phone_number) VALUES ($1, $2, $3) RETURNING worker_id, full_name, phone_number, is_active",
+        [req.user.company_id, name, String(req.body.phone_number || '').trim().slice(0, 40) || null]);
+    await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Added maintenance worker', 'TICKETS', req.ip, { worker_id: r.rows[0].worker_id });
+    res.status(201).json(r.rows[0]);
+}));
+
+app.put('/api/workers/:id', authenticateToken, allowRoles(...R_TICKETS), wrapAsync(async (req, res) => {
+    const name = String(req.body.full_name || '').trim();
+    if (!name) return res.status(400).json({ error: 'Please type the worker name.' });
+    const r = await pool.query(
+        `UPDATE maintenance_workers SET full_name = $1, phone_number = $2, is_active = $3 WHERE worker_id = $4 AND company_id = $5 RETURNING worker_id`,
+        [name, String(req.body.phone_number || '').trim().slice(0, 40) || null, req.body.is_active !== false, req.params.id, req.user.company_id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Worker not found.' });
+    res.json({ message: 'Worker updated.' });
+}));
+
+app.delete('/api/workers/:id', authenticateToken, allowRoles(...R_TICKETS), wrapAsync(async (req, res) => {
+    const used = await pool.query("SELECT 1 FROM work_orders WHERE worker_id = $1 LIMIT 1", [req.params.id]);
+    if (used.rows.length) {
+        const r = await pool.query("UPDATE maintenance_workers SET is_active = false WHERE worker_id = $1 AND company_id = $2 RETURNING worker_id", [req.params.id, req.user.company_id]);
+        if (r.rows.length === 0) return res.status(404).json({ error: 'Worker not found.' });
+        return res.json({ message: 'This worker has past jobs, so he was switched off instead of deleted.', deactivated: true });
+    }
+    const r = await pool.query("DELETE FROM maintenance_workers WHERE worker_id = $1 AND company_id = $2 RETURNING worker_id", [req.params.id, req.user.company_id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Worker not found.' });
+    res.json({ message: 'Worker removed.' });
+}));
+
 
 app.post('/api/users', authenticateToken, allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
     const { full_name, email, phone_number, password, role } = req.body;
@@ -2998,15 +3065,14 @@ const TICKET_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CANCELLED'];
 app.get('/api/tickets', authenticateToken, requireFeature('tickets'), allowRoles(...R_TICKETS, 'ACCOUNTANT', 'VIEWER'), wrapAsync(async (req, res) => {
     const params = [req.user.company_id];
     let where = '';
-    if (req.user.role === 'TECHNICIAN') { params.push(req.user.user_id); where = ` AND w.assigned_technician_id = $${params.length}`; }
     const rows = (await pool.query(
         `SELECT w.ticket_id, w.title, w.description, w.priority, w.status, w.estimated_cost, w.actual_cost, w.notes, w.created_at, w.resolved_at,
-                w.unit_id, COALESCE(w.property_id, u.property_id) AS property_id, w.assigned_technician_id,
+                w.unit_id, COALESCE(w.property_id, u.property_id) AS property_id, w.worker_id AS assigned_technician_id,
                 u.unit_number, COALESCE(p.property_name, p.title) AS property_name, tech.full_name AS technician_name
          FROM work_orders w
          LEFT JOIN units u ON u.unit_id = w.unit_id
          LEFT JOIN properties p ON p.property_id = COALESCE(w.property_id, u.property_id)
-         LEFT JOIN users tech ON tech.user_id = w.assigned_technician_id
+         LEFT JOIN maintenance_workers tech ON tech.worker_id = w.worker_id
          WHERE COALESCE(w.company_id, u.company_id) = $1 ${where}
          ORDER BY (w.status IN ('OPEN','IN_PROGRESS')) DESC,
                   CASE w.priority WHEN 'URGENT' THEN 1 WHEN 'HIGH' THEN 2 WHEN 'MEDIUM' THEN 3 ELSE 4 END, w.created_at DESC LIMIT 500`, params
@@ -3029,13 +3095,13 @@ app.post('/api/tickets', authenticateToken, requireFeature('tickets'), allowRole
         if (ok.rows.length === 0) return res.status(404).json({ error: 'Property not found.' });
     }
     let tech = null;
-    if (assigned_technician_id && R_MANAGE.includes(req.user.role)) {
-        const t = await pool.query("SELECT 1 FROM users WHERE user_id = $1 AND company_id = $2 AND role = 'TECHNICIAN'", [assigned_technician_id, cId]);
-        if (t.rows.length === 0) return res.status(400).json({ error: 'Technician not found.' });
+    if (assigned_technician_id) {
+        const t = await pool.query("SELECT 1 FROM maintenance_workers WHERE worker_id = $1 AND company_id = $2 AND is_active = true", [assigned_technician_id, cId]);
+        if (t.rows.length === 0) return res.status(400).json({ error: 'Worker not found.' });
         tech = assigned_technician_id;
     }
     const ins = await pool.query(
-        `INSERT INTO work_orders (company_id, unit_id, property_id, assigned_technician_id, title, description, priority, status, estimated_cost, created_by)
+        `INSERT INTO work_orders (company_id, unit_id, property_id, worker_id, title, description, priority, status, estimated_cost, created_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7, 'OPEN', $8, $9) RETURNING ticket_id`,
         [cId, unitId, propId, tech, String(title).trim(), String(description || '').trim(), TICKET_PRIORITIES.includes(priority) ? priority : 'MEDIUM',
          Math.max(0, parseFloat(estimated_cost) || 0), req.user.user_id]
@@ -3055,29 +3121,28 @@ app.put('/api/tickets/:id', authenticateToken, requireFeature('tickets'), allowR
              WHERE w.ticket_id = $1 AND COALESCE(w.company_id, u.company_id) = $2 FOR UPDATE OF w`, [req.params.id, cId]
         )).rows[0];
         if (!t) throw new Error('Ticket not found.');
-        const isTech = req.user.role === 'TECHNICIAN';
-        if (isTech && String(t.assigned_technician_id) !== String(req.user.user_id)) throw new Error('This ticket is not assigned to you.');
+        const canBooks = R_MANAGE.includes(req.user.role);   // only admin / property manager can write a repair cost into Expenses
 
         const b = req.body;
         const status = TICKET_STATUSES.includes(b.status) ? b.status : t.status;
         const priority = TICKET_PRIORITIES.includes(b.priority) ? b.priority : t.priority;
-        let tech = t.assigned_technician_id;
-        if (!isTech && b.assigned_technician_id !== undefined) {
+        let tech = t.worker_id;
+        if (b.assigned_technician_id !== undefined) {
             tech = b.assigned_technician_id || null;
             if (tech) {
-                const ok = await client.query("SELECT 1 FROM users WHERE user_id = $1 AND company_id = $2 AND role = 'TECHNICIAN'", [tech, cId]);
-                if (ok.rows.length === 0) throw new Error('Technician not found.');
+                const ok = await client.query("SELECT 1 FROM maintenance_workers WHERE worker_id = $1 AND company_id = $2 AND (is_active = true OR worker_id = $3)", [tech, cId, t.worker_id]);
+                if (ok.rows.length === 0) throw new Error('Worker not found.');
             }
         }
-        const title = isTech ? t.title : (String(b.title || t.title).trim() || t.title);
-        const description = isTech ? t.description : (b.description !== undefined ? String(b.description) : t.description);
+        const title = String(b.title || t.title).trim() || t.title;
+        const description = b.description !== undefined ? String(b.description) : t.description;
         const estimated = b.estimated_cost !== undefined ? Math.max(0, parseFloat(b.estimated_cost) || 0) : t.estimated_cost;
         const actual = b.actual_cost !== undefined && b.actual_cost !== '' ? Math.max(0, parseFloat(b.actual_cost) || 0) : t.actual_cost;
         const notes = b.notes !== undefined ? String(b.notes) : t.notes;
         const becameResolved = status === 'RESOLVED' && t.status !== 'RESOLVED';
 
         await client.query(
-            `UPDATE work_orders SET title = $1, description = $2, priority = $3, status = $4, assigned_technician_id = $5,
+            `UPDATE work_orders SET title = $1, description = $2, priority = $3, status = $4, worker_id = $5,
                     estimated_cost = $6, actual_cost = $7, notes = $8,
                     resolved_at = CASE WHEN $10::boolean THEN COALESCE(resolved_at, NOW()) ELSE NULL END
              WHERE ticket_id = $9`,
@@ -3086,7 +3151,7 @@ app.put('/api/tickets/:id', authenticateToken, requireFeature('tickets'), allowR
 
         // optionally write the repair cost into Expenses (only once per ticket)
         let expenseAdded = false;
-        if (becameResolved && b.add_to_expenses && !isTech && parseFloat(actual) > 0) {
+        if (becameResolved && b.add_to_expenses && canBooks && parseFloat(actual) > 0) {
             const exists = await client.query('SELECT 1 FROM expenses WHERE ticket_id = $1 AND company_id = $2', [t.ticket_id, cId]);
             if (exists.rows.length === 0) {
                 await client.query(
@@ -3653,7 +3718,7 @@ const REPORTS = {
     },
 
     maintenance: {
-        label: 'Maintenance', description: 'Repair tickets of the period: status, technician and cost', pro: 'tickets',
+        label: 'Maintenance', description: 'Repair tickets of the period: status, worker and cost', pro: 'tickets',
         async run(c) {
             const q = qb(c.cId), a = q.p(c.from), b = q.p(c.to), pr = c.propertyId ? q.p(c.propertyId) : null;
             const raw = (await pool.query(
@@ -3664,7 +3729,7 @@ const REPORTS = {
                  FROM work_orders w
                  LEFT JOIN units u ON u.unit_id = w.unit_id
                  LEFT JOIN properties p ON p.property_id = COALESCE(w.property_id, u.property_id)
-                 LEFT JOIN users tech ON tech.user_id = w.assigned_technician_id
+                 LEFT JOIN maintenance_workers tech ON tech.worker_id = w.worker_id
                  WHERE COALESCE(w.company_id, u.company_id) = $1 AND w.created_at::date BETWEEN ${a} AND ${b} ${pr ? `AND p.property_id = ${pr}` : ''}
                  ORDER BY w.status, w.created_at DESC`, q.params
             )).rows;
@@ -3676,7 +3741,7 @@ const REPORTS = {
             return {
                 columns: [
                     { key: 'date', label: 'Date', type: 'date' }, { key: 'title', label: 'Problem', type: 'text', wide: true }, { key: 'property', label: 'Property', type: 'text' },
-                    { key: 'unit', label: 'Unit', type: 'text' }, { key: 'technician', label: 'Technician', type: 'text' }, { key: 'priority', label: 'Priority', type: 'text' },
+                    { key: 'unit', label: 'Unit', type: 'text' }, { key: 'technician', label: 'Worker', type: 'text' }, { key: 'priority', label: 'Priority', type: 'text' },
                     { key: 'status', label: 'Status', type: 'text' }, { key: 'days', label: 'Days', type: 'int' }, { key: 'estimated', label: 'Estimated', type: 'money', total: true },
                     { key: 'cost', label: 'Actual cost', type: 'money', total: true }
                 ],
