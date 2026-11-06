@@ -4308,10 +4308,13 @@ app.get('/api/finance/overview', authenticateToken, allowRoles(...R_FIN_VIEW), w
     const t = todayStr();
     const mk = async (from) => (await buildLedger({ user: req.user, query: { from, to: t, currency: 'ALL', kind: 'all', group: 'month' } }));
     const month = await mk(t.slice(0, 8) + '01'), year = await mk(t.slice(0, 5) + '01-01');
+    // the whole previous month, to show whether this month is going up or down
+    const first = new Date(t.slice(0, 8) + '01T00:00:00Z'); const pEnd = new Date(first.getTime() - 86400000), pStart = new Date(Date.UTC(pEnd.getUTCFullYear(), pEnd.getUTCMonth(), 1));
+    const prev = await buildLedger({ user: req.user, query: { from: pStart.toISOString().slice(0, 10), to: pEnd.toISOString().slice(0, 10), currency: 'ALL', kind: 'all', group: 'month' } });
     const out = { today: t, TZS: {}, USD: {} };
     ['TZS', 'USD'].forEach(c => {
-        const m = month.totals[c] || { income: 0, expense: 0 }, y = year.totals[c] || { income: 0, expense: 0 };
-        out[c] = { month_income: m.income, month_expense: m.expense, year_income: y.income, year_expense: y.expense };
+        const m = month.totals[c] || { income: 0, expense: 0 }, y = year.totals[c] || { income: 0, expense: 0 }, pv = prev.totals[c] || { income: 0, expense: 0 };
+        out[c] = { month_income: m.income, month_expense: m.expense, year_income: y.income, year_expense: y.expense, prev_income: pv.income, prev_expense: pv.expense };
     });
     res.json(out);
 }));
