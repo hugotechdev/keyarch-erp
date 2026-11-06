@@ -4555,9 +4555,9 @@ app.put('/api/platform/companies/:id', authenticateToken, allowRoles('SUPER_ADMI
 
     try {
         const r = await pool.query(
-            `UPDATE companies SET plan = $1, access_status = $2, billing_type = $3, paid_until = $4,
-                    features = $5::jsonb, notes = $6,
-                    activated_at = CASE WHEN $2 = 'ACTIVE' AND activated_at IS NULL THEN NOW() ELSE activated_at END
+            `UPDATE companies SET plan = $1::varchar, access_status = $2::varchar, billing_type = $3::varchar, paid_until = $4::date,
+                    features = $5::jsonb, notes = $6::text,
+                    activated_at = CASE WHEN $2::varchar = 'ACTIVE' AND activated_at IS NULL THEN NOW() ELSE activated_at END
              WHERE company_id = $7 AND company_id <> $8 RETURNING company_id`,
             [plan, access_status, billing, until, JSON.stringify(sanitizeFeatures(features)), notes || null, req.params.id, req.user.company_id]
         );
