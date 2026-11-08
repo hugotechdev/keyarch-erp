@@ -35,7 +35,7 @@ async function saveOwnerPay(e) {
         amount: parseMoney(document.getElementById('op-amount').value), method: document.getElementById('op-method').value,
         paid_on: document.getElementById('op-date').value, reference_no: document.getElementById('op-ref').value
     });
-    if (r.ok) { closeModal('modal-owner-pay'); loadSvcOwners(); } else alert(r.data.error || 'Failed');
+    if (r.ok) { closeModal('modal-owner-pay'); await loadSvcOwners(); if (SO_UNIT_OPEN && document.getElementById('modal-so-unit').style.display === 'flex') soUnit(SO_UNIT_OPEN); } else alert(r.data.error || 'Failed');
 }
 let ownersData = [];
 function orgOn() { return hasFeature('org') && role() !== 'SUPER_ADMIN'; }
@@ -117,7 +117,7 @@ function soUnitStatus(u, g) {
     if (u.state === 'OWNER_LIVES' && !(u.charges || []).length) return ['<span class="text-amber-300">' + sp('Not billed yet') + '</span>', 'owing'];
     if (u.owed > 0.001) {
         let h = `<span class="text-rose-300">${sp('Owes')} ${money(u.owed, u.invoice_currency || u.currency)}</span>`;
-        if (u.state === 'OWNER_LIVES') h += ` <button onclick="openOwnerPay(${u.unit_id})" class="can-money ml-1 px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold">${sp('Receive')}</button>`;
+        if (u.state === 'OWNER_LIVES') h += ` <button onclick="event.stopPropagation(); openOwnerPay(${u.unit_id})" class="can-money ml-1 px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold">${sp('Receive')}</button>`;
         return [h, 'owing'];
     }
     if (u.invoiced > 0.001) return ['<span class="text-emerald-300">' + sp('Paid') + '</span>', 'paid'];
@@ -127,13 +127,13 @@ function soUnitRows(g) {
     return g.units.map(u => {
         const st = SO_STATE[u.state] || SO_STATE.VACANT; SO_UNITS[u.unit_id] = u;
         const who = u.state === 'TENANT' && u.tenant_name ? ` · ${esc(u.tenant_name)}` : '';
-        return `<tr class="border-t border-[#182848]"><td class="py-1.5 pr-2 text-white">${esc(u.property_name)} · ${esc(u.unit_number)}<span class="text-gray-500">${who}</span></td><td class="py-1.5 pr-2 whitespace-nowrap">${money(u.service_charge, u.currency)}</td><td class="py-1.5 pr-2"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${st[1]}">${sp(st[0])}</span></td><td class="py-1.5 text-right whitespace-nowrap">${soUnitStatus(u, g)[0]}</td></tr>`;
+        return `<tr onclick="soUnit(${u.unit_id})" class="border-t border-[#182848] cursor-pointer hover:bg-white/5"><td class="py-1.5 pr-2 text-white">${esc(u.property_name)} · ${esc(u.unit_number)}<span class="text-gray-500">${who}</span></td><td class="py-1.5 pr-2 whitespace-nowrap">${money(u.service_charge, u.currency)}</td><td class="py-1.5 pr-2"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${st[1]}">${sp(st[0])}</span></td><td class="py-1.5 text-right whitespace-nowrap">${soUnitStatus(u, g)[0]}</td></tr>`;
     }).join('');
 }
 function soPaint() {
     const box = document.getElementById('so-list'), sum = document.getElementById('so-summary'), bar = document.getElementById('so-bar');
     if (!box) return;
-    document.querySelectorAll('.so-tab').forEach(b => { const on = b.dataset.t === SO_TAB; b.className = 'so-tab border ' + (on ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-[#14223d] text-gray-300 border-[#233863]'); });
+    document.querySelectorAll('.so-tab').forEach(b => { const on = b.dataset.t === SO_TAB; b.className = 'so-tab border px-4 py-2 rounded-xl text-xs font-bold ' + (on ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-[#14223d] text-gray-300 border-[#233863]'); });
     const q = ((document.getElementById('so-q') || {}).value || '').trim().toLowerCase();
     const owners = SO_GROUPS.filter(g => g.owner_id), comp = SO_GROUPS.find(g => !g.owner_id) || { units: [], totals: {}, counts: {} };
     const emptyMsg = (t) => `<div class="text-xs text-gray-500 p-4">${sp(t)}</div>`;
@@ -162,7 +162,7 @@ function soPaint() {
         const rows = all.filter(x => (SO_FILTER === 'all' || x.st[1] === SO_FILTER) && (!q || (x.u.property_name + ' ' + x.u.unit_number + ' ' + soGroupName(x.g) + ' ' + (x.u.tenant_name || '')).toLowerCase().includes(q)));
         box.innerHTML = rows.length ? `<div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-4 overflow-x-auto"><table class="w-full text-[11px] text-gray-300"><thead><tr class="text-gray-500 text-left"><th class="pb-1">${sp('Unit')}</th><th class="pb-1">${sp('Owner')}</th><th class="pb-1">${sp('Service charge')}</th><th class="pb-1">${sp('Collected')}</th><th class="pb-1 text-right">${sp('Status')}</th></tr></thead><tbody>` +
             rows.map(({ g, u, st }) => { SO_UNITS[u.unit_id] = u; const cc = u.state === 'OWNER_LIVES' ? u.invoice_currency : (u.invoice_currency || u.currency);
-                return `<tr class="border-t border-[#182848]"><td class="py-1.5 pr-2 text-white">${esc(u.property_name)} · ${esc(u.unit_number)}</td><td class="py-1.5 pr-2">${esc(soGroupName(g))}</td><td class="py-1.5 pr-2 whitespace-nowrap">${money(u.service_charge, u.currency)}</td><td class="py-1.5 pr-2 whitespace-nowrap">${money(u.paid, cc)}</td><td class="py-1.5 text-right whitespace-nowrap">${st[0]}</td></tr>`; }).join('') + '</tbody></table></div>' : emptyMsg('No units to show.');
+                return `<tr onclick="soUnit(${u.unit_id})" class="border-t border-[#182848] cursor-pointer hover:bg-white/5"><td class="py-1.5 pr-2 text-white">${esc(u.property_name)} · ${esc(u.unit_number)}</td><td class="py-1.5 pr-2">${esc(soGroupName(g))}</td><td class="py-1.5 pr-2 whitespace-nowrap">${money(u.service_charge, u.currency)}</td><td class="py-1.5 pr-2 whitespace-nowrap">${money(u.paid, cc)}</td><td class="py-1.5 text-right whitespace-nowrap">${st[0]}</td></tr>`; }).join('') + '</tbody></table></div>' : emptyMsg('No units to show.');
     }
     applyRoleUI();
 }
@@ -189,4 +189,26 @@ async function loadSvcOwners() {
     SO_GROUPS.sort((a, b) => (a.owner_name || '').localeCompare(b.owner_name || ''));
     soPaint();
     if (SO_OPEN && document.getElementById('modal-owner-detail').style.display === 'flex') soDetail(SO_OPEN);
+}
+
+let SO_UNIT_OPEN = null;
+function soUnit(unitId) {
+    const u = SO_UNITS[unitId]; if (!u) return;
+    SO_UNIT_OPEN = unitId;
+    const g = SO_GROUPS.find(x => x.units.some(y => y.unit_id === unitId)) || {};
+    const yr = document.getElementById('so-year').value;
+    const cur = u.state === 'OWNER_LIVES' ? u.currency : (u.invoice_currency || u.currency);
+    document.getElementById('su-title').innerText = `${u.property_name} · ${u.unit_number}`;
+    const st = SO_STATE[u.state] || SO_STATE.VACANT;
+    document.getElementById('su-sub').innerHTML = `<span>Owner</span>: ${esc(soGroupName(g))} · <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${st[1]}">${sp(st[0])}</span>${u.tenant_name ? ' · ' + esc(u.tenant_name) : ''}`;
+    document.getElementById('su-tiles').innerHTML = soTile('Service charge', money(u.service_charge, u.currency) + ' <span class="text-[10px] text-gray-500">/ ' + sp('month') + '</span>') + soTile('Invoiced', money(u.invoiced, cur)) + soTile('Collected', money(u.paid, cur), 'text-emerald-400') + soTile('Owed', money(u.owed, cur), u.owed > 0.001 ? 'text-rose-400' : 'text-gray-300');
+    let rows = '';
+    if (u.state === 'OWNER_LIVES') {
+        rows = (u.charges || []).map(c => { const left = c.amount - c.paid; return `<tr class="border-t border-[#182848]"><td class="py-1.5">${esc(c.period)}</td><td>${money(c.amount, u.currency)}</td><td class="text-emerald-300">${money(c.paid, u.currency)}</td><td class="${left > 0.001 ? 'text-rose-300' : 'text-gray-400'}">${money(left, u.currency)}</td><td class="text-right">${left > 0.001 ? `<button onclick="openOwnerPay(${u.unit_id})" class="can-money px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold">${sp('Receive')}</button>` : '<span class="text-emerald-300">' + sp('Paid') + '</span>'}</td></tr>`; }).join('');
+    } else {
+        const inv = (currentInvoices || []).filter(i => i.unit_id === unitId && i.invoice_type === 'SERVICE' && String(i.issue_date || i.due_date || '').slice(0, 4) === String(yr));
+        rows = inv.map(i => { const left = Number(i.balance) || 0; return `<tr class="border-t border-[#182848]"><td class="py-1.5">${esc(i.invoice_number)}<div class="text-[10px] text-gray-500">${esc(String(i.due_date || '').slice(0, 10))}</div></td><td>${money(i.amount_due, i.currency)}</td><td class="text-emerald-300">${money(i.paid, i.currency)}</td><td class="${left > 0.001 ? 'text-rose-300' : 'text-gray-400'}">${money(left, i.currency)}</td><td class="text-right">${left > 0.001 ? `<button onclick="closeModal('modal-so-unit'); openPaymentModal(${i.invoice_id})" class="can-money px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold">${sp('Receive')}</button>` : '<span class="text-emerald-300">' + sp('Paid') + '</span>'}</td></tr>`; }).join('');
+    }
+    document.getElementById('su-rows').innerHTML = rows || `<tr><td colspan="5" class="py-4 text-gray-500">${sp('No service charge bills for this unit in this year.')}</td></tr>`;
+    openModal('modal-so-unit'); applyRoleUI();
 }
