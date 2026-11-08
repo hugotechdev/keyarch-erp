@@ -408,7 +408,7 @@ async function checkLimit(user, limitKey, countSql, what) {
 // Every step runs on its own: one problem never stops the others.
 // The Super Admin can also run it from Platform Admin > Run Database Setup.
 // ============================================================
-const SERVER_VERSION = 'v8.7 - 2026-11-08 - password 8+, CORS closed, unit owners (Pro)';
+const SERVER_VERSION = 'v8.8 - 2026-11-08 - tenant history fix, password 8+, CORS, unit owners (Pro)';
 
 const SETUP_STEPS = [
     { name: "Base columns (leases, users)", sql: `
@@ -1521,7 +1521,7 @@ app.get('/api/tenants/:id/history', authenticateToken, allowRoles(...R_VIEW_MONE
         )).rows;
 
         const payments = (await pool.query(
-            `SELECT pay.payment_id, pay.receipt_number, pay.amount_paid, pay.payment_date, pay.payment_method, pay.method_detail, pay.reference_no, inv.invoice_id, inv.invoice_number, inv.invoice_type
+            `SELECT pay.payment_id, pay.receipt_number, pay.amount_paid, pay.payment_date, pay.payment_method, pay.method_detail, pay.reference_no, inv.invoice_id, inv.invoice_number, inv.invoice_type, COALESCE(pay.currency, inv.currency, l.currency) AS currency
              FROM payments pay JOIN invoices inv ON pay.invoice_id = inv.invoice_id JOIN leases l ON inv.lease_id = l.lease_id
              WHERE l.tenant_id = $1 AND pay.company_id = $2 ORDER BY pay.payment_date DESC`,
             [tenantId, cId]
