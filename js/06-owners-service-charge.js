@@ -70,7 +70,7 @@ async function openOwnerForm(id, sel) {
     document.getElementById('of-name').value = o ? o.full_name : '';
     document.getElementById('of-phone').value = o ? (o.phone_number || '') : '';
     document.getElementById('of-email').value = o ? (o.email || '') : '';
-    document.getElementById('of-svc').value = ''; document.getElementById('of-q').value = '';
+    document.getElementById('of-svc').value = ''; document.getElementById('of-q').value = ''; document.getElementById('of-show').value = 'avail';
     OF_CHECK = {}; OF_UNITS = [];
     document.getElementById('of-units').innerHTML = '<div class="text-xs text-gray-500 p-3">' + sp('Loading...') + '</div>';
     openModal('modal-owner-form');
@@ -83,21 +83,37 @@ async function openOwnerForm(id, sel) {
 }
 function ofToggle(id, on) { if (on) OF_CHECK[id] = OF_CHECK[id] || 'LET'; else delete OF_CHECK[id]; ofRender(); }
 function ofOcc(id, v) { OF_CHECK[id] = v; }
-function ofRender() {
-    const q = document.getElementById('of-q').value.trim().toLowerCase(), pf = document.getElementById('of-prop').value;
+function ofShown() {
+    const q = document.getElementById('of-q').value.trim().toLowerCase(), pf = document.getElementById('of-prop').value, mode = document.getElementById('of-show').value;
     const me = document.getElementById('of-id').value;
-    const list = OF_UNITS.filter(u => (!pf || String(u.property_id) === pf) && (!q || (u.property_name + ' ' + u.unit_number).toLowerCase().includes(q)));
+    return OF_UNITS.filter(u => (!pf || String(u.property_id) === pf) && (!q || (u.property_name + ' ' + u.unit_number).toLowerCase().includes(q))
+        && (mode === 'all' || (mode === 'sel' ? OF_CHECK[u.unit_id] !== undefined : (!u.owner_id || String(u.owner_id) === String(me)))));
+}
+function ofBulk(pid, on) {
+    ofShown().filter(u => pid === 0 || u.property_id === pid).forEach(u => { if (on) OF_CHECK[u.unit_id] = OF_CHECK[u.unit_id] || 'LET'; else delete OF_CHECK[u.unit_id]; });
+    ofRender();
+}
+function ofRender() {
+    const me = document.getElementById('of-id').value, LIMIT = 150;
+    const all = ofShown(), list = all.slice(0, LIMIT);
     const box = document.getElementById('of-units'), top = box.scrollTop;
-    box.innerHTML = list.length ? list.map(u => {
+    let html = '', last = null;
+    list.forEach(u => {
+        if (u.property_id !== last) {
+            last = u.property_id;
+            const inP = all.filter(x => x.property_id === u.property_id), nSel = inP.filter(x => OF_CHECK[x.unit_id] !== undefined).length;
+            html += `<div class="flex items-center justify-between gap-2 px-3 py-1.5 bg-[#0d172d] text-[11px] font-bold text-indigo-300 sticky top-0"><span>${esc(u.property_name)} <span class="text-gray-500 font-normal">(${nSel}/${inP.length})</span></span><span><button type="button" onclick="ofBulk(${u.property_id}, true)" class="underline">${sp('Select all')}</button> · <button type="button" onclick="ofBulk(${u.property_id}, false)" class="underline">${sp('Clear')}</button></span></div>`;
+        }
         const on = OF_CHECK[u.unit_id] !== undefined, rented = u.status === 'OCCUPIED';
         const other = u.owner_id && String(u.owner_id) !== String(me) ? `<span class="text-[10px] text-amber-300"> · <span>Owner</span>: ${esc(u.owner_name || '')}</span>` : '';
         const tag = rented ? '<span class="text-[10px] text-emerald-300">' + sp('Rented') + '</span>' : '<span class="text-[10px] text-amber-300">' + sp('Vacant') + '</span>';
         const occ = on && !rented ? `<select onchange="ofOcc(${u.unit_id}, this.value)" class="inp" style="width:auto;padding:2px 6px;font-size:11px"><option value="LET" ${OF_CHECK[u.unit_id] === 'LET' ? 'selected' : ''}>Let out</option><option value="OWNER_LIVES" ${OF_CHECK[u.unit_id] === 'OWNER_LIVES' ? 'selected' : ''}>Owner lives here</option></select>` : '';
-        return `<label class="flex items-center justify-between gap-2 px-3 py-2 border-t border-[#182848] text-xs text-gray-200 cursor-pointer"><span class="flex items-center gap-2"><input type="checkbox" ${on ? 'checked' : ''} onchange="ofToggle(${u.unit_id}, this.checked)"> <span>${esc(u.property_name)} · ${esc(u.unit_number)}</span> ${tag}${other}</span>${occ}</label>`;
-    }).join('') : '<div class="text-xs text-gray-500 p-3">' + sp('No units to show.') + '</div>';
+        html += `<label class="flex items-center justify-between gap-2 px-3 py-1.5 border-t border-[#182848] text-xs text-gray-200 cursor-pointer"><span class="flex items-center gap-2"><input type="checkbox" ${on ? 'checked' : ''} onchange="ofToggle(${u.unit_id}, this.checked)"> <span>${esc(u.unit_number)}</span> ${tag}${other}</span>${occ}</label>`;
+    });
+    if (all.length > LIMIT) html += `<div class="p-3 text-[11px] text-amber-300 border-t border-[#182848]">${LIMIT} / ${all.length} · ${sp('Too many to show. Pick a project or search to see the rest.')}</div>`;
+    box.innerHTML = html || '<div class="text-xs text-gray-500 p-3">' + sp('No units to show.') + '</div>';
     box.scrollTop = top;
-    const n = Object.keys(OF_CHECK).length;
-    document.getElementById('of-count').innerText = n;
+    document.getElementById('of-count').innerText = Object.keys(OF_CHECK).length;
 }
 function closeOwnerForm() { closeModal('modal-owner-form'); if (SO_SEL) { SO_SEL.value = ''; SO_SEL = null; } }
 async function saveOwnerForm(e) {
