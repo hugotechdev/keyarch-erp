@@ -3763,7 +3763,7 @@
             const payHtml = h.payments.length === 0 ? '<div class="p-3 text-center text-gray-500">No payments yet.</div>' : h.payments.map(p => `
                 <div class="flex justify-between p-2.5 rounded-lg bg-[#14223d] text-xs">
                     <span class="text-gray-300">${fmtDate(p.payment_date)} <span class="text-gray-500">· ${esc(p.receipt_number || '')} · ${esc(p.invoice_number)} · ${esc(p.method_detail || p.payment_method || '')}</span></span>
-                    <span class="whitespace-nowrap"><span class="font-bold text-emerald-400">${money(p.amount_paid, p.currency || l.currency)}</span> <button onclick="closeModal('modal-tenant-detail'); showReceipt(${Number(p.payment_id)})" class="ml-1 px-2 py-0.5 rounded bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-600 hover:text-white"><i class="fa-solid fa-receipt"></i></button></span>
+                    <span class="whitespace-nowrap"><span class="font-bold text-emerald-400">${money(p.amount_paid, p.currency || (cur && cur.currency) || 'TZS')}</span> <button onclick="closeModal('modal-tenant-detail'); showReceipt(${Number(p.payment_id)})" class="ml-1 px-2 py-0.5 rounded bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-600 hover:text-white"><i class="fa-solid fa-receipt"></i></button></span>
                 </div>`).join('');
 
             const evHtml = h.events.length === 0 ? '<div class="p-3 text-center text-gray-500">No activity recorded yet.</div>' : h.events.map(e => `
@@ -4086,7 +4086,7 @@
         // ============================================================
         // VERSIONS + DATABASE SETUP CHECK
         // ============================================================
-        const PAGE_VERSION = 'v8.7 - 2026-11-08 - password 8+, CORS closed, unit owners (Pro)';
+        const PAGE_VERSION = 'v8.8 - 2026-11-08 - tenant history fix, password 8+, CORS, unit owners (Pro)';
 
         async function checkVersions() {
             let serverVersion = 'unknown (old server.js?)';
@@ -6128,6 +6128,7 @@
 })();
 </script>
 <!--I18N_END-->
+
 
 
 
