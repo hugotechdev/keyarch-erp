@@ -61,27 +61,63 @@ function fillOwnerSelects(bulk) {
 }
 let SO_SEL = null;
 function onOwnerSelect(sel) { if (sel.value !== '__NEW__') return; openOwnerForm(null, sel); }
-function openOwnerForm(id, sel) {
+let OF_UNITS = [], OF_CHECK = {};
+async function openOwnerForm(id, sel) {
     SO_SEL = sel || null;
     const o = id ? ownersData.find(x => String(x.owner_id) === String(id)) : null;
     document.getElementById('of-title').innerText = o ? 'Edit owner' : 'New owner';
     document.getElementById('of-id').value = o ? o.owner_id : '';
     document.getElementById('of-name').value = o ? o.full_name : '';
     document.getElementById('of-phone').value = o ? (o.phone_number || '') : '';
+    document.getElementById('of-email').value = o ? (o.email || '') : '';
+    document.getElementById('of-svc').value = ''; document.getElementById('of-q').value = '';
+    OF_CHECK = {}; OF_UNITS = [];
+    document.getElementById('of-units').innerHTML = '<div class="text-xs text-gray-500 p-3">' + sp('Loading...') + '</div>';
     openModal('modal-owner-form');
+    const r = await api('/api/units'); if (!r.ok) return;
+    OF_UNITS = r.data;
+    OF_UNITS.forEach(u => { if (o && String(u.owner_id) === String(o.owner_id)) OF_CHECK[u.unit_id] = u.occupancy_type === 'OWNER_LIVES' ? 'OWNER_LIVES' : 'LET'; });
+    const props = {}; OF_UNITS.forEach(u => props[u.property_id] = u.property_name);
+    document.getElementById('of-prop').innerHTML = '<option value="">All projects</option>' + Object.keys(props).map(k => `<option value="${k}">${esc(props[k])}</option>`).join('');
+    ofRender();
+}
+function ofToggle(id, on) { if (on) OF_CHECK[id] = OF_CHECK[id] || 'LET'; else delete OF_CHECK[id]; ofRender(); }
+function ofOcc(id, v) { OF_CHECK[id] = v; }
+function ofRender() {
+    const q = document.getElementById('of-q').value.trim().toLowerCase(), pf = document.getElementById('of-prop').value;
+    const me = document.getElementById('of-id').value;
+    const list = OF_UNITS.filter(u => (!pf || String(u.property_id) === pf) && (!q || (u.property_name + ' ' + u.unit_number).toLowerCase().includes(q)));
+    const box = document.getElementById('of-units'), top = box.scrollTop;
+    box.innerHTML = list.length ? list.map(u => {
+        const on = OF_CHECK[u.unit_id] !== undefined, rented = u.status === 'OCCUPIED';
+        const other = u.owner_id && String(u.owner_id) !== String(me) ? `<span class="text-[10px] text-amber-300"> · <span>Owner</span>: ${esc(u.owner_name || '')}</span>` : '';
+        const tag = rented ? '<span class="text-[10px] text-emerald-300">' + sp('Rented') + '</span>' : '<span class="text-[10px] text-amber-300">' + sp('Vacant') + '</span>';
+        const occ = on && !rented ? `<select onchange="ofOcc(${u.unit_id}, this.value)" class="inp" style="width:auto;padding:2px 6px;font-size:11px"><option value="LET" ${OF_CHECK[u.unit_id] === 'LET' ? 'selected' : ''}>Let out</option><option value="OWNER_LIVES" ${OF_CHECK[u.unit_id] === 'OWNER_LIVES' ? 'selected' : ''}>Owner lives here</option></select>` : '';
+        return `<label class="flex items-center justify-between gap-2 px-3 py-2 border-t border-[#182848] text-xs text-gray-200 cursor-pointer"><span class="flex items-center gap-2"><input type="checkbox" ${on ? 'checked' : ''} onchange="ofToggle(${u.unit_id}, this.checked)"> <span>${esc(u.property_name)} · ${esc(u.unit_number)}</span> ${tag}${other}</span>${occ}</label>`;
+    }).join('') : '<div class="text-xs text-gray-500 p-3">' + sp('No units to show.') + '</div>';
+    box.scrollTop = top;
+    const n = Object.keys(OF_CHECK).length;
+    document.getElementById('of-count').innerText = n;
 }
 function closeOwnerForm() { closeModal('modal-owner-form'); if (SO_SEL) { SO_SEL.value = ''; SO_SEL = null; } }
 async function saveOwnerForm(e) {
     e.preventDefault();
     const id = document.getElementById('of-id').value;
-    const body = { full_name: document.getElementById('of-name').value.trim(), phone_number: document.getElementById('of-phone').value.trim() };
+    const body = { full_name: document.getElementById('of-name').value.trim(), phone_number: document.getElementById('of-phone').value.trim(), email: document.getElementById('of-email').value.trim() };
     if (!body.full_name) return;
+    if (OF_UNITS.length) {
+        body.units = Object.keys(OF_CHECK).map(k => ({ unit_id: Number(k), occupancy_type: OF_CHECK[k] }));
+        const sv = parseMoney(document.getElementById('of-svc').value);
+        if (sv > 0) { body.service_charge = sv; body.service_currency = document.getElementById('of-cur').value; }
+    }
     const r = id ? await api('/api/owners/' + id, 'PUT', body) : await api('/api/owners', 'POST', body);
     if (!r.ok) return alert(r.data.error || 'Failed');
+    if (r.data.warning) alert(r.data.message);
     await loadOwners();
     if (SO_SEL) { SO_SEL.value = (r.data && r.data.owner_id) || (ownersData.find(o => o.full_name === body.full_name) || {}).owner_id || ''; SO_SEL = null; }
     closeModal('modal-owner-form');
     if (currentPage === 'svcowners') loadSvcOwners();
+    if (currentPage === 'properties' && typeof loadProperties === 'function') loadProperties();
 }
 async function removeOwner(id) {
     if (!confirm('Delete this owner?')) return;
