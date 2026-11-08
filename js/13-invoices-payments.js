@@ -212,6 +212,7 @@ async function submitPayment(e) {
     });
     if (!r.ok) return alert(r.data.error || 'Failed');
     closeModal('modal-payment'); loadAllData();
+    if (currentPage === 'svcowners') loadInvoices().then(() => loadSvcOwners());
     if (r.data.payment_id) showReceipt(r.data.payment_id);
 }
 
