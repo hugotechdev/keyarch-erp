@@ -166,14 +166,18 @@ function soGroupName(g) { return g.owner_id ? g.owner_name : companyLabel(); }
 function soUnitStatus(u, g) {
     if (u.state === 'VACANT') return [g.owner_id ? '<span class="text-gray-400">' + sp('Not recorded') + '</span>' : '<span class="text-gray-400">' + sp('Company cost (info)') + '</span>', 'none'];
     if (u.inclusive) return ['<span class="text-gray-400">' + sp('Included in rent') + '</span>', 'none'];
-    if (u.state === 'OWNER_LIVES' && !(u.charges || []).length) return ['<span class="text-amber-300">' + sp('Not billed yet') + '</span>', 'owing'];
-    if (u.owed > 0.001) {
-        let h = `<span class="text-rose-300">${sp('Owes')} ${money(u.owed, u.invoice_currency || u.currency)}</span>`;
-        if (u.state === 'OWNER_LIVES') h += ` <button onclick="event.stopPropagation(); openOwnerPay(${u.unit_id})" class="can-money ml-1 px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold">${sp('Receive')}</button>`;
-        return [h, 'owing'];
+    if (!(u.service_charge > 0)) return ['<span class="text-gray-400">' + sp('No service charge') + '</span>', 'none'];
+    const cur = u.invoice_currency || u.currency;
+    if (u.state === 'OWNER_LIVES') {
+        if (!(u.charges || []).length) return ['<span class="text-amber-300">' + sp('Not billed yet') + '</span>', 'owing'];
+        if (u.owed > 0.001) { const n = u.charges.filter(c => c.amount - c.paid > 0.001).length; return [`<span class="text-rose-300">${n} <span>months owed</span> · ${money(u.owed, cur)}</span> <button onclick="event.stopPropagation(); openOwnerPay(${u.unit_id})" class="can-money ml-1 px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold">${sp('Receive')}</button>`, 'owing']; }
+        return ['<span class="text-emerald-300">' + sp('Paid') + '</span>', 'paid'];
     }
-    if (u.invoiced > 0.001) return ['<span class="text-emerald-300">' + sp('Paid') + '</span>', 'paid'];
-    return ['<span class="text-gray-400">' + sp('Up to date') + '</span>', 'paid'];
+    const missing = Math.max(0, (u.let_months || []).length - (u.months_billed || 0));
+    if (u.months_unpaid > 0) return [`<span class="text-rose-300">${u.months_unpaid} <span>months owed</span> · ${money(u.owed, cur)}</span>${missing ? ` <span class="text-amber-300">+ ${missing} <span>not billed</span></span>` : ''}`, 'owing'];
+    if (missing > 0) return [`<span class="text-amber-300">${missing} <span>months not billed</span></span>`, 'owing'];
+    if (u.months_billed > 0) return ['<span class="text-emerald-300">' + sp('Paid') + ` (${u.months_billed})</span>`, 'paid'];
+    return ['<span class="text-gray-400">' + sp('Not rented') + '</span>', 'none'];
 }
 function soUnitRows(g) {
     return g.units.map(u => {
@@ -244,7 +248,14 @@ async function loadSvcOwners() {
 }
 
 let SO_UNIT_OPEN = null;
-function soUnit(unitId) {
+const SO_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+async function soCreateBills(unitId, month) {
+    const yr = Number(document.getElementById('so-year').value);
+    const r = await api('/api/service-charges/generate-unit', 'POST', { unit_id: unitId, year: yr, month: month || undefined });
+    if (!r.ok) return alert(r.data.error || 'Failed');
+    await loadInvoices(); await loadSvcOwners(); soUnit(unitId);
+}
+async function soUnit(unitId) {
     const u = SO_UNITS[unitId]; if (!u) return;
     SO_UNIT_OPEN = unitId;
     const g = SO_GROUPS.find(x => x.units.some(y => y.unit_id === unitId)) || {};
@@ -253,14 +264,49 @@ function soUnit(unitId) {
     document.getElementById('su-title').innerText = `${u.property_name} · ${u.unit_number}`;
     const st = SO_STATE[u.state] || SO_STATE.VACANT;
     document.getElementById('su-sub').innerHTML = `<span>Owner</span>: ${esc(soGroupName(g))} · <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${st[1]}">${sp(st[0])}</span>${u.tenant_name ? ' · ' + esc(u.tenant_name) : ''}`;
-    document.getElementById('su-tiles').innerHTML = soTile('Service charge', money(u.service_charge, u.currency) + ' <span class="text-[10px] text-gray-500">/ ' + sp('month') + '</span>') + soTile('Invoiced', money(u.invoiced, cur)) + soTile('Collected', money(u.paid, cur), 'text-emerald-400') + soTile('Owed', money(u.owed, cur), u.owed > 0.001 ? 'text-rose-400' : 'text-gray-300');
-    let rows = '';
+    const now = new Date(), lastM = Number(yr) < now.getFullYear() ? 12 : (Number(yr) === now.getFullYear() ? now.getMonth() + 1 : 0);
+    const money_ = (n, c) => money(n, c || cur);
+    let rows = '', paidM = 0, oweM = 0, notBilled = 0, owedAmt = 0, payList = [];
     if (u.state === 'OWNER_LIVES') {
-        rows = (u.charges || []).map(c => { const left = c.amount - c.paid; return `<tr class="border-t border-[#182848]"><td class="py-1.5">${esc(c.period)}</td><td>${money(c.amount, u.currency)}</td><td class="text-emerald-300">${money(c.paid, u.currency)}</td><td class="${left > 0.001 ? 'text-rose-300' : 'text-gray-400'}">${money(left, u.currency)}</td><td class="text-right">${left > 0.001 ? `<button onclick="openOwnerPay(${u.unit_id})" class="can-money px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold">${sp('Receive')}</button>` : '<span class="text-emerald-300">' + sp('Paid') + '</span>'}</td></tr>`; }).join('');
+        const byP = {}; (u.charges || []).forEach(c => byP[c.period] = c);
+        for (let m = 1; m <= lastM; m++) {
+            const per = yr + '-' + String(m).padStart(2, '0'), c = byP[per]; let act = '', badge = '', amt = '', paid = '', left = 0;
+            if (!c) { notBilled++; badge = '<span class="text-amber-300">' + sp('Not billed') + '</span>'; }
+            else { left = c.amount - c.paid; amt = money_(c.amount, u.currency); paid = money_(c.paid, u.currency);
+                if (left <= 0.001) { paidM++; badge = '<span class="text-emerald-300">' + sp('Paid') + '</span>'; }
+                else { oweM++; owedAmt += left; badge = '<span class="text-rose-300">' + (c.paid > 0 ? sp('Partly paid') : sp('Owes')) + '</span>'; act = `<button onclick="openOwnerPay(${u.unit_id})" class="can-money px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold">${sp('Receive')}</button>`; } }
+            rows += soMonthRow(per, badge, amt, paid, left > 0.001 ? money_(left, u.currency) : '', act);
+        }
+    } else if (u.inclusive) {
+        rows = `<tr><td colspan="6" class="py-4 text-gray-400">${sp('The service charge is included in the rent.')}</td></tr>`;
     } else {
-        const inv = (currentInvoices || []).filter(i => i.unit_id === unitId && i.invoice_type === 'SERVICE' && String(i.issue_date || i.due_date || '').slice(0, 4) === String(yr));
-        rows = inv.map(i => { const left = Number(i.balance) || 0; return `<tr class="border-t border-[#182848]"><td class="py-1.5">${esc(i.invoice_number)}<div class="text-[10px] text-gray-500">${esc(String(i.due_date || '').slice(0, 10))}</div></td><td>${money(i.amount_due, i.currency)}</td><td class="text-emerald-300">${money(i.paid, i.currency)}</td><td class="${left > 0.001 ? 'text-rose-300' : 'text-gray-400'}">${money(left, i.currency)}</td><td class="text-right">${left > 0.001 ? `<button onclick="closeModal('modal-so-unit'); openPaymentModal(${i.invoice_id})" class="can-money px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold">${sp('Receive')}</button>` : '<span class="text-emerald-300">' + sp('Paid') + '</span>'}</td></tr>`; }).join('');
+        const inv = (currentInvoices || []).filter(i => i.unit_id === unitId && i.invoice_type === 'SERVICE' && String(i.period_month || '').slice(0, 4) === String(yr));
+        const byP = {}; inv.forEach(i => byP[i.period_month] = i);
+        const letSet = new Set(u.let_months || []);
+        for (let m = 1; m <= lastM; m++) {
+            const per = yr + '-' + String(m).padStart(2, '0'), i = byP[per]; let act = '', badge = '', amt = '', paid = '', left = 0;
+            if (!i) {
+                if (!letSet.has(per)) badge = '<span class="text-gray-500">' + sp('Not rented') + '</span>';
+                else { notBilled++; badge = '<span class="text-amber-300">' + sp('Not billed') + '</span>'; act = `<button onclick="soCreateBills(${unitId}, '${per}')" class="can-money px-2 py-0.5 rounded bg-indigo-600/30 text-indigo-200 border border-indigo-500/30 font-bold">${sp('Create bill')}</button>`; }
+            } else {
+                left = Number(i.balance) || 0; amt = money_(i.amount_due, i.currency); paid = money_(i.paid, i.currency);
+                if (left <= 0.001) { paidM++; badge = '<span class="text-emerald-300">' + sp('Paid') + '</span>'; }
+                else { oweM++; owedAmt += left; badge = '<span class="text-rose-300">' + (Number(i.paid) > 0 ? sp('Partly paid') : sp('Owes')) + '</span>'; act = `<button onclick="closeModal('modal-so-unit'); openPaymentModal(${i.invoice_id})" class="can-money px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold">${sp('Receive')}</button>`; }
+            }
+            rows += soMonthRow(per, badge, amt, paid, left > 0.001 ? money_(left, i && i.currency) : '', act);
+        }
+        const ids = new Set(inv.map(i => i.invoice_id));
+        const pr = await api(`/api/payments?from=${yr}-01-01&to=${yr}-12-31`);
+        if (pr.ok) payList = pr.data.filter(p => ids.has(p.invoice_id));
     }
-    document.getElementById('su-rows').innerHTML = rows || `<tr><td colspan="5" class="py-4 text-gray-500">${sp('No service charge bills for this unit in this year.')}</td></tr>`;
+    const cc = u.state === 'OWNER_LIVES' ? u.currency : cur;
+    document.getElementById('su-tiles').innerHTML = soTile('Months paid', paidM, 'text-emerald-400', `${sp('of')} ${lastM}`) + soTile('Months owed', oweM, oweM ? 'text-rose-400' : 'text-gray-300', oweM ? money_(owedAmt, cc) : '') + soTile('Not billed', notBilled, notBilled ? 'text-amber-300' : 'text-gray-300') + soTile('Payments made', u.state === 'OWNER_LIVES' ? (u.charges || []).filter(c => c.paid > 0).length : payList.length, '', money_(u.paid, cc) + ' ' + sp('collected'));
+    document.getElementById('su-bill-all').innerHTML = notBilled > 0 && u.state !== 'OWNER_LIVES' ? `<button onclick="soCreateBills(${unitId})" class="can-money w-full mb-3 bg-indigo-600 hover:bg-indigo-700 py-2 rounded-xl text-white font-bold text-xs">${sp('Create all missing bills')} (${notBilled})</button>` : (notBilled > 0 ? `<p class="text-[11px] text-amber-300 mb-3">${sp('Use "Bill owners" to create the missing bills.')}</p>` : '');
+    document.getElementById('su-rows').innerHTML = rows || `<tr><td colspan="6" class="py-4 text-gray-500">${sp('No months to show yet.')}</td></tr>`;
+    document.getElementById('su-pays').innerHTML = payList.length ? `<div class="text-[11px] font-bold text-gray-400 uppercase mt-4 mb-1">${sp('Payments received')}</div><table class="w-full text-[11px] text-gray-300"><tbody>` + payList.map(p => `<tr class="border-t border-[#182848]"><td class="py-1">${esc(String(p.payment_date).slice(0, 10))}</td><td>${esc(p.invoice_number)}</td><td class="text-emerald-300">${money(p.amount_paid, p.currency)}</td><td class="text-gray-500">${esc(p.receipt_number || '')}</td></tr>`).join('') + '</tbody></table>' : '';
     openModal('modal-so-unit'); applyRoleUI();
+}
+function soMonthRow(per, badge, amt, paid, left, act) {
+    const m = Number(per.slice(5, 7)) - 1;
+    return `<tr class="border-t border-[#182848]"><td class="py-1.5 font-bold text-white">${sp(SO_MON[m])}</td><td>${amt}</td><td class="text-emerald-300">${paid}</td><td class="text-rose-300">${left}</td><td>${badge}</td><td class="text-right">${act}</td></tr>`;
 }
