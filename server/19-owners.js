@@ -23,11 +23,42 @@ module.exports = function (ctx) {
              WHERE o.company_id = $1 GROUP BY o.owner_id ${having} ORDER BY o.full_name`, params);
         res.json(r.rows);
     }));
+    // give a set of units to an owner (and release the ones no longer listed). items: [{unit_id, occupancy_type}]
+    async function syncOwnerUnits(req, ownerId, b) {
+        const cId = req.user.company_id;
+        const items = (Array.isArray(b.units) ? b.units : []).map(i => ({ id: parseInt(i.unit_id), live: i.occupancy_type === 'OWNER_LIVES' })).filter(i => i.id > 0);
+        const ids = [...new Set(items.map(i => i.id))];
+        const rows = ids.length ? (await pool.query(
+            `SELECT u.unit_id, u.unit_number, u.property_id, EXISTS (SELECT 1 FROM leases l WHERE l.unit_id = u.unit_id AND l.lease_state = 'CURRENT') AS has_tenant
+             FROM units u WHERE u.company_id = $1 AND u.unit_id = ANY($2::int[])`, [cId, ids])).rows : [];
+        if (rows.length !== ids.length) return { error: 'Some units were not found.' };
+        const reach = scoped(req) ? (req.user.scope.length ? req.user.scope : [0]) : null;
+        const by = new Map(rows.map(r => [r.unit_id, r]));
+        for (const r of rows) if (reach && !reach.includes(r.property_id)) return { error: 'You cannot change units of that project.' };
+        for (const i of items) if (i.live && by.get(i.id).has_tenant) return { error: 'Unit ' + by.get(i.id).unit_number + ' has a tenant, so the owner cannot live there.' };
+        const svc = b.service_charge !== undefined && b.service_charge !== '' && b.service_charge !== null ? parseFloat(b.service_charge) : null;
+        if (svc !== null && !(svc >= 0)) return { error: 'Invalid service charge.' };
+        const cur = ['TZS', 'USD'].includes(String(b.service_currency || '').toUpperCase()) ? String(b.service_currency).toUpperCase() : null;
+        for (const i of items) {
+            await pool.query(`UPDATE units SET owner_id = $1, occupancy_type = $2, service_charge = COALESCE($3, service_charge), service_currency = CASE WHEN $3::numeric IS NOT NULL THEN COALESCE($4, service_currency) ELSE service_currency END WHERE unit_id = $5 AND company_id = $6`,
+                [ownerId, i.live ? 'OWNER_LIVES' : 'LET', svc, cur, i.id, cId]);
+        }
+        const rel = [ownerId, cId, ids.length ? ids : [0]]; let relSql = '';
+        if (reach) { rel.push(reach); relSql = ' AND property_id = ANY($4::int[])'; }
+        await pool.query(`UPDATE units SET owner_id = NULL, occupancy_type = 'LET' WHERE owner_id = $1 AND company_id = $2 AND unit_id <> ALL($3::int[])${relSql}`, rel);
+        return { count: ids.length };
+    }
     app.post('/api/owners', authenticateToken, requireFeature('org'), allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
         const o = readOwner(req.body); if (o.error) return res.status(400).json({ error: o.error });
         const r = await pool.query('INSERT INTO owners (company_id, full_name, phone_number, email, notes) VALUES ($1, $2, $3, $4, $5) RETURNING owner_id', [req.user.company_id, o.v.full_name, o.v.phone_number, o.v.email, o.v.notes]);
         await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Added owner', 'UNITS', req.ip, { name: o.v.full_name });
-        res.status(201).json({ message: 'Owner added.', owner_id: r.rows[0].owner_id });
+        let msg = 'Owner added.';
+        if (Array.isArray(req.body.units)) {
+            const x = await syncOwnerUnits(req, r.rows[0].owner_id, req.body);
+            if (x.error) return res.status(201).json({ message: 'Owner added, but the units were not saved: ' + x.error, owner_id: r.rows[0].owner_id, warning: x.error });
+            if (x.count) msg = 'Owner added with ' + x.count + ' unit(s).';
+        }
+        res.status(201).json({ message: msg, owner_id: r.rows[0].owner_id });
     }));
     // a person limited to some projects may only change owners that have a unit in those projects
     async function ownerInReach(req, res) {
@@ -43,6 +74,10 @@ module.exports = function (ctx) {
         const o = readOwner(req.body); if (o.error) return res.status(400).json({ error: o.error });
         const r = await pool.query('UPDATE owners SET full_name = $1, phone_number = $2, email = $3, notes = $4 WHERE owner_id = $5 AND company_id = $6 RETURNING owner_id', [o.v.full_name, o.v.phone_number, o.v.email, o.v.notes, req.params.id, req.user.company_id]);
         if (!r.rows.length) return res.status(404).json({ error: 'Owner not found.' });
+        if (Array.isArray(req.body.units)) {
+            const x = await syncOwnerUnits(req, parseInt(req.params.id), req.body);
+            if (x.error) return res.status(400).json({ error: 'Owner saved, but the units were not changed: ' + x.error });
+        }
         res.json({ message: 'Owner saved.' });
     }));
     app.delete('/api/owners/:id', authenticateToken, requireFeature('org'), allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
