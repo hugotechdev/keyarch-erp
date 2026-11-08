@@ -3,12 +3,14 @@
 // ============================================================
 
 let SO_UNITS = {};
-async function billOwners() {
+function billOwners() { document.getElementById('bo-year').innerText = document.getElementById('so-year').value; document.querySelector('input[name="bo-mode"][value="1"]').checked = true; openModal('modal-bill-owners'); }
+async function runBillOwners(e) {
+    e.preventDefault();
     const yr = document.getElementById('so-year').value;
-    const ans = (prompt('Bill owners who live in their units.\nType 1 = this month only, 2 = every month of ' + yr + ' so far.', '1') || '').trim();
-    if (ans !== '1' && ans !== '2') return;
+    const mode = document.querySelector('input[name="bo-mode"]:checked').value;
     const d = new Date(); const mo = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-    const r = await api('/api/owner-charges/generate', 'POST', ans === '1' ? { month: mo } : { year: Number(yr) });
+    const r = await api('/api/owner-charges/generate', 'POST', mode === '1' ? { month: mo } : { year: Number(yr) });
+    closeModal('modal-bill-owners');
     alert(r.ok ? r.data.message : (r.data.error || 'Failed'));
     if (r.ok) loadSvcOwners();
 }
@@ -57,36 +59,35 @@ function fillOwnerSelects(bulk) {
         if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
     });
 }
-async function onOwnerSelect(sel) {
-    if (sel.value !== '__NEW__') return;
-    const name = (prompt('Owner full name') || '').trim();
-    if (!name) { sel.value = ''; return; }
-    const phone = (prompt('Owner phone (optional)') || '').trim();
-    const r = await api('/api/owners', 'POST', { full_name: name, phone_number: phone });
-    if (!r.ok) { alert(r.data.error || 'Failed'); sel.value = ''; return; }
-    await loadOwners();
-    sel.value = r.data.owner_id || (ownersData.find(o => o.full_name === name) || {}).owner_id || '';
+let SO_SEL = null;
+function onOwnerSelect(sel) { if (sel.value !== '__NEW__') return; openOwnerForm(null, sel); }
+function openOwnerForm(id, sel) {
+    SO_SEL = sel || null;
+    const o = id ? ownersData.find(x => String(x.owner_id) === String(id)) : null;
+    document.getElementById('of-title').innerText = o ? 'Edit owner' : 'New owner';
+    document.getElementById('of-id').value = o ? o.owner_id : '';
+    document.getElementById('of-name').value = o ? o.full_name : '';
+    document.getElementById('of-phone').value = o ? (o.phone_number || '') : '';
+    openModal('modal-owner-form');
 }
-async function manageOwners() {
+function closeOwnerForm() { closeModal('modal-owner-form'); if (SO_SEL) { SO_SEL.value = ''; SO_SEL = null; } }
+async function saveOwnerForm(e) {
+    e.preventDefault();
+    const id = document.getElementById('of-id').value;
+    const body = { full_name: document.getElementById('of-name').value.trim(), phone_number: document.getElementById('of-phone').value.trim() };
+    if (!body.full_name) return;
+    const r = id ? await api('/api/owners/' + id, 'PUT', body) : await api('/api/owners', 'POST', body);
+    if (!r.ok) return alert(r.data.error || 'Failed');
     await loadOwners();
-    const r = ownersData;
-    const lines = r.map(o => `${o.owner_id}: ${o.full_name}${o.phone_number ? ' (' + o.phone_number + ')' : ''}`).join('\n') || '-';
-    const act = (prompt('Owners:\n' + lines + '\n\nType a number to rename that owner, or type NEW to add one.') || '').trim();
-    if (!act) return;
-    if (act.toUpperCase() === 'NEW') { const sel = { value: '__NEW__' }; await onOwnerSelect(sel); }
-    else {
-        const o = r.find(x => String(x.owner_id) === act); if (!o) return alert('Owner not found.');
-        const name = (prompt('Owner name', o.full_name) || '').trim(); if (!name) return;
-        const phone = (prompt('Owner phone', o.phone_number || '') || '').trim();
-        const x = await api('/api/owners/' + o.owner_id, 'PUT', { full_name: name, phone_number: phone });
-        if (!x.ok) return alert(x.data.error || 'Failed'); await loadOwners();
-    }
+    if (SO_SEL) { SO_SEL.value = (r.data && r.data.owner_id) || (ownersData.find(o => o.full_name === body.full_name) || {}).owner_id || ''; SO_SEL = null; }
+    closeModal('modal-owner-form');
     if (currentPage === 'svcowners') loadSvcOwners();
 }
 async function removeOwner(id) {
     if (!confirm('Delete this owner?')) return;
     const r = await api('/api/owners/' + id, 'DELETE');
     if (!r.ok) return alert(r.data.error || 'Failed');
+    closeModal('modal-owner-detail'); SO_OPEN = null;
     await loadOwners(); loadSvcOwners();
 }
 function initSvcYear() {
@@ -95,6 +96,86 @@ function initSvcYear() {
     for (let i = y; i >= y - 3; i--) sel.insertAdjacentHTML('beforeend', `<option value="${i}">${i}</option>`);
 }
 const SO_STATE = { TENANT: ['Rented', 'text-emerald-300 bg-emerald-900/30'], VACANT: ['Vacant', 'text-amber-300 bg-amber-900/30'], OWNER_LIVES: ['Owner lives here', 'text-blue-300 bg-blue-900/30'] };
+let SO_GROUPS = [], SO_TAB = 'owners', SO_FILTER = 'all', SO_OPEN = null;
+const sp = (t) => `<span>${t}</span>`;
+function soCur(totals, key) {
+    const out = ['TZS', 'USD'].filter(c => totals[c] && totals[c][key] > 0.001).map(c => money(totals[c][key], c));
+    return out.length ? out.join(' + ') : money(0, 'TZS');
+}
+function soTile(label, value, cls, sub) {
+    return `<div class="p-3 rounded-xl bg-[#0d172d] border border-[#182848]"><div class="text-[10px] uppercase text-gray-500">${sp(label)}</div><div class="text-sm font-black ${cls || 'text-white'} mt-0.5">${value}</div>${sub ? `<div class="text-[10px] text-gray-500 mt-0.5">${sub}</div>` : ''}</div>`;
+}
+function soChips(c) {
+    return `<span class="px-2 py-0.5 rounded-full bg-emerald-900/30 text-emerald-300">${c.let || 0} ${sp('rented')}</span><span class="px-2 py-0.5 rounded-full bg-amber-900/30 text-amber-300">${c.vacant || 0} ${sp('vacant')}</span><span class="px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-300">${c.lives || 0} ${sp('lives')}</span>`;
+}
+function soTab(t) { SO_TAB = t; SO_FILTER = 'all'; const q = document.getElementById('so-q'); if (q) q.value = ''; soPaint(); }
+function soFilter(f) { SO_FILTER = f; soPaint(); }
+function soGroupName(g) { return g.owner_id ? g.owner_name : companyLabel(); }
+function soUnitStatus(u, g) {
+    if (u.state === 'VACANT') return [g.owner_id ? '<span class="text-gray-400">' + sp('Not recorded') + '</span>' : '<span class="text-gray-400">' + sp('Company cost (info)') + '</span>', 'none'];
+    if (u.inclusive) return ['<span class="text-gray-400">' + sp('Included in rent') + '</span>', 'none'];
+    if (u.state === 'OWNER_LIVES' && !(u.charges || []).length) return ['<span class="text-amber-300">' + sp('Not billed yet') + '</span>', 'owing'];
+    if (u.owed > 0.001) {
+        let h = `<span class="text-rose-300">${sp('Owes')} ${money(u.owed, u.invoice_currency || u.currency)}</span>`;
+        if (u.state === 'OWNER_LIVES') h += ` <button onclick="openOwnerPay(${u.unit_id})" class="can-money ml-1 px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold">${sp('Receive')}</button>`;
+        return [h, 'owing'];
+    }
+    if (u.invoiced > 0.001) return ['<span class="text-emerald-300">' + sp('Paid') + '</span>', 'paid'];
+    return ['<span class="text-gray-400">' + sp('Up to date') + '</span>', 'paid'];
+}
+function soUnitRows(g) {
+    return g.units.map(u => {
+        const st = SO_STATE[u.state] || SO_STATE.VACANT; SO_UNITS[u.unit_id] = u;
+        const who = u.state === 'TENANT' && u.tenant_name ? ` · ${esc(u.tenant_name)}` : '';
+        return `<tr class="border-t border-[#182848]"><td class="py-1.5 pr-2 text-white">${esc(u.property_name)} · ${esc(u.unit_number)}<span class="text-gray-500">${who}</span></td><td class="py-1.5 pr-2 whitespace-nowrap">${money(u.service_charge, u.currency)}</td><td class="py-1.5 pr-2"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${st[1]}">${sp(st[0])}</span></td><td class="py-1.5 text-right whitespace-nowrap">${soUnitStatus(u, g)[0]}</td></tr>`;
+    }).join('');
+}
+function soPaint() {
+    const box = document.getElementById('so-list'), sum = document.getElementById('so-summary'), bar = document.getElementById('so-bar');
+    if (!box) return;
+    document.querySelectorAll('.so-tab').forEach(b => { const on = b.dataset.t === SO_TAB; b.className = 'so-tab border ' + (on ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-[#14223d] text-gray-300 border-[#233863]'); });
+    const q = ((document.getElementById('so-q') || {}).value || '').trim().toLowerCase();
+    const owners = SO_GROUPS.filter(g => g.owner_id), comp = SO_GROUPS.find(g => !g.owner_id) || { units: [], totals: {}, counts: {} };
+    const emptyMsg = (t) => `<div class="text-xs text-gray-500 p-4">${sp(t)}</div>`;
+    if (SO_TAB === 'owners') {
+        const unitsOwners = owners.reduce((n, g) => n + g.units.length, 0);
+        const owedAll = {}; owners.forEach(g => ['TZS', 'USD'].forEach(c => { if (g.totals[c]) { owedAll[c] = owedAll[c] || { owed: 0 }; owedAll[c].owed += g.totals[c].owed; } }));
+        sum.innerHTML = soTile('Owners', owners.length) + soTile('Units sold to owners', unitsOwners) + soTile('Company units', comp.units.length) + soTile('Owed by owners', soCur(owedAll, 'owed'), 'text-rose-400');
+        bar.innerHTML = `<input id="so-q" oninput="soPaint()" value="${esc(q)}" class="inp" placeholder="Search owner or phone...">`;
+        const list = owners.filter(g => !q || (g.owner_name || '').toLowerCase().includes(q) || (g.owner_phone || '').toLowerCase().includes(q));
+        const left = list.length ? list.map(g => `<button onclick="soDetail('${g.owner_id}')" class="w-full text-left bg-[#0d172d] border border-[#182848] hover:border-indigo-500/50 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-2">
+            <div><div class="text-sm font-black text-white">${esc(g.owner_name)}</div><div class="text-[11px] text-gray-500">${esc(g.owner_phone || '')}</div></div>
+            <div class="flex flex-wrap items-center gap-1.5 text-[10px] font-bold"><span class="px-2 py-0.5 rounded-full bg-indigo-900/40 text-indigo-300">${g.units.length} ${sp('units')}</span>${soChips(g.counts)}</div>
+            <div class="text-right"><div class="text-[10px] uppercase text-gray-500">${sp('Owes')}</div><div class="text-xs font-black ${soCur(g.totals, 'owed') !== money(0, 'TZS') ? 'text-rose-400' : 'text-gray-300'}">${soCur(g.totals, 'owed')}</div></div></button>`).join('') : emptyMsg(owners.length ? 'No owner matches your search.' : 'No owners yet. Tap "Add owner" to start.');
+        box.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4"><div class="lg:col-span-2 space-y-2">${left}</div>
+            <div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-4 space-y-3 h-fit"><div><div class="text-[10px] uppercase text-gray-500">${sp('Company units')}</div><div class="text-sm font-black text-white">${esc(companyLabel())}</div><div class="text-[11px] text-gray-500">${sp('Developer units not sold.')}</div></div>
+            <div class="text-2xl font-black text-white">${comp.units.length} <span class="text-xs font-bold text-gray-500">${sp('units')}</span></div>
+            <div class="flex flex-wrap gap-1.5 text-[10px] font-bold">${soChips(comp.counts || {})}</div>
+            <button onclick="soDetail('COMPANY')" class="w-full bg-[#14223d] border border-[#233863] text-gray-200 text-xs font-bold py-2 rounded-xl">${sp('View units')}</button></div></div>`;
+    } else {
+        const all = []; SO_GROUPS.forEach(g => g.units.forEach(u => { const st = soUnitStatus(u, g); all.push({ g, u, st }); }));
+        const tot = {}; SO_GROUPS.forEach(g => ['TZS', 'USD'].forEach(c => { if (g.totals[c]) { tot[c] = tot[c] || { invoiced: 0, paid: 0, owed: 0 }; ['invoiced', 'paid', 'owed'].forEach(k => tot[c][k] += g.totals[c][k]); } }));
+        const nOwing = all.filter(x => x.st[1] === 'owing').length, nPaid = all.filter(x => x.st[1] === 'paid').length;
+        sum.innerHTML = soTile('Invoiced', soCur(tot, 'invoiced')) + soTile('Collected', soCur(tot, 'paid'), 'text-emerald-400') + soTile('Owed', soCur(tot, 'owed'), 'text-rose-400') + soTile('Units paid', nPaid, 'text-emerald-400', `${nOwing} <span>owing</span>`);
+        const chip = (f, l) => `<button onclick="soFilter('${f}')" class="px-3 py-1.5 rounded-full text-[11px] font-bold border ${SO_FILTER === f ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-[#14223d] text-gray-300 border-[#233863]'}">${sp(l)}</button>`;
+        bar.innerHTML = `<div class="flex flex-wrap items-center gap-2"><input id="so-q" oninput="soPaint()" value="${esc(q)}" class="inp" style="max-width:260px" placeholder="Search unit or owner...">${chip('all', 'All')}${chip('owing', 'Owing')}${chip('paid', 'Paid')}</div>`;
+        const rows = all.filter(x => (SO_FILTER === 'all' || x.st[1] === SO_FILTER) && (!q || (x.u.property_name + ' ' + x.u.unit_number + ' ' + soGroupName(x.g) + ' ' + (x.u.tenant_name || '')).toLowerCase().includes(q)));
+        box.innerHTML = rows.length ? `<div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-4 overflow-x-auto"><table class="w-full text-[11px] text-gray-300"><thead><tr class="text-gray-500 text-left"><th class="pb-1">${sp('Unit')}</th><th class="pb-1">${sp('Owner')}</th><th class="pb-1">${sp('Service charge')}</th><th class="pb-1">${sp('Collected')}</th><th class="pb-1 text-right">${sp('Status')}</th></tr></thead><tbody>` +
+            rows.map(({ g, u, st }) => { SO_UNITS[u.unit_id] = u; const cc = u.state === 'OWNER_LIVES' ? u.invoice_currency : (u.invoice_currency || u.currency);
+                return `<tr class="border-t border-[#182848]"><td class="py-1.5 pr-2 text-white">${esc(u.property_name)} · ${esc(u.unit_number)}</td><td class="py-1.5 pr-2">${esc(soGroupName(g))}</td><td class="py-1.5 pr-2 whitespace-nowrap">${money(u.service_charge, u.currency)}</td><td class="py-1.5 pr-2 whitespace-nowrap">${money(u.paid, cc)}</td><td class="py-1.5 text-right whitespace-nowrap">${st[0]}</td></tr>`; }).join('') + '</tbody></table></div>' : emptyMsg('No units to show.');
+    }
+    applyRoleUI();
+}
+function soDetail(id) {
+    SO_OPEN = id; const g = SO_GROUPS.find(x => id === 'COMPANY' ? !x.owner_id : String(x.owner_id) === String(id));
+    if (!g) { closeModal('modal-owner-detail'); return; }
+    document.getElementById('od-name').innerText = soGroupName(g);
+    document.getElementById('od-phone').innerHTML = g.owner_id ? esc(g.owner_phone || '') : sp('Developer / company');
+    document.getElementById('od-actions').innerHTML = g.owner_id ? `<button onclick="openOwnerForm(${g.owner_id})" class="can-manage text-indigo-300 px-2"><i class="fa-solid fa-pen"></i></button><button onclick="removeOwner(${g.owner_id})" class="can-manage text-rose-400 px-2"><i class="fa-solid fa-trash"></i></button>` : '';
+    document.getElementById('od-tiles').innerHTML = soTile('Units', g.units.length, '', `<span class="flex flex-wrap gap-1 mt-1 font-bold">${soChips(g.counts)}</span>`) + soTile('Invoiced', soCur(g.totals, 'invoiced')) + soTile('Collected', soCur(g.totals, 'paid'), 'text-emerald-400') + soTile('Owed', soCur(g.totals, 'owed'), 'text-rose-400');
+    document.getElementById('od-units').innerHTML = g.units.length ? soUnitRows(g) : `<tr><td class="py-3 text-gray-500">${sp('No units yet.')}</td></tr>`;
+    openModal('modal-owner-detail'); applyRoleUI();
+}
 async function loadSvcOwners() {
     if (!orgOn()) return;
     initSvcYear();
@@ -103,30 +184,9 @@ async function loadSvcOwners() {
     const box = document.getElementById('so-list');
     const r = await api('/api/service-owners?year=' + yr);
     if (!r.ok) { box.innerHTML = `<div class="text-xs text-rose-300">${esc(r.data.error || 'Failed')}</div>`; return; }
-    const list = r.data.owners || [];
-    if (!list.length) { box.innerHTML = '<div class="text-xs text-gray-500 p-4">No units yet.</div>'; return; }
-    const cur = (t) => ['TZS', 'USD'].filter(c => t[c] && (t[c].recorded || t[c].not_recorded || t[c].invoiced || t[c].paid || t[c].owed));
-    const stat = (label, v, cls) => `<div class="p-2.5 rounded-xl bg-[#0d172d] border border-[#182848]"><div class="text-[10px] uppercase text-gray-500"><span>${label}</span></div><div class="text-xs font-black ${cls || 'text-white'}">${v}</div></div>`;
-    box.innerHTML = list.map(o => {
-        const name = o.owner_id ? o.owner_name : companyLabel();
-        const c = o.counts || {};
-        const tot = cur(o.totals || {}).map(k => { const t = o.totals[k]; return `<div class="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-2">${stat('Expected (' + k + ')', money(t.recorded, k))}${stat('Not recorded', money(t.not_recorded, k), 'text-gray-400')}${stat('Invoiced', money(t.invoiced, k))}${stat('Collected', money(t.paid, k), 'text-emerald-400')}${stat('Owed', money(t.owed, k), t.owed > 0 ? 'text-rose-400' : 'text-gray-300')}</div>`; }).join('');
-        const rows = o.units.map(u => {
-            const st = SO_STATE[u.state] || SO_STATE.VACANT;
-            const who = u.state === 'TENANT' && u.tenant_name ? ` · ${esc(u.tenant_name)}` : '';
-            SO_UNITS[u.unit_id] = u;
-            let note = u.state === 'VACANT' ? (o.owner_id ? 'Not recorded' : 'Company cost (info)') : (u.inclusive ? 'Included in rent' : (u.owed > 0 ? 'Owes ' + money(u.owed, u.invoice_currency || u.currency) : 'Up to date'));
-            if (u.state === 'OWNER_LIVES') {
-                if (!(u.charges || []).length) note = '<span class="text-amber-300">Not billed yet</span>';
-                else if (u.owed > 0) note += ` <button onclick="openOwnerPay(${u.unit_id})" class="can-money ml-1 px-2 py-0.5 rounded bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold">Receive</button>`;
-            }
-            return `<tr class="border-t border-[#182848]"><td class="py-1.5 pr-2 text-white">${esc(u.property_name)} · ${esc(u.unit_number)}<span class="text-gray-500">${who}</span></td><td class="py-1.5 pr-2 whitespace-nowrap">${money(u.service_charge, u.currency)}</td><td class="py-1.5 pr-2"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${st[1]}">${st[0]}</span></td><td class="py-1.5 text-right whitespace-nowrap ${u.owed > 0 ? 'text-rose-300' : 'text-gray-400'}">${note}</td></tr>`;
-        }).join('');
-        return `<div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-4 space-y-3">
-            <div class="flex flex-wrap items-center justify-between gap-2"><div><div class="text-sm font-black text-white">${esc(name)}</div><div class="text-[11px] text-gray-500">${o.owner_id ? esc(o.owner_phone || '') : '<span>Developer / company</span>'}</div></div>
-            <div class="flex items-center gap-2 text-[10px] font-bold"><span class="px-2 py-1 rounded-full bg-emerald-900/30 text-emerald-300">${c.let || 0} <span>rented</span></span><span class="px-2 py-1 rounded-full bg-amber-900/30 text-amber-300">${c.vacant || 0} <span>vacant</span></span><span class="px-2 py-1 rounded-full bg-blue-900/30 text-blue-300">${c.lives || 0} <span>lives</span></span>${o.owner_id ? `<button onclick="removeOwner(${o.owner_id})" class="can-manage text-rose-400 px-2"><i class="fa-solid fa-trash"></i></button>` : ''}</div></div>
-            ${tot}
-            <div class="overflow-x-auto"><table class="w-full text-[11px] text-gray-300"><thead><tr class="text-gray-500 text-left"><th class="pb-1"><span>Unit</span></th><th class="pb-1"><span>Service charge</span></th><th class="pb-1"><span>State</span></th><th class="pb-1 text-right"><span>Status</span></th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
-    }).join('');
-    applyRoleUI();
+    SO_GROUPS = (r.data.owners || []).slice();
+    ownersData.forEach(o => { if (!SO_GROUPS.some(g => String(g.owner_id) === String(o.owner_id))) SO_GROUPS.push({ owner_id: o.owner_id, owner_name: o.full_name, owner_phone: o.phone_number, units: [], totals: {}, counts: { let: 0, vacant: 0, lives: 0 } }); });
+    SO_GROUPS.sort((a, b) => (a.owner_name || '').localeCompare(b.owner_name || ''));
+    soPaint();
+    if (SO_OPEN && document.getElementById('modal-owner-detail').style.display === 'flex') soDetail(SO_OPEN);
 }
