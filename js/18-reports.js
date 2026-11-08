@@ -20,7 +20,7 @@ function buildReportChips() {
     const box = document.getElementById('rp-chips'); if (!box) return;
     box.innerHTML = REPORT_CHIPS.filter(c => reportTypes.some(t => t.key === c[0])).map(c => {
         const locked = (reportTypes.find(t => t.key === c[0]) || {}).locked;
-        return `<button type="button" data-rp="${c[0]}" onclick="pickReport('${c[0]}')" class="rp-chip px-3 py-2 rounded-xl border border-[#233863] bg-[#14223d] text-xs font-bold text-gray-300 hover:text-white"><i class="fa-solid ${c[1]}"></i> ${c[2]}${locked ? ' <span class="text-[9px] px-1 rounded bg-indigo-600/40 text-indigo-200">PRO</span>' : ''}</button>`;
+        return `<button type="button" data-rp="${c[0]}" onclick="pickReport('${c[0]}')" class="rp-chip"><span class="rp-ico"><i class="fa-solid ${c[1]}"></i></span><span class="rp-txt">${c[2]}</span>${locked ? '<span class="rp-pro">PRO</span>' : ''}</button>`;
     }).join('');
 }
 function pickReport(key) {
@@ -29,7 +29,7 @@ function pickReport(key) {
 }
 function onReportType() {
     const cur = document.getElementById('rp-type').value;
-    document.querySelectorAll('.rp-chip').forEach(b => b.classList.toggle('ka-kpi-on', b.dataset.rp === cur));
+    document.querySelectorAll('.rp-chip').forEach(b => b.classList.toggle('rp-on', b.dataset.rp === cur));
     const t = reportTypes.find(x => x.key === cur);
     document.getElementById('rp-desc').innerText = t ? (t.description || '') + (t.locked ? ' — Pro plan only.' : '') : '';
 }
