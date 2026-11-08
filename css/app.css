@@ -324,3 +324,16 @@
             html[data-theme="dark"] { background-color: #151617; }
             html[data-theme="dark"] header.sticky { background-color: #151617 !important; }
         }
+
+/* ---- report type buttons: each has its own colour, the chosen one is filled ---- */
+.rp-chip { --c: #3b82f6; display: inline-flex; align-items: center; gap: .5rem; padding: .45rem .8rem .45rem .45rem; border-radius: 999px; border: 1.5px solid color-mix(in srgb, var(--c) 35%, transparent); background: color-mix(in srgb, var(--c) 10%, transparent); color: inherit; font-size: .75rem; font-weight: 700; cursor: pointer; transition: transform .12s, box-shadow .12s, background .12s; }
+.rp-chip:hover { transform: translateY(-1px); background: color-mix(in srgb, var(--c) 20%, transparent); }
+.rp-chip .rp-ico { width: 1.7rem; height: 1.7rem; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--c) 22%, transparent); color: var(--c); font-size: .72rem; }
+.rp-chip .rp-pro { font-size: 9px; padding: 1px 5px; border-radius: 6px; background: rgba(99,102,241,.4); color: #c7d2fe; }
+.rp-chip.rp-on { background: var(--c); border-color: var(--c); color: #fff; box-shadow: 0 6px 16px -6px var(--c); }
+.rp-chip.rp-on .rp-ico { background: rgba(255,255,255,.25); color: #fff; }
+.rp-chip[data-rp="service"] { --c: #0891b2; }
+.rp-chip[data-rp="outstanding"] { --c: #e11d48; }
+.rp-chip[data-rp="maintenance"] { --c: #d97706; }
+.rp-chip[data-rp="property_income"] { --c: #059669; }
+.rp-chip[data-rp="summary"] { --c: #7c3aed; }
