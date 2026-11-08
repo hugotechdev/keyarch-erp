@@ -408,7 +408,7 @@ async function checkLimit(user, limitKey, countSql, what) {
 // Every step runs on its own: one problem never stops the others.
 // The Super Admin can also run it from Platform Admin > Run Database Setup.
 // ============================================================
-const SERVER_VERSION = 'v8.8 - 2026-11-08 - tenant history fix, password 8+, CORS, unit owners (Pro)';
+const SERVER_VERSION = 'v8.9 - 2026-11-08 - security review, owners guard, tenant history fix';
 
 const SETUP_STEPS = [
     { name: "Base columns (leases, users)", sql: `
@@ -3290,13 +3290,24 @@ app.post('/api/owners', authenticateToken, requireFeature('org'), allowRoles(...
     await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Added owner', 'UNITS', req.ip, { name: o.v.full_name });
     res.status(201).json({ message: 'Owner added.', owner_id: r.rows[0].owner_id });
 }));
+// a person limited to some projects may only change owners that have a unit in those projects
+async function ownerInReach(req, res) {
+    const id = parseInt(req.params.id);
+    if (!(id > 0)) { res.status(404).json({ error: 'Owner not found.' }); return false; }
+    if (!scoped(req)) return true;
+    const r = await pool.query('SELECT 1 FROM units WHERE owner_id = $1 AND company_id = $2 AND property_id = ANY($3::int[]) LIMIT 1', [id, req.user.company_id, req.user.scope.length ? req.user.scope : [0]]);
+    if (!r.rows.length) { res.status(404).json({ error: 'Owner not found.' }); return false; }
+    return true;
+}
 app.put('/api/owners/:id', authenticateToken, requireFeature('org'), allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
+    if (!(await ownerInReach(req, res))) return;
     const o = readOwner(req.body); if (o.error) return res.status(400).json({ error: o.error });
     const r = await pool.query('UPDATE owners SET full_name = $1, phone_number = $2, email = $3, notes = $4 WHERE owner_id = $5 AND company_id = $6 RETURNING owner_id', [o.v.full_name, o.v.phone_number, o.v.email, o.v.notes, req.params.id, req.user.company_id]);
     if (!r.rows.length) return res.status(404).json({ error: 'Owner not found.' });
     res.json({ message: 'Owner saved.' });
 }));
 app.delete('/api/owners/:id', authenticateToken, requireFeature('org'), allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
+    if (!(await ownerInReach(req, res))) return;
     const used = (await pool.query('SELECT COUNT(*) AS c FROM units WHERE owner_id = $1 AND company_id = $2', [req.params.id, req.user.company_id])).rows[0].c;
     if (parseInt(used) > 0) return res.status(400).json({ error: 'This owner still has units. Give those units to another owner first.' });
     const r = await pool.query('DELETE FROM owners WHERE owner_id = $1 AND company_id = $2 RETURNING owner_id', [req.params.id, req.user.company_id]);
