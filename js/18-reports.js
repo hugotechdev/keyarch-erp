@@ -92,5 +92,5 @@ async function runReport() {
 }
 function exportReport(fmt) {
     const d = document.getElementById('rp-from').value;
-    downloadFile(`/api/reports/export?${reportQuery()}&format=${fmt}`, `${document.getElementById('rp-type').value}-${d}.${fmt}`);
+    downloadFile(`/api/reports/export?${reportQuery()}&format=${fmt}&lang=${KA_LANG()}`, `${document.getElementById('rp-type').value}-${d}.${fmt}`);
 }
