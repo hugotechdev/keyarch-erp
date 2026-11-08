@@ -29,7 +29,11 @@ const pool = new Pool({
     ssl: (process.env.DATABASE_URL && process.env.DB_SSL !== 'false') ? { rejectUnauthorized: false } : false
 });
 
-app.use(cors());
+// CORS: the app is served from the same address, so only the listed sites may call the API from another origin.
+// Add more with the CORS_ORIGINS variable (comma separated). Requests with no Origin (same site, server tools) always pass.
+const CORS_ALLOWED = ['https://keyarch.site', 'https://www.keyarch.site']
+    .concat(String(process.env.CORS_ORIGINS || '').split(',').map(x => x.trim()).filter(Boolean));
+app.use(cors({ origin: (origin, cb) => cb(null, !origin || CORS_ALLOWED.includes(origin) || /^http:\/\/localhost(:\d+)?$/.test(origin)) }));
 app.use(express.json({ limit: '12mb' })); // 12mb: Luku stock files are sent as base64
 // Only these two files are public. Every other file in the project
 // (server.js, database.sql, package.json ...) stays private.
@@ -404,7 +408,7 @@ async function checkLimit(user, limitKey, countSql, what) {
 // Every step runs on its own: one problem never stops the others.
 // The Super Admin can also run it from Platform Admin > Run Database Setup.
 // ============================================================
-const SERVER_VERSION = 'v8.6 - 2026-11-08 - unit owners + service charge by owner (Pro)';
+const SERVER_VERSION = 'v8.7 - 2026-11-08 - password 8+, CORS closed, unit owners (Pro)';
 
 const SETUP_STEPS = [
     { name: "Base columns (leases, users)", sql: `
@@ -1163,7 +1167,7 @@ app.post('/api/auth/reset', forgotLimiter, async (req, res) => {
     try {
         const { token, password } = req.body || {};
         if (!token || !/^[a-f0-9]{64}$/.test(String(token))) return res.status(400).json({ error: 'This reset link is not valid.' });
-        if (!password || String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+        if (!password || String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
         const hash = crypto.createHash('sha256').update(String(token)).digest('hex');
         const row = (await pool.query('SELECT reset_id, user_id FROM password_resets WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()', [hash])).rows[0];
         if (!row) return res.status(400).json({ error: 'This reset link has expired or was already used. Please ask for a new one.' });
@@ -1953,7 +1957,7 @@ app.post('/api/auth/register-company', registerLimiter, async (req, res) => {
     if (!company_name || !admin_full_name || !email || !phone_number || !password) {
         return res.status(400).json({ error: 'Please fill in all required fields.' });
     }
-    if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    if (String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     let logo;
     try { logo = cleanLogo(req.body.logo_data); } catch (e) { return res.status(400).json({ error: e.message }); }
 
@@ -1994,7 +1998,7 @@ app.post('/api/auth/register-staff', authenticateToken, allowRoles('SUPER_ADMIN'
     const { full_name, email, password, role } = req.body;
     const allowed = ['PROPERTY_MANAGER', 'ACCOUNTANT', 'MAINTENANCE_MANAGER', 'VIEWER'];
     if (!full_name || !email || !password) return res.status(400).json({ error: 'Please fill in all required fields.' });
-    if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    if (String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     if (!allowed.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
     const staffLimit = await checkLimit(req.user, 'max_staff', "SELECT COUNT(*) FROM users WHERE company_id = $1 AND role <> 'COMPANY_ADMIN'", 'staff members');
     if (staffLimit) return res.status(403).json({ error: staffLimit, code: 'LIMIT_REACHED' });
@@ -3396,7 +3400,7 @@ app.delete('/api/workers/:id', authenticateToken, allowRoles(...R_TICKETS), wrap
 app.post('/api/users', authenticateToken, canManageTeam, wrapAsync(async (req, res) => {
     const { full_name, email, phone_number, password, role } = req.body;
     if (!full_name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required.' });
-    if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    if (String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     if (!ALL_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
     if (role === 'COMPANY_ADMIN' && !isAdminUser(req)) return res.status(403).json({ error: 'Only the company administrator can add another administrator.' });
     if (!/^\S+@\S+\.\S+$/.test(String(email).trim())) return res.status(400).json({ error: 'Please enter a valid email address.' });
@@ -3439,7 +3443,7 @@ app.put('/api/users/:id', authenticateToken, canManageTeam, wrapAsync(async (req
     if (!full_name) return res.status(400).json({ error: 'Name is required.' });
     if (!ALL_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
     if ((role === 'COMPANY_ADMIN' || target.role === 'COMPANY_ADMIN') && !isAdminUser(req)) return res.status(403).json({ error: 'Only the company administrator can do this.' });
-    if (password && String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    if (password && String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
 
     const isSelf = String(target.user_id) === String(req.user.user_id);
     if (isSelf && (role !== target.role || is_active === false)) return res.status(400).json({ error: 'You cannot change your own role or switch yourself off.' });
@@ -5158,7 +5162,7 @@ app.post('/api/platform/companies/:id/payments', authenticateToken, allowRoles('
 // set a new password for the owner of a company (they forgot it)
 app.post('/api/platform/companies/:id/reset-password', authenticateToken, allowRoles('SUPER_ADMIN'), async (req, res) => {
     const { password } = req.body;
-    if (!password || String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    if (!password || String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     try {
         const owner = (await pool.query(
             "SELECT user_id, email FROM users WHERE company_id = $1 AND role = 'COMPANY_ADMIN' ORDER BY user_id ASC LIMIT 1", [req.params.id]
