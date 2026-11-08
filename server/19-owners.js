@@ -1,7 +1,7 @@
 // OWNERS of units (developers sell units; buyers stay owners and keep paying service charge) - Pro
 // Part of the KEY ARCH server. server.js loads the parts in number order and shares what they need through ctx.
 module.exports = function (ctx) {
-    const { ALL_ROLES, R_MANAGE, R_MONEY, R_TICKETS, R_VIEW_MONEY, allowRoles, app, authenticateToken, bcrypt, canManageTeam, checkLimit, clearUserCache, createAuditLog, inScope, isAdminUser, pool, readAccessBody, requireFeature, saveUserProjects, scopeSql, scoped, teamBelow, wrapAsync } = ctx;
+    const { ALL_ROLES, R_MANAGE, R_MONEY, R_TICKETS, R_VIEW_MONEY, allowRoles, app, authenticateToken, bcrypt, canManageTeam, checkLimit, clearUserCache, createAuditLog, createInvoice, guard, inScope, monthLabel, isAdminUser, pool, readAccessBody, requireFeature, saveUserProjects, scopeSql, scoped, teamBelow, wrapAsync } = ctx;
 
 
 
@@ -160,6 +160,15 @@ module.exports = function (ctx) {
                                      AND COALESCE(l.end_date, DATE '9999-12-31') >= m::date))::int AS months_let,
                     (SELECT COUNT(*) FROM generate_series(make_date($2::int, 1, 1), make_date($2::int, 12, 1), interval '1 month') m
                        WHERE m::date <= date_trunc('month', CURRENT_DATE)::date)::int AS months_total,
+                    COALESCE((SELECT ARRAY_AGG(TO_CHAR(m, 'YYYY-MM') ORDER BY m) FROM generate_series(make_date($2::int, 1, 1), make_date($2::int, 12, 1), interval '1 month') m
+                       WHERE m::date <= date_trunc('month', CURRENT_DATE)::date
+                         AND EXISTS (SELECT 1 FROM leases l WHERE l.unit_id = u.unit_id AND l.start_date <= (m + interval '1 month - 1 day')::date
+                                     AND COALESCE(l.end_date, DATE '9999-12-31') >= m::date)), ARRAY[]::text[]) AS let_months,
+                    (SELECT COUNT(DISTINCT inv.period_start) FROM invoices inv JOIN leases l ON l.lease_id = inv.lease_id
+                      WHERE l.unit_id = u.unit_id AND inv.invoice_type = 'SERVICE' AND EXTRACT(YEAR FROM inv.period_start) = $2)::int AS months_billed,
+                    (SELECT COUNT(*) FROM invoices inv JOIN leases l ON l.lease_id = inv.lease_id
+                      WHERE l.unit_id = u.unit_id AND inv.invoice_type = 'SERVICE' AND EXTRACT(YEAR FROM inv.period_start) = $2
+                        AND inv.amount_due - COALESCE((SELECT SUM(py.amount_paid) FROM payments py WHERE py.invoice_id = inv.invoice_id), 0) > 0.001)::int AS months_unpaid,
                     COALESCE((SELECT SUM(inv.amount_due) FROM invoices inv JOIN leases l ON l.lease_id = inv.lease_id
                               WHERE l.unit_id = u.unit_id AND inv.invoice_type = 'SERVICE' AND EXTRACT(YEAR FROM inv.period_start) = $2), 0) AS invoiced,
                     COALESCE((SELECT SUM(py.amount_paid) FROM payments py JOIN invoices inv ON inv.invoice_id = py.invoice_id JOIN leases l ON l.lease_id = inv.lease_id
@@ -188,7 +197,7 @@ module.exports = function (ctx) {
                 invoiced = charges.reduce((x, c) => x + c.amount, 0); paid = charges.reduce((x, c) => x + c.paid, 0); invCur = r.svc_currency;
             }
             g.units.push({ unit_id: r.unit_id, unit_number: r.unit_number, property_id: r.property_id, property_name: r.property_name, service_charge: svc, currency: r.svc_currency, inclusive: r.service_inclusive,
-                state, tenant_name: r.tenant_name, months_let: r.months_let, months_total: r.months_total, recorded, not_recorded: notRec, invoiced, paid, owed: Math.max(0, invoiced - paid), invoice_currency: invCur, charges });
+                state, tenant_name: r.tenant_name, let_months: Array.isArray(r.let_months) ? r.let_months : String(r.let_months || '').replace(/[{}]/g, '').split(',').filter(Boolean), months_billed: r.months_billed, months_unpaid: r.months_unpaid, months_let: r.months_let, months_total: r.months_total, recorded, not_recorded: notRec, invoiced, paid, owed: Math.max(0, invoiced - paid), invoice_currency: invCur, charges });
             g.counts[state === 'TENANT' ? 'let' : state === 'VACANT' ? 'vacant' : 'lives']++;
             if (state === 'OWNER_LIVES') { add(g.totals, r.svc_currency, 'recorded', svc * r.months_total); }
             else add(g.totals, r.svc_currency, 'recorded', recorded);
@@ -197,6 +206,42 @@ module.exports = function (ctx) {
             add(g.totals, ic, 'invoiced', invoiced); add(g.totals, ic, 'paid', paid); add(g.totals, ic, 'owed', Math.max(0, invoiced - paid));
         }
         res.json({ year, owners: [...groups.values()] });
+    }));
+
+    // create the missing service-charge bills of ONE unit (months it was let, up to this month) for a year
+    app.post('/api/service-charges/generate-unit', authenticateToken, requireFeature('org'), allowRoles(...R_MONEY), wrapAsync(async (req, res) => {
+        const unitId = parseInt(req.body.unit_id);
+        if (!(unitId > 0)) return res.status(400).json({ error: 'Unit not found.' });
+        if (!(await guard(req, res, 'unit', unitId))) return;
+        const cId = req.user.company_id;
+        const year = Math.min(2100, Math.max(2000, parseInt(req.body.year) || new Date().getFullYear()));
+        const only = /^\d{4}-\d{2}$/.test(String(req.body.month || '')) ? String(req.body.month) : null;
+        const u = (await pool.query('SELECT unit_id, COALESCE(service_charge, 0) AS sc, COALESCE(service_inclusive, false) AS inc FROM units WHERE unit_id = $1 AND company_id = $2', [unitId, cId])).rows[0];
+        if (!u) return res.status(404).json({ error: 'Unit not found.' });
+        if (u.inc) return res.status(400).json({ error: 'The service charge of this unit is included in the rent.' });
+        if (!(parseFloat(u.sc) > 0)) return res.status(400).json({ error: 'This unit has no service charge. Set it first.' });
+        const now = new Date(); const last = year < now.getFullYear() ? 12 : (year === now.getFullYear() ? now.getMonth() + 1 : 0);
+        let created = 0, client;
+        try {
+            client = await pool.connect(); await client.query('BEGIN');
+            for (let mo = 1; mo <= last; mo++) {
+                const ym = year + '-' + String(mo).padStart(2, '0'); if (only && only !== ym) continue;
+                const start = ym + '-01', end = new Date(Date.UTC(year, mo, 0)).toISOString().slice(0, 10);
+                const l = (await client.query(
+                    `SELECT l.lease_id, COALESCE(l.service_amount, u.service_charge) AS amt, COALESCE(p.service_charge_label, 'Service charge') AS label
+                     FROM leases l JOIN units u ON u.unit_id = l.unit_id JOIN properties p ON p.property_id = u.property_id
+                     WHERE l.unit_id = $1 AND l.company_id = $2 AND l.start_date <= $4::date AND COALESCE(l.end_date, DATE '9999-12-31') >= $3::date
+                       AND NOT EXISTS (SELECT 1 FROM invoices i JOIN leases l2 ON l2.lease_id = i.lease_id WHERE l2.unit_id = $1 AND i.invoice_type = 'SERVICE' AND i.period_start = $3::date)
+                     ORDER BY l.start_date DESC LIMIT 1`, [unitId, cId, start, end])).rows[0];
+                if (!l || !(parseFloat(l.amt) > 0)) continue;
+                await createInvoice(client, { companyId: cId, leaseId: l.lease_id, type: 'SERVICE', subtotal: l.amt, discount: 0, description: `${l.label} - ${monthLabel(ym)}`,
+                    dueDate: year + '-' + String(mo).padStart(2, '0') + '-07', periodStart: start, periodEnd: end, leaseCharge: false, userId: req.user.user_id });
+                created++;
+            }
+            await createAuditLog(client, cId, req.user.user_id, 'Generated service charges for one unit', 'INVOICES', req.ip, { unit_id: unitId, year, created });
+            await client.query('COMMIT');
+            res.status(201).json({ message: created ? created + ' service charge bill(s) created.' : 'Nothing new to create. Every month is already billed.', created });
+        } catch (err) { if (client) await client.query('ROLLBACK'); res.status(400).json({ error: err.message }); } finally { if (client) client.release(); }
     }));
 
     app.get('/api/workers', authenticateToken, allowRoles(...R_TICKETS), wrapAsync(async (req, res) => {
