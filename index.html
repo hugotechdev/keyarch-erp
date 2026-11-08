@@ -814,7 +814,7 @@
                 </section>
 
                 <!-- ============ PAGE: SETTINGS ============ -->
-                <section id="page-svcowners" class="app-page hidden space-y-5">
+                <section id="page-svcowners" class="app-page hidden space-y-4">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <div>
                             <h3 class="text-base font-black text-white">Owners &amp; Service Charge</h3>
@@ -823,9 +823,15 @@
                         <div class="flex items-center gap-2">
                             <select id="so-year" onchange="loadSvcOwners()" class="inp" style="width:auto"></select>
                             <button onclick="billOwners()" class="can-money bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-file-invoice-dollar"></i> <span>Bill owners</span></button>
-                            <button onclick="manageOwners()" class="can-manage bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-user-plus"></i> <span>Owners</span></button>
+                            <button onclick="openOwnerForm()" class="can-manage bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-user-plus"></i> <span>Add owner</span></button>
                         </div>
                     </div>
+                    <div class="flex gap-2">
+                        <button data-t="owners" onclick="soTab('owners')" class="so-tab"><i class="fa-solid fa-user-tie"></i> <span>Owners</span></button>
+                        <button data-t="charge" onclick="soTab('charge')" class="so-tab"><i class="fa-solid fa-coins"></i> <span>Service charge</span></button>
+                    </div>
+                    <div id="so-summary" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+                    <div id="so-bar"></div>
                     <div id="so-list" class="space-y-4"></div>
                 </section>
 
@@ -1261,8 +1267,46 @@
         </div>
     </div>
 
+    <!-- MODAL: OWNER DETAIL -->
+    <div id="modal-owner-detail" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-2xl rounded-2xl p-6 relative shadow-2xl max-h-[92vh] overflow-y-auto">
+            <button onclick="closeModal('modal-owner-detail'); SO_OPEN = null" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <div class="flex items-start justify-between gap-2 pr-8"><div><h3 id="od-name" class="font-bold text-lg text-white"></h3><p id="od-phone" class="text-[11px] text-cyan-400"></p></div><div id="od-actions" class="flex"></div></div>
+            <div id="od-tiles" class="grid grid-cols-2 md:grid-cols-4 gap-2 my-4"></div>
+            <div class="overflow-x-auto"><table class="w-full text-[11px] text-gray-300"><thead><tr class="text-gray-500 text-left"><th class="pb-1"><span>Unit</span></th><th class="pb-1"><span>Service charge</span></th><th class="pb-1"><span>State</span></th><th class="pb-1 text-right"><span>Status</span></th></tr></thead><tbody id="od-units"></tbody></table></div>
+        </div>
+    </div>
+
+    <!-- MODAL: OWNER FORM -->
+    <div id="modal-owner-form" style="display: none; z-index:70;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-sm rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeOwnerForm()" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 id="of-title" class="font-bold text-lg text-white mb-4">New owner</h3>
+            <form onsubmit="saveOwnerForm(event)" class="space-y-3">
+                <input type="hidden" id="of-id">
+                <div><label class="lbl">Owner full name *</label><input id="of-name" class="inp" required maxlength="120"></div>
+                <div><label class="lbl">Owner phone (optional)</label><input id="of-phone" class="inp" inputmode="tel" maxlength="40"></div>
+                <button class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl text-white font-bold text-xs">Save</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: BILL OWNERS -->
+    <div id="modal-bill-owners" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-sm rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-bill-owners')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white">Bill owners who live in their units</h3>
+            <p class="text-[11px] text-gray-500 mb-4">Creates the service charge bill for owners who stay in their own unit. Months already billed are skipped.</p>
+            <form onsubmit="runBillOwners(event)" class="space-y-3">
+                <label class="flex items-center gap-2 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-xs text-gray-200"><input type="radio" name="bo-mode" value="1" checked> <span>This month only</span></label>
+                <label class="flex items-center gap-2 p-3 rounded-xl bg-[#14223d] border border-[#233863] text-xs text-gray-200"><input type="radio" name="bo-mode" value="2"> <span>Every month so far in</span> <b id="bo-year"></b></label>
+                <button class="w-full bg-emerald-600 hover:bg-emerald-700 py-3 rounded-xl text-white font-bold text-xs">Create bills</button>
+            </form>
+        </div>
+    </div>
+
     <!-- MODAL: OWNER SERVICE CHARGE PAYMENT -->
-    <div id="modal-owner-pay" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div id="modal-owner-pay" style="display: none; z-index:60;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl max-h-[92vh] overflow-y-auto">
             <button onclick="closeModal('modal-owner-pay')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
             <h3 class="font-bold text-lg text-white">Receive service charge</h3>
@@ -1598,7 +1642,7 @@
                 <div><label class="lbl">Full name *</label><input id="us-name" class="inp" required></div>
                 <div><label class="lbl">Email *</label><input id="us-email" type="email" class="inp" required></div>
                 <div><label class="lbl">Phone</label><input id="us-phone" class="inp"></div>
-                <div><label class="lbl" id="us-pw-label">Password * (min 6)</label><input id="us-pass" type="text" autocomplete="new-password" class="inp"></div>
+                <div><label class="lbl" id="us-pw-label">Password * (min 8)</label><input id="us-pass" type="text" autocomplete="new-password" class="inp"></div>
                 <div><label class="lbl">Role</label>
                     <select id="us-role" class="inp">
                         <option value="PROPERTY_MANAGER">Property Manager</option><option value="ACCOUNTANT">Accountant</option><option value="MAINTENANCE_MANAGER">Maintenance Manager</option>
