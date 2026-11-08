@@ -408,7 +408,7 @@ async function checkLimit(user, limitKey, countSql, what) {
 // Every step runs on its own: one problem never stops the others.
 // The Super Admin can also run it from Platform Admin > Run Database Setup.
 // ============================================================
-const SERVER_VERSION = 'v8.9 - 2026-11-08 - security review, owners guard, tenant history fix';
+const SERVER_VERSION = 'v9.0 - 2026-11-08 - owner service charge billing and payments';
 
 const SETUP_STEPS = [
     { name: "Base columns (leases, users)", sql: `
@@ -818,6 +818,33 @@ const SETUP_STEPS = [
         CREATE INDEX IF NOT EXISTS idx_units_owner ON units (owner_id);
         ALTER TABLE leases ADD COLUMN IF NOT EXISTS service_amount NUMERIC(14, 2);
         ALTER TABLE leases ADD COLUMN IF NOT EXISTS service_rate NUMERIC(14, 4)
+    ` }
+    ,{ name: "Service charge billed to owners who live in their unit", sql: `
+        CREATE TABLE IF NOT EXISTS owner_charges (
+            charge_id SERIAL PRIMARY KEY,
+            company_id INTEGER NOT NULL,
+            unit_id INTEGER NOT NULL,
+            owner_id INTEGER,
+            period_month DATE NOT NULL,
+            amount NUMERIC(14, 2) NOT NULL,
+            currency VARCHAR(3) NOT NULL DEFAULT 'TZS',
+            paid_amount NUMERIC(14, 2) NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE (unit_id, period_month)
+        );
+        CREATE TABLE IF NOT EXISTS owner_payments (
+            payment_id SERIAL PRIMARY KEY,
+            company_id INTEGER NOT NULL,
+            charge_id INTEGER NOT NULL,
+            amount NUMERIC(14, 2) NOT NULL,
+            paid_on DATE NOT NULL DEFAULT CURRENT_DATE,
+            method VARCHAR(40),
+            reference_no VARCHAR(80),
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_owner_charges_co ON owner_charges (company_id, period_month);
+        CREATE INDEX IF NOT EXISTS idx_owner_payments_charge ON owner_payments (charge_id)
     ` }
 ];
 
@@ -3315,6 +3342,58 @@ app.delete('/api/owners/:id', authenticateToken, requireFeature('org'), allowRol
     res.json({ message: 'Owner removed.' });
 }));
 
+// ---- owners who live in their unit: monthly service charge (a debt) and their payments ----
+function monthStart(v) { const m = /^(\d{4})-(\d{2})/.exec(String(v || '')); if (!m) return null; const y = +m[1], mo = +m[2]; return (y >= 2000 && y <= 2100 && mo >= 1 && mo <= 12) ? `${y}-${String(mo).padStart(2, '0')}-01` : null; }
+// month: 'YYYY-MM' creates that month; year: 'YYYY' creates January up to this month (or all 12 in a past year)
+app.post('/api/owner-charges/generate', authenticateToken, requireFeature('org'), allowRoles(...R_MONEY), wrapAsync(async (req, res) => {
+    const now = new Date(); const curMonth = now.getUTCFullYear() * 12 + now.getUTCMonth();
+    let months = [];
+    if (req.body.month) { const ms = monthStart(req.body.month); if (!ms) return res.status(400).json({ error: 'Please choose a valid month.' }); months = [ms]; }
+    else {
+        const y = parseInt(req.body.year); if (!(y >= 2000 && y <= 2100)) return res.status(400).json({ error: 'Please choose a month or a year.' });
+        for (let m = 0; m < 12; m++) if (y * 12 + m <= curMonth) months.push(`${y}-${String(m + 1).padStart(2, '0')}-01`);
+    }
+    const params = [req.user.company_id];
+    const sc = scopeSql(req, 'u.property_id', params);
+    const units = (await pool.query(
+        `SELECT u.unit_id, u.owner_id, u.service_charge, CASE WHEN COALESCE(u.service_currency, u.currency, 'TZS') ILIKE 'USD' THEN 'USD' ELSE 'TZS' END AS cur
+         FROM units u WHERE u.company_id = $1 AND u.occupancy_type = 'OWNER_LIVES' AND COALESCE(u.service_charge, 0) > 0 ${sc}`, params)).rows;
+    let created = 0;
+    for (const u of units) for (const m of months) {
+        const r = await pool.query(
+            'INSERT INTO owner_charges (company_id, unit_id, owner_id, period_month, amount, currency) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (unit_id, period_month) DO NOTHING',
+            [req.user.company_id, u.unit_id, u.owner_id, m, u.service_charge, u.cur]);
+        created += r.rowCount;
+    }
+    await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Generated owner service charges', 'UNITS', req.ip, { created });
+    res.json({ message: created ? `${created} service charge(s) created.` : 'Nothing new to create. Every month is already billed.', created });
+}));
+
+app.post('/api/owner-charges/:id/pay', authenticateToken, requireFeature('org'), allowRoles(...R_MONEY), wrapAsync(async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (!(id > 0)) return res.status(404).json({ error: 'Charge not found.' });
+    const amount = Math.round(parseFloat(req.body.amount) * 100) / 100;
+    if (!(amount > 0)) return res.status(400).json({ error: 'Please enter the amount paid.' });
+    const method = String(req.body.method || 'CASH').trim().slice(0, 40);
+    const ref = String(req.body.reference_no || '').trim().slice(0, 80) || null;
+    const paidOn = /^\d{4}-\d{2}-\d{2}$/.test(String(req.body.paid_on || '')) ? req.body.paid_on : null;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const c = (await client.query(
+            `SELECT oc.*, u.property_id FROM owner_charges oc JOIN units u ON u.unit_id = oc.unit_id WHERE oc.charge_id = $1 AND oc.company_id = $2 FOR UPDATE OF oc`, [id, req.user.company_id])).rows[0];
+        if (!c || (scoped(req) && !inScope(req, c.property_id))) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Charge not found.' }); }
+        const left = Math.round((parseFloat(c.amount) - parseFloat(c.paid_amount)) * 100) / 100;
+        if (amount > left + 0.001) { await client.query('ROLLBACK'); return res.status(400).json({ error: `The amount is more than what is owed (${left}).` }); }
+        await client.query('INSERT INTO owner_payments (company_id, charge_id, amount, paid_on, method, reference_no, created_by) VALUES ($1,$2,$3,COALESCE($4::date, CURRENT_DATE),$5,$6,$7)',
+            [req.user.company_id, id, amount, paidOn, method, ref, req.user.user_id]);
+        await client.query('UPDATE owner_charges SET paid_amount = paid_amount + $1 WHERE charge_id = $2', [amount, id]);
+        await client.query('COMMIT');
+        await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Received owner service charge', 'UNITS', req.ip, { charge_id: id, amount });
+        res.json({ message: 'Payment saved.' });
+    } catch (e) { await client.query('ROLLBACK').catch(() => {}); throw e; } finally { client.release(); }
+}));
+
 // Service charge by owner for a year: every unit, who owns it, and what was recorded.
 // A month counts as "recorded" when the unit had a tenant in it. Months with no tenant are not recorded (not a debt).
 app.get('/api/service-owners', authenticateToken, requireFeature('org'), allowRoles(...R_VIEW_MONEY), wrapAsync(async (req, res) => {
@@ -3342,6 +3421,10 @@ app.get('/api/service-owners', authenticateToken, requireFeature('org'), allowRo
          FROM units u JOIN properties p ON p.property_id = u.property_id LEFT JOIN owners ow ON ow.owner_id = u.owner_id
          WHERE u.company_id = $1 ${sc} ORDER BY ow.full_name NULLS FIRST, p.property_id, u.unit_number`, params)).rows;
 
+    const chargesByUnit = new Map();
+    const chRows = (await pool.query(
+        `SELECT charge_id, unit_id, TO_CHAR(period_month, 'YYYY-MM') AS period, amount, paid_amount FROM owner_charges WHERE company_id = $1 AND EXTRACT(YEAR FROM period_month) = $2 ORDER BY period_month`, [cId, year])).rows;
+    for (const c of chRows) { if (!chargesByUnit.has(c.unit_id)) chargesByUnit.set(c.unit_id, []); chargesByUnit.get(c.unit_id).push({ charge_id: c.charge_id, period: c.period, amount: parseFloat(c.amount), paid: parseFloat(c.paid_amount) }); }
     const groups = new Map();
     const add = (m, cur, k, v) => { m[cur] = m[cur] || { recorded: 0, not_recorded: 0, invoiced: 0, paid: 0, owed: 0 }; m[cur][k] += v; };
     for (const r of rows) {
@@ -3351,14 +3434,19 @@ app.get('/api/service-owners', authenticateToken, requireFeature('org'), allowRo
         const svc = parseFloat(r.service_charge);
         const state = r.tenant_name ? 'TENANT' : (r.occupancy_type === 'OWNER_LIVES' ? 'OWNER_LIVES' : 'VACANT');
         const recorded = svc * r.months_let, notRec = svc * Math.max(0, r.months_total - r.months_let);
-        const invoiced = parseFloat(r.invoiced), paid = parseFloat(r.paid);
+        let invoiced = parseFloat(r.invoiced), paid = parseFloat(r.paid);
+        let charges = null, invCur = r.invoice_currency || r.svc_currency;
+        if (state === 'OWNER_LIVES') {
+            charges = chargesByUnit.get(r.unit_id) || [];
+            invoiced = charges.reduce((x, c) => x + c.amount, 0); paid = charges.reduce((x, c) => x + c.paid, 0); invCur = r.svc_currency;
+        }
         g.units.push({ unit_id: r.unit_id, unit_number: r.unit_number, property_id: r.property_id, property_name: r.property_name, service_charge: svc, currency: r.svc_currency, inclusive: r.service_inclusive,
-            state, tenant_name: r.tenant_name, months_let: r.months_let, months_total: r.months_total, recorded, not_recorded: notRec, invoiced, paid, owed: Math.max(0, invoiced - paid), invoice_currency: r.invoice_currency || r.svc_currency });
+            state, tenant_name: r.tenant_name, months_let: r.months_let, months_total: r.months_total, recorded, not_recorded: notRec, invoiced, paid, owed: Math.max(0, invoiced - paid), invoice_currency: invCur, charges });
         g.counts[state === 'TENANT' ? 'let' : state === 'VACANT' ? 'vacant' : 'lives']++;
         if (state === 'OWNER_LIVES') { add(g.totals, r.svc_currency, 'recorded', svc * r.months_total); }
         else add(g.totals, r.svc_currency, 'recorded', recorded);
         if (state !== 'OWNER_LIVES') add(g.totals, r.svc_currency, 'not_recorded', notRec);
-        const ic = r.invoice_currency || r.svc_currency;
+        const ic = invCur;
         add(g.totals, ic, 'invoiced', invoiced); add(g.totals, ic, 'paid', paid); add(g.totals, ic, 'owed', Math.max(0, invoiced - paid));
     }
     res.json({ year, owners: [...groups.values()] });
