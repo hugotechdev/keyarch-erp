@@ -11,7 +11,7 @@ module.exports = function (ctx) {
     // ============================================================
     const INVOICE_BALANCES_SQL = `
         SELECT COALESCE(inv.currency, 'TZS') AS currency, inv.invoice_id, inv.invoice_number, inv.status, inv.due_date, inv.amount_due, inv.invoice_type, inv.description,
-               inv.issue_date, COALESCE(inv.discount, 0) AS discount, COALESCE(inv.lease_charge, true) AS lease_charge,
+               inv.issue_date, TO_CHAR(inv.period_start, 'YYYY-MM') AS period_month, COALESCE(inv.discount, 0) AS discount, COALESCE(inv.lease_charge, true) AS lease_charge,
                COALESCE(pay.paid, 0) AS paid,
                inv.amount_due - COALESCE(pay.paid, 0) AS balance,
                (inv.due_date::date - CURRENT_DATE) AS days_left,
