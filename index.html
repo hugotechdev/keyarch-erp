@@ -1278,14 +1278,27 @@
     </div>
 
     <!-- MODAL: OWNER FORM -->
-    <div id="modal-owner-form" style="display: none; z-index:70;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-sm rounded-2xl p-6 relative shadow-2xl">
+    <div id="modal-owner-form" style="display: none; z-index:70;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-lg rounded-2xl p-6 relative shadow-2xl max-h-[94vh] overflow-y-auto">
             <button onclick="closeOwnerForm()" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
             <h3 id="of-title" class="font-bold text-lg text-white mb-4">New owner</h3>
             <form onsubmit="saveOwnerForm(event)" class="space-y-3">
                 <input type="hidden" id="of-id">
                 <div><label class="lbl">Owner full name *</label><input id="of-name" class="inp" required maxlength="120"></div>
-                <div><label class="lbl">Owner phone (optional)</label><input id="of-phone" class="inp" inputmode="tel" maxlength="40"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="lbl">Owner phone (optional)</label><input id="of-phone" class="inp" inputmode="tel" maxlength="30"></div>
+                    <div><label class="lbl">Email (optional)</label><input id="of-email" type="email" class="inp" maxlength="120"></div>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between"><label class="lbl">Units owned</label><span class="text-[11px] text-gray-400"><b id="of-count">0</b> <span>selected</span></span></div>
+                    <div class="flex gap-2 mb-2"><select id="of-prop" onchange="ofRender()" class="inp" style="width:45%"></select><input id="of-q" oninput="ofRender()" class="inp" placeholder="Search unit..."></div>
+                    <div id="of-units" class="rounded-xl bg-[#14223d] border border-[#233863] overflow-y-auto" style="max-height:240px"></div>
+                </div>
+                <div>
+                    <label class="lbl">Service charge per month for the selected units (optional)</label>
+                    <div class="grid grid-cols-3 gap-2"><input id="of-svc" class="inp col-span-2" inputmode="decimal" placeholder="0"><select id="of-cur" class="inp"><option value="TZS">TZS</option><option value="USD">USD</option></select></div>
+                    <p class="text-[10px] text-gray-500 mt-1">Leave empty to keep each unit's current service charge.</p>
+                </div>
                 <button class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-xl text-white font-bold text-xs">Save</button>
             </form>
         </div>
