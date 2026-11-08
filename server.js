@@ -404,7 +404,7 @@ async function checkLimit(user, limitKey, countSql, what) {
 // Every step runs on its own: one problem never stops the others.
 // The Super Admin can also run it from Platform Admin > Run Database Setup.
 // ============================================================
-const SERVER_VERSION = 'v8.5 - 2026-11-06 - departments + project access (Pro)';
+const SERVER_VERSION = 'v8.6 - 2026-11-08 - unit owners + service charge by owner (Pro)';
 
 const SETUP_STEPS = [
     { name: "Base columns (leases, users)", sql: `
@@ -795,6 +795,26 @@ const SETUP_STEPS = [
         ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title VARCHAR(80);
         ALTER TABLE properties ADD COLUMN IF NOT EXISTS created_by INTEGER;
     ` }
+    ,{ name: "Unit owners and service charge currency", sql: `
+        CREATE TABLE IF NOT EXISTS owners (
+            owner_id SERIAL PRIMARY KEY,
+            company_id INTEGER NOT NULL,
+            full_name VARCHAR(120) NOT NULL,
+            phone_number VARCHAR(30),
+            email VARCHAR(120),
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        ALTER TABLE units ADD COLUMN IF NOT EXISTS owner_id INTEGER;
+        ALTER TABLE units ADD COLUMN IF NOT EXISTS occupancy_type VARCHAR(20) DEFAULT 'LET';
+        ALTER TABLE units ADD COLUMN IF NOT EXISTS service_currency VARCHAR(3);
+        ALTER TABLE unit_groups ADD COLUMN IF NOT EXISTS owner_id INTEGER;
+        ALTER TABLE unit_groups ADD COLUMN IF NOT EXISTS occupancy_type VARCHAR(20) DEFAULT 'LET';
+        ALTER TABLE unit_groups ADD COLUMN IF NOT EXISTS service_currency VARCHAR(3);
+        CREATE INDEX IF NOT EXISTS idx_units_owner ON units (owner_id);
+        ALTER TABLE leases ADD COLUMN IF NOT EXISTS service_amount NUMERIC(14, 2);
+        ALTER TABLE leases ADD COLUMN IF NOT EXISTS service_rate NUMERIC(14, 4)
+    ` }
 ];
 
 async function seedMasterAdmin() {
@@ -962,6 +982,22 @@ function allowRoles(...allowedRoles) {
     };
 }
 
+
+// owner / who lives there / service charge currency of a unit, from a request body
+async function readUnitOwnerFields(companyId, b) {
+    const out = {};
+    if (b.owner_id !== undefined) {
+        if (b.owner_id === null || b.owner_id === '' || b.owner_id === 'COMPANY') out.owner_id = null;
+        else {
+            const o = await pool.query('SELECT 1 FROM owners WHERE owner_id = $1 AND company_id = $2', [b.owner_id, companyId]);
+            if (!o.rows.length) { const e = new Error('Owner not found.'); e.status = 400; throw e; }
+            out.owner_id = parseInt(b.owner_id);
+        }
+    }
+    if (b.occupancy_type !== undefined) out.occupancy_type = b.occupancy_type === 'OWNER_LIVES' ? 'OWNER_LIVES' : 'LET';
+    if (b.service_currency !== undefined) out.service_currency = ['TZS', 'USD'].includes(String(b.service_currency).toUpperCase()) ? String(b.service_currency).toUpperCase() : null;
+    return out;
+}
 
 // ============================================================
 // PROJECT ACCESS (Pro): a person can be limited to some projects (properties)
@@ -1216,14 +1252,15 @@ app.post('/api/properties/wizard', authenticateToken, allowRoles('SUPER_ADMIN', 
             const grp = groups[gIdx];
             const svcAmount = Math.max(0, parseFloat(grp.service_charge) || 0);
             const svcInclusive = !!grp.service_inclusive;
+            const oref = await readUnitOwnerFields(companyId, { owner_id: grp.owner_id || null, occupancy_type: grp.occupancy_type, service_currency: grp.service_currency });
             await client.query(
                 `INSERT INTO unit_groups
-                 (company_id, property_id, group_name, units_in_group, bedrooms, bathrooms, rent_timeline, currency, rent_amount, payment_method, furnishing_status, service_charge, service_inclusive)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+                 (company_id, property_id, group_name, units_in_group, bedrooms, bathrooms, rent_timeline, currency, rent_amount, payment_method, furnishing_status, service_charge, service_inclusive, owner_id, occupancy_type, service_currency)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
                 [
                     companyId, property.property_id, grp.group_name || `Group ${gIdx + 1}`, grp.units_in_group || 1, grp.bedrooms || 0, grp.bathrooms || 0,
                     grp.rent_timeline || 'Per Month', grp.currency || 'TSH', grp.rent_amount || 0, grp.payment_method || 'Cash', grp.furnishing_status || 'Unfurnished',
-                    svcAmount, svcInclusive
+                    svcAmount, svcInclusive, oref.owner_id || null, oref.occupancy_type || 'LET', oref.service_currency || null
                 ]
             );
 
@@ -1234,9 +1271,9 @@ app.post('/api/properties/wizard', authenticateToken, allowRoles('SUPER_ADMIN', 
             for (let uIdx = 1; uIdx <= unitsCount; uIdx++) {
                 const unitNumber = `${cleanGrpName}-${uIdx}`;
                 await client.query(
-                    `INSERT INTO units (company_id, property_id, unit_number, rent_amount, currency, status, is_furnished, service_charge, service_inclusive)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-                    [companyId, property.property_id, unitNumber, grp.rent_amount || 0, grp.currency || 'TSH', 'VACANT', grp.furnishing_status === 'Furnished', svcAmount, svcInclusive]
+                    `INSERT INTO units (company_id, property_id, unit_number, rent_amount, currency, status, is_furnished, service_charge, service_inclusive, owner_id, occupancy_type, service_currency)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                    [companyId, property.property_id, unitNumber, grp.rent_amount || 0, grp.currency || 'TSH', 'VACANT', grp.furnishing_status === 'Furnished', svcAmount, svcInclusive, oref.owner_id || null, oref.occupancy_type || 'LET', oref.service_currency || null]
                 );
             }
         }
@@ -1285,7 +1322,7 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
         await client.query('BEGIN');
 
         const unitCheck = await client.query(
-            `SELECT u.status, u.property_id, u.service_charge, u.service_inclusive, u.currency AS unit_currency, p.service_charge_label AS service_label
+            `SELECT u.status, u.property_id, u.service_charge, u.service_inclusive, u.service_currency, u.currency AS unit_currency, p.service_charge_label AS service_label
              FROM units u JOIN properties p ON p.property_id = u.property_id WHERE u.unit_id = $1 AND u.company_id = $2`, [unit_id, companyId]);
         if (unitCheck.rows.length === 0) throw new Error('Unit not found.');
         const unitRow = unitCheck.rows[0];
@@ -1349,10 +1386,13 @@ app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'C
         let serviceInvoice = null;
         // the unit may be priced in the other currency: the service charge follows the same exchange rate as the rent
         const unitCur = String(unitRow.unit_currency || '').toUpperCase() === 'USD' ? 'USD' : 'TZS';
+        const svcCur = unitRow.service_currency ? String(unitRow.service_currency).toUpperCase() : unitCur;   // the service charge may be in another currency than the rent
         const xr = parseFloat(req.body.exchange_rate);
-        if (unitCur !== leaseCurrency && !(xr > 0)) throw new Error('Please enter the exchange rate (TSh for 1 USD).');
-        const convUnit = n => unitCur === leaseCurrency ? n : (leaseCurrency === 'USD' ? Math.round(n / xr * 100) / 100 : Math.round(n * xr));
+        if ((unitCur !== leaseCurrency || (svcCur !== leaseCurrency && parseFloat(unitRow.service_charge || 0) > 0)) && !(xr > 0)) throw new Error('Please enter the exchange rate (TSh for 1 USD).');
+        const convUnit = n => svcCur === leaseCurrency ? n : (leaseCurrency === 'USD' ? Math.round(n / xr * 100) / 100 : Math.round(n * xr));
         const svc = convUnit(parseFloat(unitRow.service_charge || 0));
+        // remember the monthly service charge in the currency of the contract, and the rate used
+        await client.query('UPDATE leases SET service_amount = $1, service_rate = $2 WHERE lease_id = $3', [svc, xr > 0 ? xr : null, lease.lease_id]);
         if (svc > 0 && !unitRow.service_inclusive) {
             const ym = String(start_date).slice(0, 7);
             const range = monthRange(ym);
@@ -1627,6 +1667,7 @@ app.put('/api/leases/:id/correct', authenticateToken, allowRoles('SUPER_ADMIN', 
 app.post('/api/edit-requests', authenticateToken, allowRoles('PROPERTY_MANAGER', 'ACCOUNTANT'), wrapAsync(async (req, res) => {
     const cId = req.user.company_id, b = req.body || {};
     const tenantId = parseInt(b.tenant_id), section = String(b.section || '');
+    if (!(await guard(req, res, 'tenant', tenantId))) return;
     if (!EDIT_SECTIONS[section]) return res.status(400).json({ error: 'Please choose what you want to edit.' });
     const reason = String(b.reason || '').trim().slice(0, 500);
     if (reason.length < 3) return res.status(400).json({ error: 'Please write what was wrong (the reason).' });
@@ -1727,6 +1768,7 @@ app.post('/api/leases/:id/renew', authenticateToken, allowRoles(...LEASE_MANAGER
         );
         const lease = leaseRes.rows[0];
         if (old.currency && old.currency !== 'TZS') await client.query('UPDATE leases SET currency = $1 WHERE lease_id = $2', [old.currency, lease.lease_id]);
+        await client.query('UPDATE leases SET service_amount = $1, service_rate = $2 WHERE lease_id = $3', [old.service_amount, old.service_rate, lease.lease_id]);
 
         const invoice = await createInvoice(client, {
             companyId, leaseId: lease.lease_id, type: 'RENT', subtotal: calc.totalRent, discount: calc.discount,
@@ -1972,7 +2014,7 @@ app.post('/api/auth/register-staff', authenticateToken, allowRoles('SUPER_ADMIN'
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get('/api/staff', authenticateToken, async (req, res) => {
+app.get('/api/staff', authenticateToken, canManageTeam, async (req, res) => {
     try {
         const result = await pool.query(
             'SELECT user_id, full_name, email, role, is_active FROM users WHERE company_id = $1 ORDER BY full_name ASC',
@@ -1990,8 +2032,8 @@ app.get('/api/units', authenticateToken, async (req, res) => {
         const params = [req.user.company_id];
         const sc = scopeSql(req, 'u.property_id', params);
         const result = await pool.query(
-            `SELECT u.*, COALESCE(p.property_name, p.title) AS property_name
-             FROM units u JOIN properties p ON u.property_id = p.property_id
+            `SELECT u.*, COALESCE(p.property_name, p.title) AS property_name, ow.full_name AS owner_name
+             FROM units u JOIN properties p ON u.property_id = p.property_id LEFT JOIN owners ow ON ow.owner_id = u.owner_id
              WHERE u.company_id = $1 ${sc} ORDER BY p.property_id, u.unit_number`,
             params
         );
@@ -2015,9 +2057,11 @@ function serviceStatusOf(u) {
 const UNITS_WITH_TENANT_SQL = `
     SELECT u.unit_id, u.property_id, u.unit_number, u.rent_amount, u.currency, u.status, u.is_furnished,
            COALESCE(u.service_charge, 0) AS service_charge, COALESCE(u.service_inclusive, false) AS service_inclusive,
+           u.owner_id, ow.full_name AS owner_name, COALESCE(u.occupancy_type, 'LET') AS occupancy_type, u.service_currency,
            l.lease_id, l.end_date, l.rent_period, t.tenant_id, t.full_name AS tenant_name, t.phone_number AS tenant_phone,
            sv.invoice_id AS service_invoice_id, sv.amount AS service_amount, sv.balance AS service_balance
     FROM units u
+    LEFT JOIN owners ow ON ow.owner_id = u.owner_id
     LEFT JOIN leases l ON l.unit_id = u.unit_id AND l.lease_state = 'CURRENT'
     LEFT JOIN tenants t ON t.tenant_id = l.tenant_id
     LEFT JOIN LATERAL (
@@ -2079,12 +2123,13 @@ app.post('/api/properties/:id/units', authenticateToken, allowRoles(...R_MANAGE)
     if (prop.rows.length === 0) return res.status(404).json({ error: 'Property not found.' });
     const svc = Math.max(0, parseFloat(service_charge) || 0);
     const base = String(unit_number).trim();
+    const of = await readUnitOwnerFields(req.user.company_id, req.body);
     try {
         for (let i = 1; i <= count; i++) {
             await pool.query(
-                `INSERT INTO units (company_id, property_id, unit_number, rent_amount, currency, status, is_furnished, service_charge, service_inclusive)
-                 VALUES ($1, $2, $3, $4, 'TSH', 'VACANT', false, $5, $6)`,
-                [req.user.company_id, req.params.id, count > 1 ? `${base}-${i}` : base, rent, svc, !!service_inclusive]
+                `INSERT INTO units (company_id, property_id, unit_number, rent_amount, currency, status, is_furnished, service_charge, service_inclusive, owner_id, occupancy_type, service_currency)
+                 VALUES ($1, $2, $3, $4, 'TSH', 'VACANT', false, $5, $6, $7, $8, $9)`,
+                [req.user.company_id, req.params.id, count > 1 ? `${base}-${i}` : base, rent, svc, !!service_inclusive, of.owner_id || null, of.occupancy_type || 'LET', of.service_currency || null]
             );
         }
     } catch (err) {
@@ -2105,11 +2150,16 @@ app.put('/api/units/:id', authenticateToken, allowRoles(...R_MANAGE), wrapAsync(
     if (!unit) return res.status(404).json({ error: 'Unit not found.' });
     let newStatus = unit.status;
     if (unit.status !== 'OCCUPIED' && ['VACANT', 'UNDER_MAINTENANCE'].includes(status)) newStatus = status;
+    const of = await readUnitOwnerFields(req.user.company_id, req.body);
     try {
         await pool.query(
-            `UPDATE units SET unit_number = $1, rent_amount = $2, service_charge = $3, service_inclusive = $4, status = $5
+            `UPDATE units SET unit_number = $1, rent_amount = $2, service_charge = $3, service_inclusive = $4, status = $5,
+                    owner_id = CASE WHEN $8::boolean THEN $9 ELSE owner_id END,
+                    occupancy_type = COALESCE($10, occupancy_type),
+                    service_currency = CASE WHEN $11::boolean THEN $12 ELSE service_currency END
              WHERE unit_id = $6 AND company_id = $7`,
-            [String(unit_number).trim(), rent, Math.max(0, parseFloat(service_charge) || 0), !!service_inclusive, newStatus, req.params.id, req.user.company_id]
+            [String(unit_number).trim(), rent, Math.max(0, parseFloat(service_charge) || 0), !!service_inclusive, newStatus, req.params.id, req.user.company_id,
+             of.owner_id !== undefined, of.owner_id === undefined ? null : of.owner_id, of.occupancy_type || null, of.service_currency !== undefined, of.service_currency === undefined ? null : of.service_currency]
         );
     } catch (err) {
         if (err.code === '23505') return res.status(400).json({ error: 'A unit with this name already exists in this property.' });
@@ -2133,6 +2183,10 @@ app.put('/api/properties/:id/bulk-units', authenticateToken, allowRoles(...R_MAN
         vals.push(parseFloat(service_charge)); sets.push(`service_charge = $${vals.length}`);
     }
     if (typeof service_inclusive === 'boolean') { vals.push(service_inclusive); sets.push(`service_inclusive = $${vals.length}`); }
+    const of = await readUnitOwnerFields(req.user.company_id, req.body);
+    if (of.owner_id !== undefined) { vals.push(of.owner_id); sets.push(`owner_id = $${vals.length}`); }
+    if (of.occupancy_type !== undefined) { vals.push(of.occupancy_type); sets.push(`occupancy_type = $${vals.length}`); }
+    if (of.service_currency !== undefined) { vals.push(of.service_currency); sets.push(`service_currency = $${vals.length}`); }
     if (sets.length === 0) return res.status(400).json({ error: 'Nothing to change.' });
     vals.push(req.params.id, req.user.company_id);
     const r = await pool.query(
@@ -2341,7 +2395,7 @@ app.post('/api/service-charges/generate', authenticateToken, allowRoles(...R_MON
         if (req.body.property_id) { params.push(req.body.property_id); extra = ` AND u.property_id = $${params.length}`; }
         extra += scopeSql(req, 'u.property_id', params);
         const leases = (await client.query(
-            `SELECT l.lease_id, u.service_charge, COALESCE(p.service_charge_label, 'Service charge') AS label
+            `SELECT l.lease_id, COALESCE(l.service_amount, u.service_charge) AS service_charge, COALESCE(p.service_charge_label, 'Service charge') AS label
              FROM leases l JOIN units u ON u.unit_id = l.unit_id JOIN properties p ON p.property_id = u.property_id
              WHERE l.company_id = $1 AND l.lease_state = 'CURRENT' AND COALESCE(u.service_charge, 0) > 0 AND COALESCE(u.service_inclusive, false) = false
                AND l.start_date <= $3::date AND l.end_date >= $2::date ${extra}
@@ -3205,6 +3259,94 @@ app.get('/api/org/structure', authenticateToken, requireFeature('org'), canManag
         without_department: mk(noDept),
         projects: projectsOut
     });
+}));
+
+
+// ============================================================
+// OWNERS of units (developers sell units; buyers stay owners and keep paying service charge) - Pro
+// ============================================================
+function readOwner(b) {
+    const full_name = String(b.full_name || '').trim().slice(0, 120);
+    if (!full_name) return { error: 'Please write the owner name.' };
+    return { v: { full_name, phone_number: String(b.phone_number || '').trim().slice(0, 30) || null, email: String(b.email || '').trim().slice(0, 120) || null, notes: String(b.notes || '').trim().slice(0, 500) || null } };
+}
+app.get('/api/owners', authenticateToken, requireFeature('org'), allowRoles(...R_VIEW_MONEY), wrapAsync(async (req, res) => {
+    const params = [req.user.company_id];
+    let having = '';
+    if (scoped(req)) { params.push(req.user.scope.length ? req.user.scope : [0]); having = 'HAVING COUNT(u.unit_id) FILTER (WHERE u.property_id = ANY($2::int[])) > 0'; }
+    const r = await pool.query(
+        `SELECT o.owner_id, o.full_name, o.phone_number, o.email, o.notes, COUNT(u.unit_id)::int AS units
+         FROM owners o LEFT JOIN units u ON u.owner_id = o.owner_id
+         WHERE o.company_id = $1 GROUP BY o.owner_id ${having} ORDER BY o.full_name`, params);
+    res.json(r.rows);
+}));
+app.post('/api/owners', authenticateToken, requireFeature('org'), allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
+    const o = readOwner(req.body); if (o.error) return res.status(400).json({ error: o.error });
+    const r = await pool.query('INSERT INTO owners (company_id, full_name, phone_number, email, notes) VALUES ($1, $2, $3, $4, $5) RETURNING owner_id', [req.user.company_id, o.v.full_name, o.v.phone_number, o.v.email, o.v.notes]);
+    await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Added owner', 'UNITS', req.ip, { name: o.v.full_name });
+    res.status(201).json({ message: 'Owner added.', owner_id: r.rows[0].owner_id });
+}));
+app.put('/api/owners/:id', authenticateToken, requireFeature('org'), allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
+    const o = readOwner(req.body); if (o.error) return res.status(400).json({ error: o.error });
+    const r = await pool.query('UPDATE owners SET full_name = $1, phone_number = $2, email = $3, notes = $4 WHERE owner_id = $5 AND company_id = $6 RETURNING owner_id', [o.v.full_name, o.v.phone_number, o.v.email, o.v.notes, req.params.id, req.user.company_id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Owner not found.' });
+    res.json({ message: 'Owner saved.' });
+}));
+app.delete('/api/owners/:id', authenticateToken, requireFeature('org'), allowRoles(...R_MANAGE), wrapAsync(async (req, res) => {
+    const used = (await pool.query('SELECT COUNT(*) AS c FROM units WHERE owner_id = $1 AND company_id = $2', [req.params.id, req.user.company_id])).rows[0].c;
+    if (parseInt(used) > 0) return res.status(400).json({ error: 'This owner still has units. Give those units to another owner first.' });
+    const r = await pool.query('DELETE FROM owners WHERE owner_id = $1 AND company_id = $2 RETURNING owner_id', [req.params.id, req.user.company_id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Owner not found.' });
+    res.json({ message: 'Owner removed.' });
+}));
+
+// Service charge by owner for a year: every unit, who owns it, and what was recorded.
+// A month counts as "recorded" when the unit had a tenant in it. Months with no tenant are not recorded (not a debt).
+app.get('/api/service-owners', authenticateToken, requireFeature('org'), allowRoles(...R_VIEW_MONEY), wrapAsync(async (req, res) => {
+    const cId = req.user.company_id;
+    const year = Math.min(2100, Math.max(2000, parseInt(req.query.year) || new Date().getFullYear()));
+    const params = [cId, year];
+    const sc = scopeSql(req, 'u.property_id', params);
+    const rows = (await pool.query(
+        `SELECT u.unit_id, u.unit_number, u.property_id, COALESCE(p.property_name, p.title) AS property_name,
+                u.owner_id, ow.full_name AS owner_name, ow.phone_number AS owner_phone, COALESCE(u.occupancy_type, 'LET') AS occupancy_type,
+                COALESCE(u.service_charge, 0) AS service_charge, COALESCE(u.service_inclusive, false) AS service_inclusive,
+                CASE WHEN COALESCE(u.service_currency, u.currency, 'TZS') ILIKE 'USD' THEN 'USD' ELSE 'TZS' END AS svc_currency,
+                (SELECT t.full_name FROM leases l JOIN tenants t ON t.tenant_id = l.tenant_id WHERE l.unit_id = u.unit_id AND l.lease_state = 'CURRENT' LIMIT 1) AS tenant_name,
+                (SELECT COUNT(*) FROM generate_series(make_date($2::int, 1, 1), make_date($2::int, 12, 1), interval '1 month') m
+                   WHERE m::date <= date_trunc('month', CURRENT_DATE)::date
+                     AND EXISTS (SELECT 1 FROM leases l WHERE l.unit_id = u.unit_id AND l.start_date <= (m + interval '1 month - 1 day')::date
+                                 AND COALESCE(l.end_date, DATE '9999-12-31') >= m::date))::int AS months_let,
+                (SELECT COUNT(*) FROM generate_series(make_date($2::int, 1, 1), make_date($2::int, 12, 1), interval '1 month') m
+                   WHERE m::date <= date_trunc('month', CURRENT_DATE)::date)::int AS months_total,
+                COALESCE((SELECT SUM(inv.amount_due) FROM invoices inv JOIN leases l ON l.lease_id = inv.lease_id
+                          WHERE l.unit_id = u.unit_id AND inv.invoice_type = 'SERVICE' AND EXTRACT(YEAR FROM inv.period_start) = $2), 0) AS invoiced,
+                COALESCE((SELECT SUM(py.amount_paid) FROM payments py JOIN invoices inv ON inv.invoice_id = py.invoice_id JOIN leases l ON l.lease_id = inv.lease_id
+                          WHERE l.unit_id = u.unit_id AND inv.invoice_type = 'SERVICE' AND EXTRACT(YEAR FROM inv.period_start) = $2), 0) AS paid,
+                (SELECT COALESCE(MAX(inv.currency), 'TZS') FROM invoices inv JOIN leases l ON l.lease_id = inv.lease_id WHERE l.unit_id = u.unit_id AND inv.invoice_type = 'SERVICE') AS invoice_currency
+         FROM units u JOIN properties p ON p.property_id = u.property_id LEFT JOIN owners ow ON ow.owner_id = u.owner_id
+         WHERE u.company_id = $1 ${sc} ORDER BY ow.full_name NULLS FIRST, p.property_id, u.unit_number`, params)).rows;
+
+    const groups = new Map();
+    const add = (m, cur, k, v) => { m[cur] = m[cur] || { recorded: 0, not_recorded: 0, invoiced: 0, paid: 0, owed: 0 }; m[cur][k] += v; };
+    for (const r of rows) {
+        const key = r.owner_id === null ? 'COMPANY' : String(r.owner_id);
+        if (!groups.has(key)) groups.set(key, { owner_id: r.owner_id, owner_name: r.owner_name, owner_phone: r.owner_phone, units: [], totals: {}, counts: { let: 0, vacant: 0, lives: 0 } });
+        const g = groups.get(key);
+        const svc = parseFloat(r.service_charge);
+        const state = r.tenant_name ? 'TENANT' : (r.occupancy_type === 'OWNER_LIVES' ? 'OWNER_LIVES' : 'VACANT');
+        const recorded = svc * r.months_let, notRec = svc * Math.max(0, r.months_total - r.months_let);
+        const invoiced = parseFloat(r.invoiced), paid = parseFloat(r.paid);
+        g.units.push({ unit_id: r.unit_id, unit_number: r.unit_number, property_id: r.property_id, property_name: r.property_name, service_charge: svc, currency: r.svc_currency, inclusive: r.service_inclusive,
+            state, tenant_name: r.tenant_name, months_let: r.months_let, months_total: r.months_total, recorded, not_recorded: notRec, invoiced, paid, owed: Math.max(0, invoiced - paid), invoice_currency: r.invoice_currency || r.svc_currency });
+        g.counts[state === 'TENANT' ? 'let' : state === 'VACANT' ? 'vacant' : 'lives']++;
+        if (state === 'OWNER_LIVES') { add(g.totals, r.svc_currency, 'recorded', svc * r.months_total); }
+        else add(g.totals, r.svc_currency, 'recorded', recorded);
+        if (state !== 'OWNER_LIVES') add(g.totals, r.svc_currency, 'not_recorded', notRec);
+        const ic = r.invoice_currency || r.svc_currency;
+        add(g.totals, ic, 'invoiced', invoiced); add(g.totals, ic, 'paid', paid); add(g.totals, ic, 'owed', Math.max(0, invoiced - paid));
+    }
+    res.json({ year, owners: [...groups.values()] });
 }));
 
 app.get('/api/workers', authenticateToken, allowRoles(...R_TICKETS), wrapAsync(async (req, res) => {
