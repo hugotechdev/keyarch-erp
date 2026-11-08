@@ -1305,6 +1305,17 @@
         </div>
     </div>
 
+    <!-- MODAL: SERVICE CHARGE UNIT DETAIL -->
+    <div id="modal-so-unit" style="display: none; z-index:55;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-2xl rounded-2xl p-6 relative shadow-2xl max-h-[92vh] overflow-y-auto">
+            <button onclick="closeModal('modal-so-unit'); SO_UNIT_OPEN = null" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 id="su-title" class="font-bold text-lg text-white pr-8"></h3>
+            <p id="su-sub" class="text-[11px] text-cyan-400"></p>
+            <div id="su-tiles" class="grid grid-cols-2 md:grid-cols-4 gap-2 my-4"></div>
+            <div class="overflow-x-auto"><table class="w-full text-[11px] text-gray-300"><thead><tr class="text-gray-500 text-left"><th class="pb-1"><span>Bill</span></th><th class="pb-1"><span>Amount</span></th><th class="pb-1"><span>Collected</span></th><th class="pb-1"><span>Owed</span></th><th></th></tr></thead><tbody id="su-rows"></tbody></table></div>
+        </div>
+    </div>
+
     <!-- MODAL: OWNER SERVICE CHARGE PAYMENT -->
     <div id="modal-owner-pay" style="display: none; z-index:60;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-md rounded-2xl p-6 relative shadow-2xl max-h-[92vh] overflow-y-auto">
