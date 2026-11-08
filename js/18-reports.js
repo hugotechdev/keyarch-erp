@@ -14,8 +14,8 @@ async function initReports() {
     buildPresets(); onReportType();
     const f = document.getElementById('rp-from'); if (!f.value) applyPreset();
 }
-const REPORT_NAMES = { summary: 'Mapato na matumizi (Income & expenses)', outstanding: 'Madeni (Debts / unpaid)', service: 'Service charge', maintenance: 'Matengenezo (Maintenance)', property_income: 'Mapato ya nyumba (Property income)', profit: 'Faida kwa nyumba (Profit by property)' };
-const REPORT_CHIPS = [['service', 'fa-hand-holding-dollar', 'Service charge'], ['outstanding', 'fa-file-circle-exclamation', 'Madeni'], ['maintenance', 'fa-screwdriver-wrench', 'Matengenezo'], ['property_income', 'fa-building', 'Mapato ya nyumba'], ['summary', 'fa-scale-balanced', 'Mapato na matumizi']];
+const REPORT_NAMES = { summary: 'Income & expenses', outstanding: 'Debts (unpaid)', service: 'Service charge', maintenance: 'Maintenance', property_income: 'Property income', profit: 'Profit by property' };
+const REPORT_CHIPS = [['service', 'fa-hand-holding-dollar', 'Service charge'], ['outstanding', 'fa-file-circle-exclamation', 'Debts'], ['maintenance', 'fa-screwdriver-wrench', 'Maintenance'], ['property_income', 'fa-building', 'Property income'], ['summary', 'fa-scale-balanced', 'Income & expenses']];
 function buildReportChips() {
     const box = document.getElementById('rp-chips'); if (!box) return;
     box.innerHTML = REPORT_CHIPS.filter(c => reportTypes.some(t => t.key === c[0])).map(c => {
@@ -31,7 +31,7 @@ function onReportType() {
     const cur = document.getElementById('rp-type').value;
     document.querySelectorAll('.rp-chip').forEach(b => b.classList.toggle('rp-on', b.dataset.rp === cur));
     const t = reportTypes.find(x => x.key === cur);
-    document.getElementById('rp-desc').innerText = t ? (t.description || '') + (t.locked ? ' — Pro plan only.' : '') : '';
+    document.getElementById('rp-desc').innerHTML = t ? esc(t.description || '') + (t.locked ? ' <span>— Pro plan only.</span>' : '') : '';
 }
 function fyStartMonth() { return (companyProfile && Number(companyProfile.fy_start_month)) || 1; }
 function fyRange(offset) {
@@ -47,7 +47,7 @@ function buildPresets() {
         .map((l, i) => `<option value="${i}">${l}</option>`).join('');
     fyLine();
 }
-function fyLine() { const r = fyRange(0); setText('rp-fy', `Your financial year: ${fmtDate(r[0])} to ${fmtDate(r[1])} (change it in Settings).`); }
+function fyLine() { const r = fyRange(0); document.getElementById('rp-fy').innerHTML = `<span>Your financial year:</span> ${esc(fmtDate(r[0]))} <span>to</span> ${esc(fmtDate(r[1]))} <span>(change it in Settings).</span>`; }
 function applyPreset() {
     const i = Number(document.getElementById('rp-preset').value), now = new Date(), y = now.getFullYear(), m = now.getMonth();
     let a, b;
@@ -82,7 +82,7 @@ async function runReport() {
     const num = c => c.type === 'money' || c.type === 'int' || c.type === 'pct';
     const total = (c, i) => i === 0 ? 'TOTAL' : (c.total ? cellText(d.rows.reduce((s, x) => s + (parseFloat(x[c.key]) || 0), 0), c.type) : '');
     box.innerHTML = `
-        <div><div class="text-lg font-black text-white">${esc(d.title)}</div><div class="text-xs text-gray-400">${esc(d.company_name)} · ${esc(d.period)} · ${esc(d.property)}</div></div>
+        <div><div class="text-lg font-black text-white">${esc(d.title)}</div><div class="text-xs text-gray-400">${esc(d.company_name)} · ${String(d.period || '').split(' to ').map(esc).join(' <span>to</span> ')} · <span>${esc(d.property)}</span></div></div>
         ${d.summary && d.summary.length ? `<div class="grid grid-cols-2 md:grid-cols-4 gap-3">${d.summary.map(s => `<div class="p-3 rounded-xl border border-[#182848]"><div class="text-gray-400 uppercase text-[10px]">${esc(s.label)}</div><div class="text-base font-black text-white">${s.type === 'money' ? money(s.value) : (s.type === 'pct' ? s.value + '%' : esc(s.value))}</div></div>`).join('')}</div>` : ''}
         <div class="overflow-x-auto"><table class="w-full text-left text-xs text-gray-300">
             <thead class="uppercase font-bold text-gray-400 border-b border-[#182848]"><tr>${d.columns.map(c => `<th class="py-2 pr-3 ${num(c) ? 'text-right' : ''}">${esc(c.label)}</th>`).join('')}</tr></thead>
