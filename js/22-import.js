@@ -38,6 +38,8 @@ async function impRun(dry) {
         property_name: document.getElementById('imp-prop').value.trim(),
         property_type: document.getElementById('imp-ptype').value,
         amount_mode: document.getElementById('imp-mode').value,
+        default_rent: document.getElementById('imp-defrent').value.replace(/,/g, ''),
+        default_cur: document.getElementById('imp-defcur').value,
         payment_method: 'Cash'
     });
     const btn = document.getElementById(dry ? 'imp-check' : 'imp-go'); btn.disabled = true; const btnHtml = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Please wait...</span>';
@@ -62,12 +64,12 @@ function impShow(d, dry) {
     if (!tot) h += '<div class="text-xs rounded-xl p-3 bg-amber-900/30 border border-amber-500/40 text-amber-200 mb-2"><span>Nothing to import was found in this file.</span></div>';
     if (d.errors.length) {
         h += '<div class="text-xs font-bold text-red-300 mt-2 mb-1"><span>Rows with problems (these rows are skipped)</span> (' + d.errors.length + ')</div><div class="max-h-40 overflow-y-auto space-y-1">';
-        d.errors.slice(0, 60).forEach(e => { h += '<div class="text-[11px] rounded-lg p-2 bg-red-900/20 border border-red-500/30 text-red-200">' + impEsc(e.sheet) + ' · #' + e.row + ': ' + impEsc(e.message) + '</div>'; });
+        d.errors.slice(0, 60).forEach(e => { h += '<div class="text-[11px] rounded-lg p-2 bg-red-900/20 border border-red-500/30 text-red-200">' + (e.row ? impEsc(e.sheet) + ' · #' + e.row + ': ' : '') + impEsc(e.message) + '</div>'; });
         h += '</div>';
     }
     if (d.warnings.length) {
         h += '<div class="text-xs font-bold text-amber-300 mt-2 mb-1"><span>Notes</span> (' + d.warnings.length + ')</div><div class="max-h-28 overflow-y-auto space-y-1">';
-        d.warnings.slice(0, 40).forEach(e => { h += '<div class="text-[11px] rounded-lg p-2 bg-amber-900/20 border border-amber-500/30 text-amber-200">' + impEsc(e.sheet) + ' · #' + e.row + ': ' + impEsc(e.message) + '</div>'; });
+        d.warnings.slice(0, 40).forEach(e => { h += '<div class="text-[11px] rounded-lg p-2 bg-amber-900/20 border border-amber-500/30 text-amber-200">' + (e.row ? impEsc(e.sheet) + ' · #' + e.row + ': ' : '') + impEsc(e.message) + '</div>'; });
         h += '</div>';
     }
     if (d.ignored.length) h += '<div class="text-[11px] text-gray-400 mt-2"><span>Columns not used:</span> ' + d.ignored.map(impEsc).join(', ') + '</div>';

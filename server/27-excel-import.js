@@ -255,14 +255,15 @@ module.exports = function (ctx) {
                     else if (rentAny > 0) { amount = rentAny; if (/usd|\$|dollar/i.test(curTxt)) cur = 'USD'; }
                     const pid = await getProperty(propName, ptype, toText(cell(row, 'address')), sh.name, rn);
                     // owner (Pro plan only)
-                    let ownerId = null; const on = cleanName(cell(row, 'owner'));
+                    let ownerId = null; let on = cleanName(cell(row, 'owner'));
+                    if (on.indexOf('/') > 0) { on = on.split('/')[0].trim(); rep.joint = (rep.joint || 0) + 1; }
                     if (on && /^(company|developer|kampuni|-)$/i.test(on) === false) { if (orgOn) ownerId = await getOwner(on, toText(cell(row, 'owner_phone'))); else if (!rep.ownerNote) { rep.ownerNote = true; warn(sh.name, rn, 'Owners are part of the Pro plan, so the owner names were not imported.'); } }
                     const svc = toNum(cell(row, 'svc')) || 0;
                     let unit = (await client.query('SELECT unit_id, status, currency, rent_amount FROM units WHERE property_id = $1 AND company_id = $2 AND lower(unit_number) = $3', [pid, companyId, unitNo.toLowerCase()])).rows[0];
                     let tenantName = cleanName(cell(row, 'tenant')); let noteText = '';
                     // a note such as "staff" or "vacant" in the tenant column, with no dates: keep the unit, no tenant
                     const rawEmpty = (v) => v === undefined || v === null || String(typeof v === 'object' ? 'x' : v).trim() === '';
-                    if (tenantName && rawEmpty(cell(row, 'start')) && rawEmpty(cell(row, 'end'))) { noteText = tenantName; tenantName = ''; rep.notes++; warn(sh.name, rn, 'Unit ' + unitNo + ': "' + noteText.slice(0, 40) + '" has no dates, so it was kept as a note. The unit was added without a tenant.'); }
+                    if (tenantName && !toDate(cell(row, 'start')) && !toDate(cell(row, 'end'))) { noteText = tenantName; tenantName = ''; rep.notes++; warn(sh.name, rn, 'Unit ' + unitNo + ': "' + noteText.slice(0, 40) + '" has no dates, so it was kept as a note. The unit was added without a tenant.'); }
                     if (!unit) {
                         const ins = await client.query(`INSERT INTO units (company_id, property_id, unit_number, rent_amount, currency, status, is_furnished, service_charge, service_inclusive, owner_id, occupancy_type)
                             VALUES ($1, $2, $3, $4, $5, 'VACANT', false, $6, false, $7, 'LET') RETURNING unit_id, status, currency, rent_amount`, [companyId, pid, unitNo.slice(0, 60), amount || 0, cur === 'USD' ? 'USD' : 'TSH', svc, ownerId]);
@@ -271,12 +272,25 @@ module.exports = function (ctx) {
                     } else if (!tenantName) { if (!noteText) warn(sh.name, rn, 'Unit ' + unitNo + ' already exists. Nothing to add.'); rep.skipped++; await client.query('RELEASE SAVEPOINT r'); continue; }
                     if (!tenantName) { prev({ sheet: sh.name, row: rn, what: 'Unit', text: propName + ' · ' + unitNo + (noteText ? ' [note: ' + noteText.slice(0, 30) + ']' : '') + (ownerId ? ' (owner: ' + on + ')' : ''), amount, currency: cur }); await client.query('RELEASE SAVEPOINT r'); continue; }
                     // ----- tenant and lease -----
-                    if (unit.status === 'OCCUPIED') throw new Error('Unit ' + unitNo + ' already has a tenant.');
-                    const start = toDate(cell(row, 'start')); if (!start) throw new Error('Start date is missing or not a date (use day/month/year).');
-                    let end = toDate(cell(row, 'end')); if (end && end <= start) throw new Error('Ending date must be after the start date.');
+                    if (unit.status === 'OCCUPIED') {
+                        const cur0 = (await client.query("SELECT t.full_name FROM leases l JOIN tenants t ON t.tenant_id = l.tenant_id WHERE l.unit_id = $1 AND l.lease_state = 'CURRENT' ORDER BY l.lease_id DESC LIMIT 1", [unit.unit_id])).rows[0];
+                        if (cur0 && cur0.full_name.toLowerCase() === tenantName.toLowerCase()) { warn(sh.name, rn, 'Unit ' + unitNo + ': ' + tenantName + ' is already in the system, so this row was skipped.'); rep.skipped++; await client.query('RELEASE SAVEPOINT r'); continue; }
+                        throw new Error('Unit ' + unitNo + ' already has a tenant' + (cur0 ? ' (' + cur0.full_name + ')' : '') + '.');
+                    }
+                    let start = toDate(cell(row, 'start')); if (!start) throw new Error('Start date "' + toText(cell(row, 'start')).slice(0, 20) + '" is not a valid date (use day/month/year).');
+                    let end = toDate(cell(row, 'end'));
+                    if (!end && !rawEmpty(cell(row, 'end'))) throw new Error('Ending date "' + toText(cell(row, 'end')).slice(0, 20) + '" is not a valid date (check the year).');
+                    if (end && end <= start) {
+                        // Excel often swaps day and month (03/06 read as 6 March): try reading both dates the other way round
+                        const sw = (iso) => { const [y, m, d] = iso.split('-'); return +d <= 12 ? valid(+y, +d, +m) : null; };
+                        const s2 = sw(start), e2 = sw(end);
+                        if (s2 && e2 && e2 > s2) { rep.swapped = (rep.swapped || 0) + 1; start = s2; end = e2; }
+                    }
+                    if (end && end <= start) throw new Error('Ending date (' + end + ') must be after the start date (' + start + ').');
                     const pr = readPeriod(toText(cell(row, 'period')));
                     if (!(amount > 0)) { amount = parseFloat(unit.rent_amount) || 0; if (String(unit.currency).toUpperCase() === 'USD') cur = 'USD'; }
-                    if (!(amount > 0)) throw new Error('Rent amount is missing.');
+                    if (!(amount > 0) && opt.default_rent > 0) { amount = opt.default_rent; cur = opt.default_cur; rep.usedDefault = (rep.usedDefault || 0) + 1; }
+                    if (!(amount > 0)) throw new Error('Rent is empty. Write it in the file, or type a default rent in the box above.');
                     // how many periods, and the rent for one period
                     let unitName = 'Month', n = 1;
                     if (pr) { unitName = pr.unit; n = pr.n; } else if (end) { const mo = monthsBetween(start, end); if (mo >= 11.5 && Math.abs(mo / 12 - Math.round(mo / 12)) < 0.05) { unitName = 'Year'; n = Math.round(mo / 12); } else { unitName = 'Month'; n = Math.max(1, Math.round(mo)); } }
@@ -290,7 +304,7 @@ module.exports = function (ctx) {
                     const paid = paidCol !== null ? Math.min(Math.max(paidCol, 0), toPay) : toPay - owed;
                     const dep = toNum(cell(row, 'deposit')) || 0;
                     const phone = toText(cell(row, 'phone')).slice(0, 30), idn = toText(cell(row, 'idno')).slice(0, 60);
-                    if (!phone) warn(sh.name, rn, tenantName + ': no phone number. Add it later.');
+                    if (!phone) rep.noPhone = (rep.noPhone || 0) + 1;
                     // the unit follows the currency of the contract
                     if ((String(unit.currency || '').toUpperCase() === 'USD') !== (cur === 'USD')) {
                         await client.query('UPDATE units SET currency = $1, rent_amount = $2 WHERE unit_id = $3', [cur === 'USD' ? 'USD' : 'TSH', price, unit.unit_id]);
@@ -316,6 +330,10 @@ module.exports = function (ctx) {
                 await client.query('RELEASE SAVEPOINT r').catch(() => {});
             }
         }
+        if (rep.noPhone) warn('', 0, rep.noPhone + ' tenant(s) have no phone number. Add the numbers later.');
+        if (rep.swapped) warn('', 0, rep.swapped + ' row(s) had day and month swapped by Excel. They were read the other way round so that the end date comes after the start date. Please check them.');
+        if (rep.joint) warn('', 0, rep.joint + ' unit(s) have more than one owner (like A/B). The first owner was used.');
+        if (rep.usedDefault) warn('', 0, 'The default rent was used for ' + rep.usedDefault + ' row(s) that had no rent.');
         rep.ignored = [...new Set(rep.ignored)];
         return rep;
     }
@@ -325,7 +343,7 @@ module.exports = function (ctx) {
         let sheets;
         try { sheets = readXlsx(req.body); } catch (e) { return res.status(400).json({ error: e.message || 'The file could not be read. Please save it as .xlsx.' }); }
         const q = req.query;
-        const opt = { property_name: toText(q.property_name), property_type: toText(q.property_type), address: toText(q.address), amount_mode: q.amount_mode === 'total' ? 'total' : 'per_period', payment_method: ['Cash', 'Bank', 'Mobile Money'].includes(q.payment_method) ? q.payment_method : 'Cash' };
+        const opt = { property_name: toText(q.property_name), property_type: toText(q.property_type), address: toText(q.address), amount_mode: q.amount_mode === 'total' ? 'total' : 'per_period', default_rent: parseFloat(String(q.default_rent || '').replace(/,/g, '')) || 0, default_cur: q.default_cur === 'USD' ? 'USD' : 'TZS', payment_method: ['Cash', 'Bank', 'Mobile Money'].includes(q.payment_method) ? q.payment_method : 'Cash' };
         const dry = q.dry_run === '1';
         let client;
         try {
