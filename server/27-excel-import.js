@@ -256,7 +256,6 @@ module.exports = function (ctx) {
                     const pid = await getProperty(propName, ptype, toText(cell(row, 'address')), sh.name, rn);
                     // owner (Pro plan only)
                     let ownerId = null; let on = cleanName(cell(row, 'owner'));
-                    if (on.indexOf('/') > 0) { on = on.split('/')[0].trim(); rep.joint = (rep.joint || 0) + 1; }
                     if (on && /^(company|developer|kampuni|-)$/i.test(on) === false) { if (orgOn) ownerId = await getOwner(on, toText(cell(row, 'owner_phone'))); else if (!rep.ownerNote) { rep.ownerNote = true; warn(sh.name, rn, 'Owners are part of the Pro plan, so the owner names were not imported.'); } }
                     const svc = toNum(cell(row, 'svc')) || 0;
                     let unit = (await client.query('SELECT unit_id, status, currency, rent_amount FROM units WHERE property_id = $1 AND company_id = $2 AND lower(unit_number) = $3', [pid, companyId, unitNo.toLowerCase()])).rows[0];
@@ -332,7 +331,6 @@ module.exports = function (ctx) {
         }
         if (rep.noPhone) warn('', 0, rep.noPhone + ' tenant(s) have no phone number. Add the numbers later.');
         if (rep.swapped) warn('', 0, rep.swapped + ' row(s) had day and month swapped by Excel. They were read the other way round so that the end date comes after the start date. Please check them.');
-        if (rep.joint) warn('', 0, rep.joint + ' unit(s) have more than one owner (like A/B). The first owner was used.');
         if (rep.usedDefault) warn('', 0, 'The default rent was used for ' + rep.usedDefault + ' row(s) that had no rent.');
         rep.ignored = [...new Set(rep.ignored)];
         return rep;
