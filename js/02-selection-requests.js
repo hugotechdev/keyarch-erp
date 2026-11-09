@@ -47,7 +47,17 @@ async function runDelete() {
     const btn = document.getElementById('del-go'); btn.disabled = true;
     const r = await delJob.run(force);
     btn.disabled = false;
-    if (!r.ok) return alert(r.data.error || 'Failed');
+    const nothingDone = r.ok && r.data && r.data.failed && r.data.failed.length && !r.data.deleted;
+    if (!r.ok || nothingDone) {
+        const err = nothingDone ? r.data.failed[0].error : (r.data.error || 'Failed');
+        // refused because of history: let an owner/admin go on with "delete with history" in the same window
+        if (delJob.allowForce && isAdminRole() && !force && /history|payment records|has a tenant|ticket/i.test(err)) {
+            document.getElementById('del-text').textContent = err + '  ' + 'To delete it together with its history, type DELETE below and press Delete again.';
+            document.getElementById('del-force').checked = true; document.getElementById('del-type-wrap').classList.remove('hidden');
+            document.getElementById('del-type').focus(); return;
+        }
+        return alert(err);
+    }
     let msg = r.data.message || 'Done.';
     if (r.data.failed && r.data.failed.length) msg += '\n\n' + r.data.failed.slice(0, 5).map(f => '• ' + f.error).join('\n');
     closeModal('modal-del');

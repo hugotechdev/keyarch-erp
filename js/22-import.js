@@ -58,7 +58,7 @@ function impShow(d, dry) {
     const c = d.created, tot = c.properties + c.units + c.tenants + c.expenses;
     const chip = (n, label) => n ? '<div class="rounded-xl bg-[#14223d] border border-[#233863] p-2 text-center"><div class="text-lg font-black text-white">' + n + '</div><div class="text-[10px] text-gray-400">' + label + '</div></div>' : '';
     let h = '<div class="text-xs font-bold ' + (dry ? 'text-amber-300' : 'text-emerald-300') + ' mb-2">' + (dry ? '<span>Check result (nothing is saved yet)</span>' : '<span>Import done. Everything was saved.</span>') + '</div>';
-    h += '<div class="grid grid-cols-3 gap-2 mb-3">' + chip(c.properties, '<span>Properties</span>') + chip(c.units, '<span>Units</span>') + chip(c.owners, '<span>Owners</span>') + chip(c.tenants, '<span>Tenants</span>') + chip(c.leases, '<span>Leases</span>') + chip(c.expenses, '<span>Expenses</span>') + '</div>';
+    h += '<div class="grid grid-cols-3 gap-2 mb-3">' + chip(d.rows, '<span>Rows read</span>') + chip(c.properties, '<span>Properties</span>') + chip(c.units, '<span>Units</span>') + chip(c.owners, '<span>Owners</span>') + chip(c.tenants, '<span>Tenants</span>') + chip(c.leases, '<span>Leases</span>') + chip(c.expenses, '<span>Expenses</span>') + chip(d.notes, '<span>Notes (no tenant)</span>') + chip(d.skipped, '<span>Skipped</span>') + '</div>';
     if (!tot) h += '<div class="text-xs rounded-xl p-3 bg-amber-900/30 border border-amber-500/40 text-amber-200 mb-2"><span>Nothing to import was found in this file.</span></div>';
     if (d.errors.length) {
         h += '<div class="text-xs font-bold text-red-300 mt-2 mb-1"><span>Rows with problems (these rows are skipped)</span> (' + d.errors.length + ')</div><div class="max-h-40 overflow-y-auto space-y-1">';

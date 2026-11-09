@@ -90,14 +90,14 @@ module.exports = function (ctx) {
         const s = String(v).replace(/[,\s]|tsh|tzs|usd|\$/gi, ''); if (!/^-?\d+(\.\d+)?$/.test(s)) return null; return parseFloat(s);
     }
     const toText = (v) => v === null || v === undefined ? '' : (typeof v === 'object' ? '' : String(v).replace(/\s+/g, ' ').trim());
-    const norm = (s) => String(s || '').toLowerCase().replace(/[.:_*\/\\()\-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const norm = (s) => String(s || '').toLowerCase().replace(/['’`]/g, '').replace(/[.:_*\/\\()\-]+/g, ' ').replace(/\s+/g, ' ').trim();
 
     // ---------- column names (English and Swahili, as people write them in their own files) ----------
     const COLS = {
         property: ['property name', 'property', 'building', 'project', 'jengo', 'mradi', 'jina la jengo'],
         ptype: ['property type', 'type', 'aina', 'aina ya jengo'],
         address: ['address', 'location', 'anwani', 'mahali'],
-        unit: ['unit no', 'unit', 'unit number', 'flat no', 'flat', 'flat number', 'apt no', 'apt', 'apartment', 'apartment no', 'shop no', 'shop', 'room no', 'room', 'room number', 'house no', 'house', 'office no', 'office', 'namba', 'namba ya nyumba', 'chumba', 'fremu', 'plot no'],
+        unit: ['unit no', 'unit', 'unit number', 'flat no', 'flat', 'flat number', 'apt no', 'apt', 'apartment', 'apartment no', 'shop no', 'shop', 'room no', 'room', 'room number', 'house no', 'house', 'office no', 'office', 'namba', 'namba ya nyumba', 'chumba', 'fremu', 'plot no', 'unit flat', 'flat room', 'room no', 'rm no', 'no'],
         owner: ['owner', 'owner name', 'name of owner', 'landlord', 'mmiliki', 'jina la mmiliki'],
         owner_phone: ['owner phone', 'owner phone no', 'owner contact', 'simu ya mmiliki'],
         rent_tzs: ['amount tsh', 'amount tzs', 'rent tsh', 'rent tzs', 'tsh', 'tzs', 'rent amount tsh', 'kodi tsh'],
@@ -105,7 +105,7 @@ module.exports = function (ctx) {
         rent: ['rent', 'rent amount', 'amount', 'monthly rent', 'rent price', 'kodi', 'kiasi'],
         currency: ['currency', 'sarafu'],
         svc: ['service charge', 'service', 'svc charge', 'service charge month'],
-        tenant: ['name of tenant', 'tenant', 'tenant name', 'tenants name', 'mpangaji', 'jina la mpangaji', 'jina'],
+        tenant: ['name of tenant', 'tenant s name', 'tenants s name', 'name', 'names', 'full name', 'occupant', 'lessee', 'client', 'customer', 'mteja', 'jina la mpangaji ', 'tenant', 'tenant name', 'tenants name', 'mpangaji', 'jina la mpangaji', 'jina'],
         phone: ['tenant phone', 'phone', 'phone no', 'phone number', 'mobile', 'contact', 'tel', 'simu', 'namba ya simu'],
         idno: ['nida', 'id no', 'id number', 'nida passport', 'nida no', 'passport', 'passport no', 'tenant id', 'kitambulisho', 'nida passport no'],
         start: ['start date', 'start', 'lease start', 'from', 'commencement', 'tarehe ya kuanza', 'anza', 'date from'],
@@ -158,7 +158,7 @@ module.exports = function (ctx) {
     // ---------- the import itself ----------
     async function runImport(client, req, sheets, opt) {
         const companyId = req.user.company_id, cleanName = (s) => toText(s);
-        const rep = { created: { properties: 0, units: 0, owners: 0, tenants: 0, leases: 0, expenses: 0 }, skipped: 0, errors: [], warnings: [], ignored: [], preview: [], sheets: [] };
+        const rep = { rows: 0, notes: 0, created: { properties: 0, units: 0, owners: 0, tenants: 0, leases: 0, expenses: 0 }, skipped: 0, errors: [], warnings: [], ignored: [], preview: [], sheets: [] };
         const acc = await getCompanyAccess(companyId);
         const orgOn = effectiveFeatures(acc ? (acc.plan || 'STANDARD') : 'PRO', acc ? acc.features : null).org !== false;
         const canMoney = R_MONEY.includes(req.user.role);
@@ -215,7 +215,7 @@ module.exports = function (ctx) {
             let count = 0;
             for (let ri = hd.index + 1; ri < sh.rows.length; ri++) {
                 const row = sh.rows[ri]; if (!row || !row.some(c => c !== undefined && c !== null && c !== '')) continue;
-                const rn = ri + 1;
+                const rn = ri + 1; rep.rows++;
                 if (++count > 2000) { err(sh.name, rn, 'More than 2000 rows. Please split the file.'); break; }
                 await client.query('SAVEPOINT r');
                 const snap = { c: Object.assign({}, rep.created), pc: Object.assign({}, propCache), oc: Object.assign({}, ownerCache) };
@@ -259,14 +259,17 @@ module.exports = function (ctx) {
                     if (on && /^(company|developer|kampuni|-)$/i.test(on) === false) { if (orgOn) ownerId = await getOwner(on, toText(cell(row, 'owner_phone'))); else if (!rep.ownerNote) { rep.ownerNote = true; warn(sh.name, rn, 'Owners are part of the Pro plan, so the owner names were not imported.'); } }
                     const svc = toNum(cell(row, 'svc')) || 0;
                     let unit = (await client.query('SELECT unit_id, status, currency, rent_amount FROM units WHERE property_id = $1 AND company_id = $2 AND lower(unit_number) = $3', [pid, companyId, unitNo.toLowerCase()])).rows[0];
-                    const tenantName = cleanName(cell(row, 'tenant'));
+                    let tenantName = cleanName(cell(row, 'tenant')); let noteText = '';
+                    // a note such as "staff" or "vacant" in the tenant column, with no dates: keep the unit, no tenant
+                    const rawEmpty = (v) => v === undefined || v === null || String(typeof v === 'object' ? 'x' : v).trim() === '';
+                    if (tenantName && rawEmpty(cell(row, 'start')) && rawEmpty(cell(row, 'end'))) { noteText = tenantName; tenantName = ''; rep.notes++; warn(sh.name, rn, 'Unit ' + unitNo + ': "' + noteText.slice(0, 40) + '" has no dates, so it was kept as a note. The unit was added without a tenant.'); }
                     if (!unit) {
                         const ins = await client.query(`INSERT INTO units (company_id, property_id, unit_number, rent_amount, currency, status, is_furnished, service_charge, service_inclusive, owner_id, occupancy_type)
                             VALUES ($1, $2, $3, $4, $5, 'VACANT', false, $6, false, $7, 'LET') RETURNING unit_id, status, currency, rent_amount`, [companyId, pid, unitNo.slice(0, 60), amount || 0, cur === 'USD' ? 'USD' : 'TSH', svc, ownerId]);
                         unit = ins.rows[0]; rep.created.units++;
                         await client.query('UPDATE properties SET total_units = COALESCE(total_units, 0) + 1 WHERE property_id = $1', [pid]);
-                    } else if (!tenantName) { warn(sh.name, rn, 'Unit ' + unitNo + ' already exists. Nothing to add.'); rep.skipped++; await client.query('RELEASE SAVEPOINT r'); continue; }
-                    if (!tenantName) { prev({ sheet: sh.name, row: rn, what: 'Unit', text: propName + ' · ' + unitNo + (ownerId ? ' (owner: ' + on + ')' : ''), amount, currency: cur }); await client.query('RELEASE SAVEPOINT r'); continue; }
+                    } else if (!tenantName) { if (!noteText) warn(sh.name, rn, 'Unit ' + unitNo + ' already exists. Nothing to add.'); rep.skipped++; await client.query('RELEASE SAVEPOINT r'); continue; }
+                    if (!tenantName) { prev({ sheet: sh.name, row: rn, what: 'Unit', text: propName + ' · ' + unitNo + (noteText ? ' [note: ' + noteText.slice(0, 30) + ']' : '') + (ownerId ? ' (owner: ' + on + ')' : ''), amount, currency: cur }); await client.query('RELEASE SAVEPOINT r'); continue; }
                     // ----- tenant and lease -----
                     if (unit.status === 'OCCUPIED') throw new Error('Unit ' + unitNo + ' already has a tenant.');
                     const start = toDate(cell(row, 'start')); if (!start) throw new Error('Start date is missing or not a date (use day/month/year).');
