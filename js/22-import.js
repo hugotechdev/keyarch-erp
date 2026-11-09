@@ -40,18 +40,18 @@ async function impRun(dry) {
         amount_mode: document.getElementById('imp-mode').value,
         payment_method: 'Cash'
     });
-    const btn = document.getElementById(dry ? 'imp-check' : 'imp-go'); btn.disabled = true;
-    box.innerHTML = '<div class="text-xs text-gray-400 p-3"><span>Please wait...</span></div>';
+    const btn = document.getElementById(dry ? 'imp-check' : 'imp-go'); btn.disabled = true; const btnHtml = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Please wait...</span>';
+    box.innerHTML = '<div class="text-xs text-gray-400 p-3 flex items-center gap-2"><i class="fa-solid fa-spinner fa-spin"></i> <span>Please wait...</span></div>';
     try {
         const buf = await IMP_FILE.arrayBuffer();
         const res = await fetch('/api/import/excel?' + q.toString(), { method: 'POST', headers: { 'Content-Type': 'application/octet-stream', Authorization: 'Bearer ' + localStorage.getItem('keyarch_token') }, body: buf });
         const d = await res.json().catch(() => ({}));
-        if (!res.ok) { box.innerHTML = '<div class="text-xs rounded-xl p-3 bg-red-900/30 border border-red-500/40 text-red-200">' + impEsc(d.error || 'Import failed') + '</div>'; btn.disabled = false; return; }
+        if (!res.ok) { box.innerHTML = '<div class="text-xs rounded-xl p-3 bg-red-900/30 border border-red-500/40 text-red-200">' + impEsc(d.error || 'Import failed') + '</div>'; btn.disabled = false; btn.innerHTML = btnHtml; return; }
         impShow(d, dry);
         if (dry) { IMP_CHECKED = true; document.getElementById('imp-go').classList.remove('hidden'); document.getElementById('imp-go').disabled = !(d.created.units || d.created.leases || d.created.expenses || d.created.properties); }
         else { document.getElementById('imp-go').classList.add('hidden'); document.getElementById('imp-check').classList.add('hidden'); if (typeof loadAllData === 'function') loadAllData(); }
     } catch (e) { box.innerHTML = '<div class="text-xs rounded-xl p-3 bg-red-900/30 border border-red-500/40 text-red-200"><span>No connection. Please try again.</span></div>'; }
-    btn.disabled = false;
+    btn.disabled = false; btn.innerHTML = btnHtml;
 }
 
 function impShow(d, dry) {
