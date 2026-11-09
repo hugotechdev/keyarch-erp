@@ -180,7 +180,7 @@ module.exports = function (ctx) {
                      (company_id, property_id, group_name, units_in_group, bedrooms, bathrooms, rent_timeline, currency, rent_amount, payment_method, furnishing_status, service_charge, service_inclusive, owner_id, occupancy_type, service_currency)
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
                     [
-                        companyId, property.property_id, grp.group_name || `Group ${gIdx + 1}`, grp.units_in_group || 1, grp.bedrooms || 0, grp.bathrooms || 0,
+                        companyId, property.property_id, grp.group_name || `Block ${gIdx + 1}`, grp.units_in_group || 1, grp.bedrooms || 0, grp.bathrooms || 0,
                         grp.rent_timeline || 'Per Month', grp.currency || 'TSH', grp.rent_amount || 0, grp.payment_method || 'Cash', grp.furnishing_status || 'Unfurnished',
                         svcAmount, svcInclusive, oref.owner_id || null, oref.occupancy_type || 'LET', oref.service_currency || null
                     ]
@@ -191,7 +191,7 @@ module.exports = function (ctx) {
 
 
                 for (let uIdx = 1; uIdx <= unitsCount; uIdx++) {
-                    const unitNumber = `${cleanGrpName}-${uIdx}`;
+                    const unitNumber = grp.unit_prefix !== undefined ? (String(grp.unit_prefix).replace(/\s+/g, ' ').slice(0, 20) + ((parseInt(grp.first_number) || 1) + uIdx - 1)).trim() : `${cleanGrpName}-${uIdx}`;
                     await client.query(
                         `INSERT INTO units (company_id, property_id, unit_number, rent_amount, currency, status, is_furnished, service_charge, service_inclusive, owner_id, occupancy_type, service_currency)
                          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
@@ -211,38 +211,13 @@ module.exports = function (ctx) {
         }
     });
 
-    // TENANT ONBOARDING WITH AUTO-INVOICE GENERATION
-    app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
-        if (!inScope(req, req.body && req.body.property_id)) return res.status(403).json({ error: 'You do not have access to this project.', code: 'OUT_OF_SCOPE' });
-        let client;
-        try {
-            const { full_name, nida_passport_no, identity_type, phone_number, property_id, unit_id, start_date, end_date, discount, paid_amount, agreed_rent } = req.body;
-            const leaseCurrency = cleanCur(req.body.currency);
-            let { rent_price, rent_period, number_of_periods } = req.body;
-            const companyId = req.user.company_id;
-
-            // Old frontend compatibility: only "agreed_rent" sent = one period
-            if (rent_price === undefined && agreed_rent !== undefined) {
-                rent_price = agreed_rent;
-                number_of_periods = number_of_periods ?? 1;
-                rent_period = rent_period || 'Month';
-            }
-            rent_period = rent_period || 'Month';
-
-            if (!full_name || !nida_passport_no || !phone_number || !property_id || !unit_id || !start_date || !rent_price) {
-                return res.status(400).json({ error: 'Please fill in all required fields (*).' });
-            }
-            if (!ALLOWED_RENT_PERIODS.includes(rent_period)) {
-                return res.status(400).json({ error: 'Invalid rent period. Use Day, Week, Month or Year.' });
-            }
-
-            // The server calculates everything again. Browser figures are never trusted.
-            const calc = calculatePayment({ rent_price, number_of_periods, discount, paid_amount });
-            if (calc.error) return res.status(400).json({ error: calc.error });
-
-            client = await pool.connect();
-            await client.query('BEGIN');
-
+    // creates the tenant, the lease, its first invoice and payment inside an open transaction.
+    // Used by the onboarding screen and by the Excel import (opts.skipService = no first service-charge invoice).
+    async function onboardTenantCore(client, req, b, calc, leaseCurrency, opts) {
+        opts = opts || {};
+        const { full_name, nida_passport_no, identity_type, phone_number, property_id, unit_id, start_date, end_date } = b;
+        const rent_period = b.rent_period || 'Month';
+        const companyId = req.user.company_id;
             const unitCheck = await client.query(
                 `SELECT u.status, u.property_id, u.service_charge, u.service_inclusive, u.service_currency, u.currency AS unit_currency, p.service_charge_label AS service_label
                  FROM units u JOIN properties p ON p.property_id = u.property_id WHERE u.unit_id = $1 AND u.company_id = $2`, [unit_id, companyId]);
@@ -299,8 +274,8 @@ module.exports = function (ctx) {
             let payment = null;
             if (calc.paid > 0) {
                 payment = await addPayment(client, {
-                    companyId, invoiceId: invoice.invoice_id, amount: calc.paid, method: req.body.payment_method, methodDetail: req.body.payment_method,
-                    reference: req.body.payment_reference, date: start_date <= todayStr() ? start_date : todayStr(), userId: req.user.user_id, accountId: req.body.account_id
+                    companyId, invoiceId: invoice.invoice_id, amount: calc.paid, method: b.payment_method, methodDetail: b.payment_method,
+                    reference: b.payment_reference, date: start_date <= todayStr() ? start_date : todayStr(), userId: req.user.user_id, accountId: b.account_id
                 });
             }
 
@@ -309,13 +284,13 @@ module.exports = function (ctx) {
             // the unit may be priced in the other currency: the service charge follows the same exchange rate as the rent
             const unitCur = String(unitRow.unit_currency || '').toUpperCase() === 'USD' ? 'USD' : 'TZS';
             const svcCur = unitRow.service_currency ? String(unitRow.service_currency).toUpperCase() : unitCur;   // the service charge may be in another currency than the rent
-            const xr = parseFloat(req.body.exchange_rate);
+            const xr = parseFloat(b.exchange_rate);
             if ((unitCur !== leaseCurrency || (svcCur !== leaseCurrency && parseFloat(unitRow.service_charge || 0) > 0)) && !(xr > 0)) throw new Error('Please enter the exchange rate (TSh for 1 USD).');
             const convUnit = n => svcCur === leaseCurrency ? n : (leaseCurrency === 'USD' ? Math.round(n / xr * 100) / 100 : Math.round(n * xr));
             const svc = convUnit(parseFloat(unitRow.service_charge || 0));
             // remember the monthly service charge in the currency of the contract, and the rate used
             await client.query('UPDATE leases SET service_amount = $1, service_rate = $2 WHERE lease_id = $3', [svc, xr > 0 ? xr : null, lease.lease_id]);
-            if (svc > 0 && !unitRow.service_inclusive) {
+            if (svc > 0 && !unitRow.service_inclusive && !opts.skipService) {
                 const ym = String(start_date).slice(0, 7);
                 const range = monthRange(ym);
                 serviceInvoice = await createInvoice(client, {
@@ -323,11 +298,11 @@ module.exports = function (ctx) {
                     description: `${unitRow.service_label || 'Service charge'} - ${monthLabel(ym)}`,
                     issueDate: start_date, dueDate: start_date, periodStart: range.start, periodEnd: range.end, leaseCharge: false, userId: req.user.user_id
                 });
-                const svcPaid = Math.min(svc, Math.max(0, parseFloat(req.body.service_paid) || 0));
+                const svcPaid = Math.min(svc, Math.max(0, parseFloat(b.service_paid) || 0));
                 if (svcPaid > 0) {
                     await addPayment(client, {
-                        companyId, invoiceId: serviceInvoice.invoice_id, amount: svcPaid, method: req.body.payment_method, methodDetail: req.body.payment_method,
-                        reference: req.body.payment_reference, date: start_date <= todayStr() ? start_date : todayStr(), userId: req.user.user_id, accountId: req.body.account_id
+                        companyId, invoiceId: serviceInvoice.invoice_id, amount: svcPaid, method: b.payment_method, methodDetail: b.payment_method,
+                        reference: b.payment_reference, date: start_date <= todayStr() ? start_date : todayStr(), userId: req.user.user_id, accountId: b.account_id
                     });
                     if (svcPaid >= svc) await client.query("UPDATE invoices SET status = 'PAID' WHERE invoice_id = $1", [serviceInvoice.invoice_id]);
                 }
@@ -344,6 +319,43 @@ module.exports = function (ctx) {
                 paid: calc.paid,
                 payment_status: calc.status
             });
+        return { tenant, lease, invoice, payment, serviceInvoice };
+    }
+
+    // TENANT ONBOARDING WITH AUTO-INVOICE GENERATION
+    app.post('/api/tenants/onboard', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER'), async (req, res) => {
+        if (!inScope(req, req.body && req.body.property_id)) return res.status(403).json({ error: 'You do not have access to this project.', code: 'OUT_OF_SCOPE' });
+        let client;
+        try {
+            const { full_name, nida_passport_no, identity_type, phone_number, property_id, unit_id, start_date, end_date, discount, paid_amount, agreed_rent } = req.body;
+            const leaseCurrency = cleanCur(req.body.currency);
+            let { rent_price, rent_period, number_of_periods } = req.body;
+            const companyId = req.user.company_id;
+
+            // Old frontend compatibility: only "agreed_rent" sent = one period
+            if (rent_price === undefined && agreed_rent !== undefined) {
+                rent_price = agreed_rent;
+                number_of_periods = number_of_periods ?? 1;
+                rent_period = rent_period || 'Month';
+            }
+            rent_period = rent_period || 'Month';
+
+            if (!full_name || !nida_passport_no || !phone_number || !property_id || !unit_id || !start_date || !rent_price) {
+                return res.status(400).json({ error: 'Please fill in all required fields (*).' });
+            }
+            if (!ALLOWED_RENT_PERIODS.includes(rent_period)) {
+                return res.status(400).json({ error: 'Invalid rent period. Use Day, Week, Month or Year.' });
+            }
+
+            // The server calculates everything again. Browser figures are never trusted.
+            const calc = calculatePayment({ rent_price, number_of_periods, discount, paid_amount });
+            if (calc.error) return res.status(400).json({ error: calc.error });
+
+            client = await pool.connect();
+            await client.query('BEGIN');
+
+            const out = await onboardTenantCore(client, req, req.body, calc, leaseCurrency, {});
+            const { tenant, lease, invoice, payment, serviceInvoice } = out;
             await client.query('COMMIT');
 
             res.status(201).json({
@@ -371,5 +383,5 @@ module.exports = function (ctx) {
             if (client) client.release();
         }
     });
-    return { loadOptional, mailConfigured, monthRange, sendMail };
+    return { loadOptional, mailConfigured, monthRange, onboardTenantCore, sendMail };
 };

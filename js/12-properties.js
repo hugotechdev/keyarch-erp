@@ -70,7 +70,7 @@ function renderProperties() {
                     ${isAdminRole() ? `<button onclick="deleteProperty(${Number(p.property_id)})" class="px-3 py-2 rounded-xl bg-red-600/20 text-red-300 border border-red-500/40 font-bold"><i class="fa-solid fa-trash-can"></i> Delete</button>` : ''}
                 </div>` : ''}
                 <div class="overflow-x-auto"><table class="w-full text-left text-xs text-gray-300">
-                    <thead class="bg-[#14223d] text-gray-400 uppercase font-bold"><tr>${mg ? '<th class="p-2.5 w-8"></th>' : ''}<th class="p-2.5">Unit</th><th class="p-2.5">Rent</th><th class="p-2.5">${esc(p.service_charge_label)}</th><th class="p-2.5">Status</th><th class="p-2.5">Tenant</th><th class="p-2.5">${esc(p.service_charge_label)} (this month)</th><th class="p-2.5"></th></tr></thead>
+                    <thead class="bg-[#14223d] text-gray-400 uppercase font-bold"><tr>${mg ? '<th class="p-2.5 w-8"></th>' : ''}<th class="p-2.5"><span>${unitNoLabel(p.category)}</span></th><th class="p-2.5">Rent</th><th class="p-2.5">${esc(p.service_charge_label)}</th><th class="p-2.5">Status</th><th class="p-2.5">Tenant</th><th class="p-2.5">${esc(p.service_charge_label)} (this month)</th><th class="p-2.5"></th></tr></thead>
                     <tbody class="divide-y divide-[#182848]">${rows || '<tr><td colspan="8" class="p-4 text-center text-gray-500">No units yet.</td></tr>'}</tbody>
                 </table></div>
             </div>` : ''}
@@ -119,6 +119,7 @@ async function saveUnit(e) {
 function openAddUnits(pid) {
     const p = findProp(pid); if (!p) return;
     document.getElementById('au-id').value = pid; document.getElementById('au-prop').innerText = p.property_name;
+    document.getElementById('au-lbl').innerText = unitNoLabel(p.category);
     ['au-name', 'au-rent', 'au-svc'].forEach(i => document.getElementById(i).value = '');
     document.getElementById('au-count').value = 1; document.getElementById('au-incl').checked = false;
     fillOwnerSelects(); document.getElementById('au-svccur').value = ''; document.getElementById('au-owner').value = ''; document.getElementById('au-occ').value = 'LET';

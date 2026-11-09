@@ -481,6 +481,7 @@
                     <div class="flex flex-wrap justify-between items-center gap-2">
                         <h3 class="text-sm font-bold text-white uppercase tracking-wider">Properties & Units</h3>
                         <div class="flex flex-wrap gap-2">
+                            <button onclick="openImport()" class="can-money bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-file-excel"></i> <span>Import Excel</span></button>
                             <input id="prop-search" oninput="renderProperties()" placeholder="Search property or unit..." class="inp !w-48 !py-2">
                             <button onclick="openModal('modal-property-wizard')" class="can-manage bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-building"></i> + Property</button>
                         </div>
@@ -494,6 +495,7 @@
                 <section id="page-tenants" class="app-page hidden space-y-4">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                         <h3 class="text-sm font-bold text-white uppercase tracking-wider">Tenants & Leases</h3>
+                        <button onclick="openImport()" class="can-money bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-file-excel"></i> <span>Import Excel</span></button>
                         <div class="flex gap-2 w-full md:w-auto">
                             <div class="relative flex-1 md:w-72">
                                 <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-gray-400 text-xs"></i>
@@ -679,6 +681,7 @@
                 <section id="page-expenses" class="app-page hidden space-y-4">
                     <div class="flex flex-wrap justify-between items-center gap-2">
                         <h3 class="text-sm font-bold text-white uppercase tracking-wider">Expenses</h3>
+                        <button onclick="openImport()" class="can-money bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-file-excel"></i> <span>Import Excel</span></button>
                         <button onclick="openExpenseModal()" class="can-money bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3 py-2 rounded-xl"><i class="fa-solid fa-plus"></i> Expense</button>
                     </div>
                     <div class="flex flex-wrap gap-2 items-center">
@@ -958,7 +961,7 @@
                         </span>
                         <i class="fa-solid fa-chevron-right text-[10px] text-gray-600"></i>
                         <span class="flex items-center gap-1 text-[11px] font-bold text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-800/50">
-                            <span class="w-4 h-4 rounded-full bg-cyan-600 text-white text-[9px] flex items-center justify-center">2</span> Groups & Units
+                            <span class="w-4 h-4 rounded-full bg-cyan-600 text-white text-[9px] flex items-center justify-center">2</span> Units
                         </span>
                         <i class="fa-solid fa-chevron-right text-[10px] text-gray-600"></i>
                         <span class="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800/50">
@@ -1020,7 +1023,7 @@
                     </div>
                     <div id="groups-container" class="space-y-4"></div>
                     <button type="button" onclick="addGroupCard()" class="w-full py-3 border-2 border-dashed border-[#233863] hover:border-blue-500 rounded-2xl text-blue-400 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition bg-[#0d172d]/50">
-                        <i class="fa-solid fa-circle-plus text-sm"></i> + Add Another Group
+                        <i class="fa-solid fa-circle-plus text-sm"></i> + Add another block / floor
                     </button>
                 </form>
             </div>
@@ -1305,6 +1308,34 @@
         </div>
     </div>
 
+    <!-- MODAL: IMPORT FROM EXCEL -->
+    <div id="modal-import" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-[#0d172d] border border-[#182848] w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl p-6 relative shadow-2xl">
+            <button onclick="closeModal('modal-import')" class="absolute top-4 right-4 text-gray-400 text-xl">&times;</button>
+            <h3 class="font-bold text-lg text-white">Import from Excel</h3>
+            <p class="text-[11px] text-gray-500 mb-4">Add properties, units, tenants, old balances and expenses from an Excel file. You will see a check first. Nothing is saved until you confirm.</p>
+            <div class="text-[11px] font-bold text-gray-300 mb-1">1. Download a template</div>
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <button type="button" onclick="impTemplate('simple')" class="bg-[#14223d] border border-[#233863] hover:border-blue-500 rounded-xl p-3 text-left"><div class="text-xs font-bold text-white"><i class="fa-solid fa-file-excel text-emerald-400"></i> <span>Simple list</span></div><div class="text-[10px] text-gray-400 mt-1"><span>One row per unit, tenant on the same row</span></div></button>
+                <button type="button" onclick="impTemplate('form')" class="bg-[#14223d] border border-[#233863] hover:border-blue-500 rounded-xl p-3 text-left"><div class="text-xs font-bold text-white"><i class="fa-solid fa-file-excel text-emerald-400"></i> <span>Same as our forms</span></div><div class="text-[10px] text-gray-400 mt-1"><span>Separate sheets: properties, units, tenants, expenses</span></div></button>
+            </div>
+            <div class="text-[11px] font-bold text-gray-300 mb-1">2. Choose your file (.xlsx)</div>
+            <input id="imp-file" type="file" accept=".xlsx" onchange="impPicked(this)" class="w-full text-xs text-gray-300 mb-3">
+            <div class="grid grid-cols-2 gap-2 mb-2">
+                <div><label class="text-[10px] text-gray-400"><span>Property name (if your file has none)</span></label><input id="imp-prop" class="inp !py-2"></div>
+                <div><label class="text-[10px] text-gray-400"><span>Property type</span></label><select id="imp-ptype" class="inp !py-2"><option>Apartment</option><option>House</option><option>Office</option><option>Shop</option><option>Hotel</option><option>Air-Bnb</option></select></div>
+            </div>
+            <label class="text-[10px] text-gray-400"><span>The rent amount in my file is</span></label>
+            <select id="imp-mode" class="inp !py-2 mb-4"><option value="per_period">for one period (one month, one year)</option><option value="total">for the whole rental period</option></select>
+            <div class="text-[11px] font-bold text-gray-300 mb-1">3. Check, then import</div>
+            <div class="flex gap-2 mb-3">
+                <button id="imp-check" type="button" onclick="impRun(true)" class="flex-1 bg-blue-600 hover:bg-blue-700 py-3 rounded-xl text-white font-bold text-xs"><span>Check file</span></button>
+                <button id="imp-go" type="button" onclick="impRun(false)" class="hidden flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 py-3 rounded-xl text-white font-bold text-xs"><span>Import now</span></button>
+            </div>
+            <div id="imp-result"></div>
+        </div>
+    </div>
+
     <!-- MODAL: BILL OWNERS -->
     <div id="modal-bill-owners" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-[#0d172d] border border-[#182848] w-full max-w-sm rounded-2xl p-6 relative shadow-2xl">
@@ -1385,7 +1416,7 @@
             <form onsubmit="addUnits(event)" class="space-y-3">
                 <input type="hidden" id="au-id">
                 <div class="grid grid-cols-3 gap-3">
-                    <div class="col-span-2"><label class="lbl">Unit name *</label><input id="au-name" class="inp" placeholder="e.g. A or 101" required></div>
+                    <div class="col-span-2"><label class="lbl"><span id="au-lbl">Unit No.</span> *</label><input id="au-name" class="inp" placeholder="e.g. A or 101" required></div>
                     <div><label class="lbl">How many</label><input id="au-count" type="number" min="1" max="100" value="1" class="inp"></div>
                 </div>
                 <p class="text-[11px] text-gray-500">If you add more than one, they are numbered automatically (A-1, A-2, A-3...).</p>
@@ -2015,6 +2046,7 @@
 <script src="/js/19-settings-users.js"></script>
 <script src="/js/20-structure.js"></script>
 <script src="/js/21-extras.js"></script>
+<script src="/js/22-import.js"></script>
 <script src="/js/99-i18n.js"></script>
 
 

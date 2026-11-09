@@ -28,6 +28,7 @@ const PARTS = [
     '23-reports',
     '24-finance',
     '25-backup',
-    '26-platform-admin'
+    '26-platform-admin',
+    '27-excel-import'
 ];
 for (const name of PARTS) Object.assign(ctx, require('./server/' + name)(ctx));

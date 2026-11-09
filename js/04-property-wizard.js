@@ -1,3 +1,20 @@
+// what a "unit" is called for each kind of property, and how its numbers start
+const UNIT_WORDS = {
+    'Apartment': { label: 'Apt No.', prefix: 'Apt ', plural: 'apartments' },
+    'House': { label: 'House No.', prefix: 'House ', plural: 'houses' },
+    'Office': { label: 'Office No.', prefix: 'Office ', plural: 'offices' },
+    'Shop': { label: 'Shop No.', prefix: 'Shop ', plural: 'shops' },
+    'Hotel': { label: 'Room No.', prefix: 'Room ', plural: 'rooms' },
+    'Air-Bnb': { label: 'Room No.', prefix: 'Room ', plural: 'rooms' }
+};
+function unitWords(type) { return UNIT_WORDS[type] || { label: 'Unit No.', prefix: 'Unit ', plural: 'units' }; }
+function unitNoLabel(type) { return unitWords(type).label; }
+function wizPreview(card) {
+    const w = unitWords(selectedPropertyType), pre = card.querySelector('.grp-prefix').value, first = parseInt(card.querySelector('.grp-first').value) || 1;
+    const n = Math.max(1, Math.min(500, parseInt(card.querySelector('.grp-units').value) || 1));
+    const nm = i => (pre + (first + i)).trim();
+    card.querySelector('.grp-preview').innerText = n === 1 ? nm(0) : (n === 2 ? nm(0) + ', ' + nm(1) : nm(0) + ', ' + nm(1) + ' ... ' + nm(n - 1));
+}
                         function addGroupCard() {
     groupCounter++;
     const container = document.getElementById('groups-container');
@@ -6,18 +23,29 @@
     const cardHTML = `
         <div id="${cardId}" class="group-card bg-[#0e1930] border border-[#1d325c] rounded-2xl p-4 space-y-3 relative" data-group-id="${groupCounter}">
             <div class="flex justify-between items-center border-b border-[#182848] pb-2">
-                <h4 class="text-xs font-bold text-white uppercase tracking-wider group-title">${selectedPropertyType} Group ${groupCounter}</h4>
-                ${groupCounter > 1 ? `<button type="button" onclick="removeGroupCard('${cardId}')" class="text-red-400 hover:text-red-300 text-xs flex items-center gap-1"><i class="fa-solid fa-trash-can"></i> Remove Group</button>` : ''}
+                <h4 class="text-xs font-bold text-white uppercase tracking-wider group-title">${unitWords(selectedPropertyType).label} · <span class="grp-title-n">${groupCounter}</span></h4>
+                ${groupCounter > 1 ? `<button type="button" onclick="removeGroupCard('${cardId}')" class="text-red-400 hover:text-red-300 text-xs flex items-center gap-1"><i class="fa-solid fa-trash-can"></i> Remove</button>` : ''}
             </div>
             <div class="space-y-3">
                 <div>
-                    <label class="block text-[11px] font-semibold text-gray-300 mb-1">Group Name *</label>
-                    <input type="text" class="grp-name w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="Group ${groupCounter}" required>
+                    <label class="block text-[11px] font-semibold text-gray-300 mb-1"><span class="grp-lbl-block">Block / Floor (optional)</span></label>
+                    <input type="text" class="grp-name w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="" placeholder="e.g. Block A, Floor 1">
                 </div>
-                <div>
-                    <label class="block text-[11px] font-semibold text-gray-300 mb-1">Units in Group *</label>
-                    <input type="number" class="grp-units w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="1" min="1" required>
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-gray-300 mb-1"><span class="grp-lbl-unit">${unitWords(selectedPropertyType).label}</span> <span>starts with</span></label>
+                        <input type="text" class="grp-prefix w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="${unitWords(selectedPropertyType).prefix}" oninput="wizPreview(this.closest('.group-card'))">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-gray-300 mb-1"><span>First number</span></label>
+                        <input type="number" class="grp-first w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="1" min="0" oninput="wizPreview(this.closest('.group-card'))">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-gray-300 mb-1"><span>How many *</span></label>
+                        <input type="number" class="grp-units w-full p-2.5 rounded-xl bg-[#14223d] border border-[#233863] text-white text-xs outline-none focus:border-blue-500" value="1" min="1" max="500" required oninput="wizPreview(this.closest('.group-card'))">
+                    </div>
                 </div>
+                <p class="text-[11px] text-gray-500"><span>Numbers created</span>: <b class="grp-preview text-cyan-300"></b></p>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block text-[11px] font-semibold text-gray-300 mb-1">Bedrooms</label>
@@ -84,6 +112,7 @@
         </div>
     `;
     container.insertAdjacentHTML('beforeend', cardHTML);
+    wizPreview(document.getElementById(cardId));
     fillOwnerSelects();
 }
 
@@ -103,8 +132,13 @@ function selectType(type, btn) {
         btn.classList.add('bg-blue-600', 'text-white', 'border-blue-500');
     }
 
-    document.querySelectorAll('.group-title').forEach((title, idx) => {
-        title.innerText = `${type} Group ${idx + 1}`;
+    const w = unitWords(type);
+    document.querySelectorAll('.group-card').forEach(card => {
+        card.querySelector('.grp-lbl-unit').innerText = w.label;
+        const pre = card.querySelector('.grp-prefix');
+        if (Object.values(UNIT_WORDS).some(x => x.prefix === pre.value) || !pre.value) pre.value = w.prefix;   // keep what the person typed
+        card.querySelector('.group-title').firstChild.textContent = w.label + ' · ';
+        wizPreview(card);
     });
 }
 
@@ -141,6 +175,8 @@ async function collectAndSubmitWizard(e) {
 
         collectedGroups.push({
             group_name: name,
+            unit_prefix: card.querySelector('.grp-prefix').value,
+            first_number: parseInt(card.querySelector('.grp-first').value) || 1,
             units_in_group: units,
             bedrooms: bedrooms,
             bathrooms: bathrooms,
