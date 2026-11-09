@@ -9,6 +9,14 @@ module.exports = function (ctx) {
     // DELETING (tenants, units, properties) - normal delete keeps history safe,
     // "force" (owner/admin + typed confirmation) removes the history too
     // ============================================================
+    // some databases have no tenant_id column on payments: only touch it when it exists
+    let payHasTenant = null;
+    async function clearPaymentTenant(client, tenantIds) {
+        if (payHasTenant === null) {
+            payHasTenant = (await client.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'tenant_id' LIMIT 1")).rows.length > 0;
+        }
+        if (payHasTenant && tenantIds.length) await client.query('UPDATE payments SET tenant_id = NULL WHERE tenant_id = ANY($1::int[])', [tenantIds]);
+    }
     async function wipeLeases(client, cId, leaseIds) {
         if (!leaseIds.length) return;
         await client.query('DELETE FROM payments WHERE company_id = $2 AND invoice_id IN (SELECT invoice_id FROM invoices WHERE company_id = $2 AND lease_id = ANY($1::int[]))', [leaseIds, cId]);
@@ -19,7 +27,7 @@ module.exports = function (ctx) {
     }
     async function dropOrphanTenants(client, cId, tenantIds) {
         if (!tenantIds.length) return;
-        await client.query('UPDATE payments SET tenant_id = NULL WHERE tenant_id = ANY($1::int[])', [tenantIds]);
+        await clearPaymentTenant(client, tenantIds);
         await client.query('DELETE FROM tenants t WHERE t.company_id = $2 AND t.tenant_id = ANY($1::int[]) AND NOT EXISTS (SELECT 1 FROM leases l WHERE l.tenant_id = t.tenant_id)', [tenantIds, cId]);
     }
     function wantsForce(req) {
@@ -39,7 +47,7 @@ module.exports = function (ctx) {
             "UPDATE units SET status = 'VACANT' WHERE company_id = $2 AND unit_id IN (SELECT unit_id FROM leases WHERE tenant_id = $1 AND company_id = $2 AND lease_state = 'CURRENT')", [tenantId, cId]);
         const leaseIds = (await client.query('SELECT lease_id FROM leases WHERE tenant_id = $1 AND company_id = $2', [tenantId, cId])).rows.map(r => r.lease_id);
         await wipeLeases(client, cId, leaseIds);
-        await client.query('UPDATE payments SET tenant_id = NULL WHERE tenant_id = $1', [tenantId]);
+        await clearPaymentTenant(client, [tenantId]);
         await client.query('DELETE FROM tenants WHERE tenant_id = $1 AND company_id = $2', [tenantId, cId]);
         await createAuditLog(client, cId, userId, force ? 'Deleted Tenant with all history' : 'Deleted Tenant', 'TENANTS', ip, { tenant_id: tenantId, name: t.full_name });
     }
