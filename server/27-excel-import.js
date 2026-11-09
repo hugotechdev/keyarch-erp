@@ -114,6 +114,7 @@ module.exports = function (ctx) {
         deposit: ['deposit', 'amana', 'security deposit'],
         balance: ['balance', 'balance owed', 'opening balance', 'arrears', 'outstanding', 'deni', 'amount owed', 'balance due'],
         idtype: ['id type', 'identity type', 'aina ya kitambulisho'],
+        paymethod: ['mtc banked', 'banked', 'payment method', 'method', 'paid via', 'paid by', 'aina ya malipo', 'njia ya malipo'],
         discount: ['discount', 'punguzo'],
         paid: ['amount paid', 'paid', 'paid amount', 'alicholipa', 'malipo'],
         date: ['date', 'expense date', 'tarehe'],
@@ -293,8 +294,10 @@ module.exports = function (ctx) {
                     }
                     const calc = calculatePayment({ rent_price: price, number_of_periods: n, discount: disc, paid_amount: paid });
                     if (calc.error) throw new Error(calc.error);
+                    const pmRaw = toText(cell(row, 'paymethod')).toLowerCase();
+                    const pm = /bank|nmb|crdb|nbc|cheque|transfer/.test(pmRaw) ? 'Bank' : /mpesa|m-pesa|tigo|airtel|halo|mtc|mobile|simu/.test(pmRaw) ? 'Mobile Money' : (opt.payment_method || 'Cash');
                     const body = { full_name: tenantName.slice(0, 120), nida_passport_no: idn || 'NOID-' + require('crypto').createHash('md5').update(tenantName.toLowerCase() + '|' + phone).digest('hex').slice(0, 12), identity_type: (({ nida: 'NIDA', passport: 'PASSPORT', 'driving licence': 'DRIVING_LICENSE', 'driving license': 'DRIVING_LICENSE', voter: 'VOTER_ID' })[norm(toText(cell(row, 'idtype')))] || 'NIDA'), phone_number: phone,
-                        property_id: pid, unit_id: unit.unit_id, start_date: start, end_date: end, rent_period: unitName, payment_method: opt.payment_method || 'Cash', payment_reference: 'Excel import' };
+                        property_id: pid, unit_id: unit.unit_id, start_date: start, end_date: end, rent_period: unitName, payment_method: pm, payment_reference: 'Excel import' };
                     const out = await onboardTenantCore(client, req, body, calc, cur, { skipService: true });
                     rep.created.tenants++; rep.created.leases++;
                     if (dep > 0) {
