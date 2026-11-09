@@ -13,6 +13,18 @@
     <link rel="stylesheet" href="/css/app.css">
 </head>
 <body class="min-h-screen flex flex-col justify-between text-gray-100 font-sans">
+    <style id="ka-base-css">
+        .inp { display:block; width:100%; padding:0.7rem 0.75rem; border-radius:0.75rem; background:#14223d; border:1px solid #233863; color:#fff; font-size:0.75rem; line-height:1.2; outline:none; }
+        .inp:focus { border-color:#3b82f6; }
+        .inp option { background:#14223d; color:#fff; }
+        input[type=file]::file-selector-button { background:#14223d; color:#fff; border:1px solid #233863; border-radius:.6rem; padding:.4rem .8rem; margin-right:.6rem; font-size:.75rem; font-weight:700; cursor:pointer; }
+        html[data-theme="light"] .inp { background:#E4E9F3; color:#1E293B; border-color:#C9D2E6; }
+        html[data-theme="light"] .inp option { background:#F4F6FB; color:#1E293B; }
+        html[data-theme="light"] input[type=file]::file-selector-button { background:#E4E9F3; color:#1E293B; border-color:#C9D2E6; }
+        html[data-theme="dark"] .inp { background-color:#242628; border-color:#383b3f; color:#e8e9ea; }
+        html[data-theme="dark"] .inp option { background:#242628; color:#e8e9ea; }
+        html[data-theme="dark"] input[type=file]::file-selector-button { background:#242628; color:#e8e9ea; border-color:#383b3f; }
+    </style>
     <style id="ka-loader-css">
         #ka-loader { position: fixed; inset: 0; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: #E9EEF8; transition: opacity .35s ease, visibility .35s ease; }
         html[data-theme="dark"] #ka-loader { background: #0B1328; }
