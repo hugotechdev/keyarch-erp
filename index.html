@@ -437,7 +437,13 @@ html[data-theme="light"] .bg-amber-600\/30, html[data-theme="light"] .bg-amber-6
 #ai-fab { animation: kaPulse 2.8s ease-out infinite; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 
-    </style>
+/* light mode fixes: sidebar hover text and the role / plan badges in the user menu */
+html[data-theme="light"] .nav-item:hover, html[data-theme="light"] .nav-item[class*="bg-blue-6"]:hover { color: #1D4ED8 !important; }
+html[data-theme="light"] #user-role-badge { background: #DBEAFE !important; border-color: #93C5FD !important; color: #1E40AF !important; }
+html[data-theme="light"] #user-plan-badge { background: #E0E7FF !important; border-color: #A5B4FC !important; color: #3730A3 !important; }
+html[data-theme="light"] #menu-user .text-cyan-400 { color: #0E7490 !important; }
+
+</style>
 </head>
 <body class="min-h-screen flex flex-col justify-between text-gray-100 font-sans">
     <style id="ka-base-css">
