@@ -22,6 +22,25 @@ module.exports = function (ctx) {
     app.set('trust proxy', 1);
 
     app.use(helmet({ contentSecurityPolicy: false }));
+    // Extra browser protections. The CSP is in REPORT-ONLY mode: the browser only reports what it would block, nothing breaks.
+    // When /api/csp-report shows no more surprises, the header name can be changed to Content-Security-Policy.
+    const CSP = [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com",
+        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com",
+        "font-src 'self' data: https://cdnjs.cloudflare.com https://fonts.gstatic.com",
+        "img-src 'self' data: blob: https:",
+        "connect-src 'self'",
+        "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'",
+        'report-uri /api/csp-report'
+    ].join('; ');
+    app.use((req, res, next) => {
+        res.setHeader('Content-Security-Policy-Report-Only', CSP);
+        res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+        res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+        if (req.path.startsWith('/api/')) res.setHeader('Cache-Control', 'no-store');
+        next();
+    });
 
     if (!process.env.JWT_SECRET) {
         throw new Error("JWT_SECRET environment variable missing. System cannot start securely.");
@@ -38,6 +57,13 @@ module.exports = function (ctx) {
     const CORS_ALLOWED = ['https://keyarch.site', 'https://www.keyarch.site']
         .concat(String(process.env.CORS_ORIGINS || '').split(',').map(x => x.trim()).filter(Boolean));
     app.use(cors({ origin: (origin, cb) => cb(null, !origin || CORS_ALLOWED.includes(origin) || /^http:\/\/localhost(:\d+)?$/.test(origin)) }));
+    // every visitor (by IP) may make this many API calls per minute. Normal use is far below it.
+    app.use('/api/', rateLimit({ windowMs: 60 * 1000, max: parseInt(process.env.API_RATE_MAX) || 600, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests. Please slow down and try again in a minute.' } }));
+    // the browser posts CSP reports here (small, only logged)
+    app.post('/api/csp-report', (req, res) => {
+        try { console.warn('CSP report:', JSON.stringify(req.body || {}).slice(0, 400)); } catch (e) { /* ignore */ }
+        res.status(204).end();
+    });
     app.use(express.json({ limit: '12mb' })); // 12mb: Luku stock files are sent as base64
     // Only these two files are public. Every other file in the project
     // (server.js, database.sql, package.json ...) stays private.
@@ -60,7 +86,7 @@ module.exports = function (ctx) {
 
     const loginLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,
-        max: 10,
+        max: parseInt(process.env.LOGIN_RATE_MAX) || 10,
         message: { error: 'Too many login attempts. Please try again after 15 minutes.' }
     });
 

@@ -93,7 +93,7 @@ function onPageShown(page) {
     currentPage = page;
     if (page === 'luku') loadLuku(); else if (page === 'maintenance') loadTickets(); else if (page === 'expenses') loadExpenses();
     else if (page === 'structure') loadStructure(); else if (page === 'svcowners') loadSvcOwners(); else if (page === 'requests') loadRequests(); else if (page === 'finance') initFinance();
-    else if (page === 'reports') initReports(); else if (page === 'invoices') { setInvTab(invTab); } else if (page === 'settings') { loadProfile(); loadStaff(); }
+    else if (page === 'reports') initReports(); else if (page === 'invoices') { setInvTab(invTab); } else if (page === 'settings') { loadProfile(); loadStaff(); if (typeof secLoad === 'function') secLoad(); }
 }
 function showPage(page) {
     if (!canSeePage(page)) page = role() === 'SUPER_ADMIN' ? 'platform' : (isTech() ? 'maintenance' : 'dashboard');

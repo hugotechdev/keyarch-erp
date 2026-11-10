@@ -54,8 +54,9 @@ async function openUserModal(id, presetDept, presetProject) {
     document.getElementById('us-id').value = u ? u.user_id : ''; document.getElementById('us-title').innerText = u ? 'Edit User' : 'Add User';
     document.getElementById('us-name').value = u ? u.full_name : ''; document.getElementById('us-email').value = u ? u.email : ''; document.getElementById('us-email').disabled = !!u;
     document.getElementById('us-phone').value = u ? (u.phone_number || '') : ''; document.getElementById('us-pass').value = '';
-    document.getElementById('us-pw-label').innerText = u ? 'New password (leave empty to keep)' : 'Password * (min 6)';
+    document.getElementById('us-pw-label').innerText = u ? 'New password (leave empty to keep)' : 'Password * (min 8)';
     document.getElementById('us-pass').required = !u;
+    { const r2 = document.getElementById('us-2fa-row'); if (r2) r2.classList.toggle('hidden', !(u && isAdminRole())); }
     // only the administrator can make another administrator
     const adminOpt = document.querySelector('#us-role option[value="COMPANY_ADMIN"]'); if (adminOpt) adminOpt.hidden = adminOpt.disabled = !isAdminRole();
     document.getElementById('us-role').value = u ? u.role : 'PROPERTY_MANAGER'; document.getElementById('us-edit').checked = u ? !!u.can_edit_tenants : false;

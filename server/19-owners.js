@@ -291,7 +291,7 @@ module.exports = function (ctx) {
     app.post('/api/users', authenticateToken, canManageTeam, wrapAsync(async (req, res) => {
         const { full_name, email, phone_number, password, role } = req.body;
         if (!full_name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required.' });
-        if (String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+        { const pe = ctx.passwordProblem(password, email); if (pe) return res.status(400).json({ error: pe }); }
         if (!ALL_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
         if (role === 'COMPANY_ADMIN' && !isAdminUser(req)) return res.status(403).json({ error: 'Only the company administrator can add another administrator.' });
         if (!/^\S+@\S+\.\S+$/.test(String(email).trim())) return res.status(400).json({ error: 'Please enter a valid email address.' });
@@ -334,7 +334,7 @@ module.exports = function (ctx) {
         if (!full_name) return res.status(400).json({ error: 'Name is required.' });
         if (!ALL_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
         if ((role === 'COMPANY_ADMIN' || target.role === 'COMPANY_ADMIN') && !isAdminUser(req)) return res.status(403).json({ error: 'Only the company administrator can do this.' });
-        if (password && String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+        if (password) { const pe = ctx.passwordProblem(password, target.email); if (pe) return res.status(400).json({ error: pe }); }
 
         const isSelf = String(target.user_id) === String(req.user.user_id);
         if (isSelf && (role !== target.role || is_active === false)) return res.status(400).json({ error: 'You cannot change your own role or switch yourself off.' });
@@ -355,7 +355,7 @@ module.exports = function (ctx) {
 
         const sets = ['full_name = $1', 'phone_number = $2', 'role = $3', 'is_active = $4', 'can_edit_tenants = $5', 'department_id = $6', 'scope_all = $7', 'can_add_staff = $8', 'job_title = $9'];
         const vals = [String(full_name).trim(), phone_number || null, role, is_active !== false, can_edit_tenants === true, v.department_id, v.scope_all, v.can_add_staff, v.job_title];
-        if (password) { vals.push(await bcrypt.hash(String(password), 10)); sets.push(`password_hash = $${vals.length}`); }
+        if (password) { vals.push(await bcrypt.hash(String(password), 10)); sets.push(`password_hash = $${vals.length}`); sets.push('token_version = COALESCE(token_version, 0) + 1', 'failed_logins = 0', 'locked_until = NULL'); }
         vals.push(target.user_id, cId);
         await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE user_id = $${vals.length - 1} AND company_id = $${vals.length}`, vals);
         if (req.body.scope_all !== undefined || req.body.property_ids !== undefined) await saveUserProjects(target.user_id, v.scope_all ? [] : v.property_ids);

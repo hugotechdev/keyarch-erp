@@ -85,12 +85,12 @@ module.exports = function (ctx) {
         try {
             const { token, password } = req.body || {};
             if (!token || !/^[a-f0-9]{64}$/.test(String(token))) return res.status(400).json({ error: 'This reset link is not valid.' });
-            if (!password || String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+            { const pe = ctx.passwordProblem(password, ''); if (pe) return res.status(400).json({ error: pe }); }
             const hash = crypto.createHash('sha256').update(String(token)).digest('hex');
             const row = (await pool.query('SELECT reset_id, user_id FROM password_resets WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()', [hash])).rows[0];
             if (!row) return res.status(400).json({ error: 'This reset link has expired or was already used. Please ask for a new one.' });
             const newHash = await bcrypt.hash(String(password), 10);
-            await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [newHash, row.user_id]);
+            await pool.query('UPDATE users SET password_hash = $1, token_version = COALESCE(token_version, 0) + 1, failed_logins = 0, locked_until = NULL WHERE user_id = $2', [newHash, row.user_id]);
             await pool.query('UPDATE password_resets SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL', [row.user_id]);
             clearUserCache(row.user_id);
             await createAuditLog(pool, null, row.user_id, 'Password reset completed', 'AUTH', req.ip, {});

@@ -258,6 +258,25 @@ module.exports = function (ctx) {
             ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(30);
             ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()
         ` },
+        { name: "Security columns and sign-in history", sql: `
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_logins INTEGER DEFAULT 0;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT false;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_last_step BIGINT;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_recovery TEXT;
+            CREATE TABLE IF NOT EXISTS login_events (
+                event_id SERIAL PRIMARY KEY,
+                user_id INTEGER,
+                success BOOLEAN,
+                ip VARCHAR(64),
+                user_agent VARCHAR(300),
+                device_hash VARCHAR(32),
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_login_events_user ON login_events (user_id, event_id DESC)
+        ` },
         { name: "Payments: remove old type rule", sql: `
             DO $$
             DECLARE c record;
@@ -495,7 +514,7 @@ module.exports = function (ctx) {
             const uid = target ? target.user_id : (existingAdmins[0] && existingAdmins[0].user_id);
             if (uid) {
                 const hashed = await bcrypt.hash(String(process.env.RESET_SUPER_ADMIN_PASSWORD), 10);
-                await pool.query("UPDATE users SET password_hash = $1, is_active = true WHERE user_id = $2", [hashed, uid]);
+                await pool.query("UPDATE users SET password_hash = $1, is_active = true, failed_logins = 0, locked_until = NULL, totp_enabled = false, totp_secret = NULL, totp_recovery = NULL, token_version = COALESCE(token_version, 0) + 1 WHERE user_id = $2", [hashed, uid]);
                 console.log('✅ Super Admin password was reset from RESET_SUPER_ADMIN_PASSWORD (remove this variable now)');
             }
         }
@@ -554,7 +573,7 @@ module.exports = function (ctx) {
         const hit = userCache.get(key);
         if (hit && Date.now() - hit.at < 20000) return hit.data;
         try {
-            const r = await pool.query('SELECT is_active, role, can_edit_tenants, COALESCE(scope_all, true) AS scope_all, COALESCE(can_add_staff, false) AS can_add_staff, department_id FROM users WHERE user_id = $1', [userId]);
+            const r = await pool.query('SELECT is_active, role, can_edit_tenants, COALESCE(scope_all, true) AS scope_all, COALESCE(can_add_staff, false) AS can_add_staff, department_id, COALESCE(token_version, 0) AS token_version FROM users WHERE user_id = $1', [userId]);
             const data = r.rows[0] || null;
             if (data) {
                 data.props = null;
@@ -576,6 +595,12 @@ module.exports = function (ctx) {
             if (err) return res.status(403).json({ error: 'Session expired or invalid token. Please log in again.' });
             try {
                 req.user = user;
+
+                // "sign out everywhere" / password change: tokens made before that are no longer accepted
+                const st0 = await getUserState(user.user_id);
+                if (st0 && Number(st0.token_version || 0) !== Number(user.tv || 0)) {
+                    return res.status(403).json({ error: 'Session expired or invalid token. Please log in again.', code: 'SESSION_REVOKED' });
+                }
 
                 // role changes and switched-off users take effect within seconds (not after 12 hours)
                 if (user.role !== 'SUPER_ADMIN') {

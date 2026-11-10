@@ -69,11 +69,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // second step of the sign-in: show the code box (the password stays in the form)
+    function askCode(id, data) {
+        const w = document.getElementById(id + '-wrap'), i = document.getElementById(id);
+        w.classList.remove('hidden');
+        if (data.code === 'TOTP_INVALID') { i.value = ''; alert(data.error); }
+        i.focus();
+    }
+
     document.getElementById('form-admin-login').addEventListener('submit', async (e) => {
         e.preventDefault();
         const res = await fetch('/api/auth/admin-login', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: document.getElementById('adm-email').value, password: document.getElementById('adm-password').value })
+            body: JSON.stringify({ email: document.getElementById('adm-email').value, password: document.getElementById('adm-password').value, code: document.getElementById('adm-code').value })
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok) {
@@ -81,7 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('keyarch_user', JSON.stringify({ ...data.user, company: data.company }));
             document.getElementById('view-admin-login').style.display = 'none';
             showAppView();
-        } else alert(data.error || 'Login Failed!');
+        } else if (data.code === 'TOTP_REQUIRED' || data.code === 'TOTP_INVALID') { askCode('adm-code', data); }
+        else alert(data.error || 'Login Failed!');
     });
 
     document.getElementById('form-login').addEventListener('submit', async (e) => {
@@ -91,7 +100,8 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 email: document.getElementById('login-email').value,
-                password: document.getElementById('login-password').value
+                password: document.getElementById('login-password').value,
+                code: document.getElementById('login-code').value
             })
         });
         const data = await res.json();
@@ -100,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('keyarch_user', JSON.stringify({ ...data.user, company: data.company }));
             showAppView();
         } else if (LOCK_CODES.includes(data.code)) { showLockedScreen(data.error); }
+        else if (data.code === 'TOTP_REQUIRED' || data.code === 'TOTP_INVALID') { askCode('login-code', data); }
         else alert(data.error || 'Login Failed!');
     });
 

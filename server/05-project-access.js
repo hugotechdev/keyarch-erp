@@ -72,8 +72,10 @@ module.exports = function (ctx) {
 
             const user = userQuery.rows[0];
             if (req.isOwnerLogin && user.role !== 'SUPER_ADMIN') return res.status(401).json({ error: 'Invalid Email or Password.' });
+            const lockMsg = ctx.lockedMessage(user);
+            if (lockMsg) return res.status(429).json({ error: lockMsg, code: 'ACCOUNT_LOCKED' });
             const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-            if (!isPasswordValid) return res.status(401).json({ error: 'Invalid Email or Password.' });
+            if (!isPasswordValid) { await ctx.failLogin(user, req); return res.status(401).json({ error: 'Invalid Email or Password.' }); }
 
             if (!user.is_active) return res.status(403).json({ error: 'Account suspended.', code: 'ACCOUNT_SUSPENDED' });
             if (user.role === 'SUPER_ADMIN' && !req.isOwnerLogin) return res.status(403).json({ error: 'Invalid Email or Password.' });
@@ -88,8 +90,16 @@ module.exports = function (ctx) {
                 company = companyInfo(access);
             }
 
+            // two-step sign-in: the password was right, now the 6-digit code (or a recovery code) is needed
+            if (user.totp_enabled) {
+                const code = String(req.body.code || '').trim();
+                if (!code) return res.status(401).json({ error: 'Enter the 6-digit code from your authenticator app.', code: 'TOTP_REQUIRED' });
+                if (!(await ctx.verifySecondFactor(user, code))) { await ctx.failLogin(user, req); return res.status(401).json({ error: 'That code is not correct.', code: 'TOTP_INVALID' }); }
+            }
+            await ctx.passLogin(user, req);
+
             const token = jwt.sign(
-                { user_id: user.user_id, company_id: user.company_id, email: user.email, role: user.role, full_name: user.full_name, can_edit_tenants: user.can_edit_tenants },
+                { user_id: user.user_id, company_id: user.company_id, email: user.email, role: user.role, full_name: user.full_name, can_edit_tenants: user.can_edit_tenants, tv: user.token_version || 0 },
                 JWT_SECRET,
                 { expiresIn: '12h' }
             );

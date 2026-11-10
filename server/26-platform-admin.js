@@ -143,14 +143,14 @@ module.exports = function (ctx) {
     // set a new password for the owner of a company (they forgot it)
     app.post('/api/platform/companies/:id/reset-password', authenticateToken, allowRoles('SUPER_ADMIN'), async (req, res) => {
         const { password } = req.body;
-        if (!password || String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+        { const pe = ctx.passwordProblem(password, ''); if (pe) return res.status(400).json({ error: pe }); }
         try {
             const owner = (await pool.query(
                 "SELECT user_id, email FROM users WHERE company_id = $1 AND role = 'COMPANY_ADMIN' ORDER BY user_id ASC LIMIT 1", [req.params.id]
             )).rows[0];
             if (!owner) return res.status(404).json({ error: 'Owner account not found.' });
             const hashed = await bcrypt.hash(String(password), 10);
-            await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [hashed, owner.user_id]);
+            await pool.query('UPDATE users SET password_hash = $1, token_version = COALESCE(token_version, 0) + 1, failed_logins = 0, locked_until = NULL WHERE user_id = $2', [hashed, owner.user_id]);
             await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Platform: reset owner password', 'PLATFORM', req.ip, { company_id: req.params.id });
             res.json({ message: 'Password changed for ' + owner.email });
         } catch (err) { res.status(500).json({ error: err.message }); }
@@ -179,10 +179,10 @@ module.exports = function (ctx) {
             if (clash) return res.status(400).json({ error: 'This email is already used by another account.' });
             let hash = cur.password_hash;
             if (b.new_password) {
-                if (String(b.new_password).length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+                { const pe = ctx.passwordProblem(b.new_password, email); if (pe) return res.status(400).json({ error: pe }); }
                 hash = await bcrypt.hash(String(b.new_password), 10);
             }
-            await pool.query('UPDATE users SET full_name = $1, email = $2, password_hash = $3, phone_number = COALESCE($4, phone_number) WHERE user_id = $5',
+            await pool.query('UPDATE users SET full_name = $1, email = $2, password_hash = $3, phone_number = COALESCE($4, phone_number)' + (b.new_password ? ', token_version = COALESCE(token_version, 0) + 1' : '') + ' WHERE user_id = $5',
                 [name, email, hash, b.phone_number ? String(b.phone_number).slice(0, 30) : null, cur.user_id]);
             clearUserCache(cur.user_id);
             await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Owner changed own account details', 'PLATFORM', req.ip, { email_changed: email !== cur.email, password_changed: !!b.new_password });

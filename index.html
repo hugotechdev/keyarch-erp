@@ -530,6 +530,10 @@ html[data-theme="light"] .bg-amber-600\/30, html[data-theme="light"] .bg-amber-6
                         <button type="button" onclick="togglePw('login-password', this)" class="absolute right-3 top-3 text-gray-400 hover:text-white" title="Show / hide password"><i class="fa-solid fa-eye"></i></button></div>
                     <div class="text-right mt-1"><button type="button" onclick="openForgot()" class="text-[11px] text-cyan-300 hover:underline">Forgot password?</button></div>
                 </div>
+                <div id="login-code-wrap" class="hidden">
+                    <label class="block text-xs font-semibold text-amber-300 mb-1">Authenticator code (6 digits) or recovery code</label>
+                    <input type="text" id="login-code" inputmode="numeric" autocomplete="one-time-code" maxlength="24" placeholder="123456" class="w-full p-3 rounded-xl bg-[#14223d] border border-amber-500/50 text-white text-sm tracking-widest focus:border-amber-400 outline-none">
+                </div>
                 <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg transition">
                     Sign In &rarr;
                 </button>
@@ -607,6 +611,10 @@ html[data-theme="light"] .bg-amber-600\/30, html[data-theme="light"] .bg-amber-6
                     <label class="block text-xs font-semibold text-gray-300 mb-1">Password</label>
                     <div class="relative"><input type="password" id="adm-password" autocomplete="current-password" class="w-full p-3 pr-11 rounded-xl bg-[#14223d] border border-[#233863] text-white text-sm focus:border-blue-500 outline-none" required>
                         <button type="button" onclick="togglePw('adm-password', this)" class="absolute right-3 top-3 text-gray-400 hover:text-white" title="Show / hide password"><i class="fa-solid fa-eye"></i></button></div>
+                </div>
+                <div id="adm-code-wrap" class="hidden">
+                    <label class="block text-xs font-semibold text-amber-300 mb-1">Authenticator code (6 digits) or recovery code</label>
+                    <input type="text" id="adm-code" inputmode="numeric" autocomplete="one-time-code" maxlength="24" placeholder="123456" class="w-full p-3 rounded-xl bg-[#14223d] border border-amber-500/50 text-white text-sm tracking-widest focus:border-amber-400 outline-none">
                 </div>
                 <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold text-sm shadow-lg transition">Sign In &rarr;</button>
             </form>
@@ -1346,6 +1354,52 @@ html[data-theme="light"] .bg-amber-600\/30, html[data-theme="light"] .bg-amber-6
                             <div class="p-3 rounded-xl bg-[#14223d]"><div class="text-gray-500 text-[10px] uppercase">Company</div><div id="set-company" class="font-bold text-white">-</div></div>
                             <div class="p-3 rounded-xl bg-[#14223d]"><div class="text-gray-500 text-[10px] uppercase">Your Name</div><div id="set-name" class="font-bold text-white">-</div></div>
                             <div class="p-3 rounded-xl bg-[#14223d]"><div class="text-gray-500 text-[10px] uppercase">Email / Role</div><div id="set-email" class="font-bold text-white break-all">-</div></div>
+                        </div>
+                    </div>
+
+                    <div id="set-security-card" class="bg-[#0d172d] border border-[#182848] rounded-2xl p-5 space-y-4">
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider"><i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i> Security</h3>
+                        <div class="p-3 rounded-xl bg-[#14223d] space-y-2">
+                            <div class="flex items-center justify-between gap-3 flex-wrap">
+                                <div><div class="text-xs font-bold text-white">Two-step sign-in</div>
+                                    <div class="text-[11px] text-gray-500">After your password, the app asks for a 6-digit code from your phone (Google Authenticator, Microsoft Authenticator or Authy). Strongly recommended for administrators.</div></div>
+                                <span id="sec-2fa-badge" class="text-[10px] font-bold px-2 py-1 rounded-full bg-gray-600/30 text-gray-300">...</span>
+                            </div>
+                            <div id="sec-2fa-off" class="hidden space-y-2">
+                                <div id="sec-2fa-start" class="flex gap-2 flex-wrap items-end">
+                                    <div><label class="lbl">Your password</label><input id="sec-pw" type="password" autocomplete="current-password" class="inp"></div>
+                                    <button onclick="sec2faStart()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">Turn on</button>
+                                </div>
+                                <div id="sec-2fa-step2" class="hidden space-y-2 p-3 rounded-xl bg-[#0d172d] border border-[#233863]">
+                                    <div class="text-[11px] text-gray-300">1. Open your authenticator app, choose <b>Add account</b> &rarr; <b>Enter a setup key</b>, and type this key (or tap the link on your phone):</div>
+                                    <div id="sec-key" class="font-mono text-sm text-amber-300 break-all select-all"></div>
+                                    <a id="sec-link" href="#" class="text-[11px] text-cyan-300 hover:underline">Open in authenticator app</a>
+                                    <div class="text-[11px] text-gray-300">2. Type the 6-digit code the app shows:</div>
+                                    <div class="flex gap-2"><input id="sec-code" inputmode="numeric" maxlength="6" placeholder="123456" class="inp tracking-widest" style="max-width:9rem">
+                                        <button onclick="sec2faEnable()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold">Confirm</button></div>
+                                </div>
+                            </div>
+                            <div id="sec-2fa-on" class="hidden space-y-2">
+                                <div class="text-[11px] text-gray-400">Recovery codes left: <b id="sec-rec" class="text-white">0</b>. Each code works once if you lose your phone.</div>
+                                <div class="flex gap-2 flex-wrap items-end">
+                                    <div><label class="lbl">Password</label><input id="sec-off-pw" type="password" autocomplete="current-password" class="inp"></div>
+                                    <div><label class="lbl">Current code</label><input id="sec-off-code" inputmode="numeric" maxlength="24" class="inp" style="max-width:9rem"></div>
+                                    <button onclick="sec2faDisable()" class="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold">Turn off</button>
+                                </div>
+                            </div>
+                            <div id="sec-recovery" class="hidden p-3 rounded-xl bg-amber-950/40 border border-amber-700/50 space-y-1">
+                                <div class="text-[11px] font-bold text-amber-300">Save these recovery codes now. They are shown only once.</div>
+                                <div id="sec-recovery-list" class="font-mono text-xs text-white grid grid-cols-2 gap-1 select-all"></div>
+                            </div>
+                        </div>
+                        <div class="p-3 rounded-xl bg-[#14223d] flex items-center justify-between gap-3 flex-wrap">
+                            <div><div class="text-xs font-bold text-white">Sign out everywhere</div>
+                                <div class="text-[11px] text-gray-500">Closes your session on every phone and computer, including this one. Use it if you lost a device or think someone knows your password.</div></div>
+                            <button onclick="secLogoutAll()" class="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold">Sign out everywhere</button>
+                        </div>
+                        <div class="p-3 rounded-xl bg-[#14223d]">
+                            <div class="text-xs font-bold text-white mb-2">Recent sign-ins</div>
+                            <div id="sec-events" class="space-y-1 text-[11px] text-gray-300"></div>
                         </div>
                     </div>
 
@@ -2166,6 +2220,7 @@ html[data-theme="light"] .bg-amber-600\/30, html[data-theme="light"] .bg-amber-6
                 <div><label class="lbl">Email *</label><input id="us-email" type="email" class="inp" required></div>
                 <div><label class="lbl">Phone</label><input id="us-phone" class="inp"></div>
                 <div><label class="lbl" id="us-pw-label">Password * (min 8)</label><input id="us-pass" type="text" autocomplete="new-password" class="inp"></div>
+                <div id="us-2fa-row" class="hidden"><button type="button" onclick="secResetUser2fa()" class="text-[11px] text-amber-300 hover:underline"><i class="fa-solid fa-mobile-screen mr-1"></i>Reset two-step sign-in (lost phone)</button></div>
                 <div><label class="lbl">Role</label>
                     <select id="us-role" class="inp">
                         <option value="PROPERTY_MANAGER">Property Manager</option><option value="ACCOUNTANT">Accountant</option><option value="MAINTENANCE_MANAGER">Maintenance Manager</option>
@@ -2517,6 +2572,7 @@ html[data-theme="light"] .bg-amber-600\/30, html[data-theme="light"] .bg-amber-6
 <script src="/js/22-import.js"></script>
     <script src="/js/23-ai-assistant.js"></script>
     <script src="/js/24-motion.js"></script>
+    <script src="/js/25-security.js"></script>
 <script src="/js/99-i18n.js"></script>
 
 

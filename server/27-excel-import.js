@@ -191,8 +191,8 @@ module.exports = function (ctx) {
             return (propCache[key] = r.rows[0].property_id);
         }
         async function getOwner(name, phone) {
-            const key = name.toLowerCase(); if (ownerCache[key]) return ownerCache[key];
-            const f = await client.query('SELECT owner_id FROM owners WHERE company_id = $1 AND lower(full_name) = $2 LIMIT 1', [companyId, key]);
+            const key = name; if (ownerCache[key]) return ownerCache[key];
+            const f = await client.query('SELECT owner_id FROM owners WHERE company_id = $1 AND full_name = $2 LIMIT 1', [companyId, key]);
             if (f.rows[0]) return (ownerCache[key] = f.rows[0].owner_id);
             const r = await client.query('INSERT INTO owners (company_id, full_name, phone_number) VALUES ($1, $2, $3) RETURNING owner_id', [companyId, name, phone || null]);
             rep.created.owners++;
@@ -312,7 +312,7 @@ module.exports = function (ctx) {
                     if (calc.error) throw new Error(calc.error);
                     const pmRaw = toText(cell(row, 'paymethod')).toLowerCase();
                     const pm = /bank|nmb|crdb|nbc|cheque|transfer/.test(pmRaw) ? 'Bank' : /mpesa|m-pesa|tigo|airtel|halo|mtc|mobile|simu/.test(pmRaw) ? 'Mobile Money' : (opt.payment_method || 'Cash');
-                    const body = { full_name: tenantName.slice(0, 120), nida_passport_no: idn || 'NOID-' + require('crypto').createHash('md5').update(tenantName.toLowerCase() + '|' + phone).digest('hex').slice(0, 12), identity_type: (({ nida: 'NIDA', passport: 'PASSPORT', 'driving licence': 'DRIVING_LICENSE', 'driving license': 'DRIVING_LICENSE', voter: 'VOTER_ID' })[norm(toText(cell(row, 'idtype')))] || 'NIDA'), phone_number: phone,
+                    const body = { full_name: tenantName.slice(0, 120), nida_passport_no: idn || 'NOID-' + require('crypto').createHash('md5').update(tenantName + '|' + phone).digest('hex').slice(0, 12), identity_type: (({ nida: 'NIDA', passport: 'PASSPORT', 'driving licence': 'DRIVING_LICENSE', 'driving license': 'DRIVING_LICENSE', voter: 'VOTER_ID' })[norm(toText(cell(row, 'idtype')))] || 'NIDA'), phone_number: phone,
                         property_id: pid, unit_id: unit.unit_id, start_date: start, end_date: end, rent_period: unitName, payment_method: pm, payment_reference: 'Excel import' };
                     const out = await onboardTenantCore(client, req, body, calc, cur, { skipService: true });
                     rep.created.tenants++; rep.created.leases++;
@@ -338,6 +338,8 @@ module.exports = function (ctx) {
 
     app.post('/api/import/excel', authenticateToken, allowRoles('SUPER_ADMIN', 'COMPANY_ADMIN', 'PROPERTY_MANAGER', 'ACCOUNTANT'), express.raw({ type: '*/*', limit: '15mb' }), wrapAsync(async (req, res) => {
         if (!Buffer.isBuffer(req.body) || req.body.length < 100) return res.status(400).json({ error: 'Please choose an Excel (.xlsx) file.' });
+        // a real .xlsx is a zip file: it must start with the letters PK
+        if (req.body[0] !== 0x50 || req.body[1] !== 0x4b) return res.status(400).json({ error: 'This is not an Excel (.xlsx) file. Please save it as .xlsx and try again.' });
         let sheets;
         try { sheets = readXlsx(req.body); } catch (e) { return res.status(400).json({ error: e.message || 'The file could not be read. Please save it as .xlsx.' }); }
         const q = req.query;

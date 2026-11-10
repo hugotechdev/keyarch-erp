@@ -32,7 +32,7 @@ module.exports = function (ctx) {
         if (!company_name || !admin_full_name || !email || !phone_number || !password) {
             return res.status(400).json({ error: 'Please fill in all required fields.' });
         }
-        if (String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+        { const pe = ctx.passwordProblem(password, email); if (pe) return res.status(400).json({ error: pe }); }
         let logo;
         try { logo = cleanLogo(req.body.logo_data); } catch (e) { return res.status(400).json({ error: e.message }); }
 
@@ -73,7 +73,7 @@ module.exports = function (ctx) {
         const { full_name, email, password, role } = req.body;
         const allowed = ['PROPERTY_MANAGER', 'ACCOUNTANT', 'MAINTENANCE_MANAGER', 'VIEWER'];
         if (!full_name || !email || !password) return res.status(400).json({ error: 'Please fill in all required fields.' });
-        if (String(password).length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+        { const pe = ctx.passwordProblem(password, email); if (pe) return res.status(400).json({ error: pe }); }
         if (!allowed.includes(role)) return res.status(400).json({ error: 'Invalid role.' });
         const staffLimit = await checkLimit(req.user, 'max_staff', "SELECT COUNT(*) FROM users WHERE company_id = $1 AND role <> 'COMPANY_ADMIN'", 'staff members');
         if (staffLimit) return res.status(403).json({ error: staffLimit, code: 'LIMIT_REACHED' });

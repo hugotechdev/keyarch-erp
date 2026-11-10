@@ -8,6 +8,7 @@ const PARTS = [
     '02-shared-helpers',
     '03-plans-and-features',
     '04-database-setup',
+    '04b-security',
     '05-project-access',
     '06-login-and-passwords',
     '07-tenants-list',
@@ -29,6 +30,7 @@ const PARTS = [
     '24-finance',
     '25-backup',
     '26-platform-admin',
-    '27-excel-import'
+    '27-excel-import',
+    '28-ai-assistant'
 ];
 for (const name of PARTS) Object.assign(ctx, require('./server/' + name)(ctx));
