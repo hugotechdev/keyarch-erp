@@ -13,7 +13,7 @@ function personLine(m) {
         <span class="flex flex-wrap gap-1">${where}</span></div>`;
 }
 async function loadStructure() {
-    if (!hasFeature('org')) return;
+    if (!hasFeature('structure')) return;
     const [r, d] = await Promise.all([api('/api/org/structure'), api('/api/org/departments')]);
     if (!r.ok) { document.getElementById('st-depts').innerHTML = `<div class="text-xs text-rose-300">${esc(r.data.error || 'Failed')}</div>`; return; }
     structData = r.data; if (d.ok) deptData = d.data;
@@ -83,7 +83,8 @@ function userOrgOn() { return hasFeature('org') && canTeam(); }
 async function prepareUserOrg(u, presetDept, presetProject) {
     const box = document.getElementById('us-org'); box.style.display = userOrgOn() ? '' : 'none';
     if (!userOrgOn()) return;
-    if (!deptData.departments.length && !structData) { const d = await api('/api/org/departments'); if (d.ok) deptData = d.data; }
+    document.getElementById('us-dept-wrap').style.display = hasFeature('structure') ? '' : 'none';
+    if (hasFeature('structure') && !deptData.departments.length && !structData) { const d = await api('/api/org/departments'); if (d.ok) deptData = d.data; }
     const mine = myAccess(), admin = isAdminRole();
     const depts = deptData.departments;
     const lockedDept = !admin && mine.department_id;

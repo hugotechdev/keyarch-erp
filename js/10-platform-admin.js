@@ -125,7 +125,7 @@ async function openPlatformCompany(id) {
     document.getElementById('pc-notes').value = c.notes || '';
 
     const f = c.features || {};
-    ['luku', 'tickets', 'reports_advanced', 'backup_full'].forEach(k => {
+    ['luku', 'tickets', 'reports_advanced', 'backup_full', 'structure'].forEach(k => {
         document.getElementById('pc-f-' + k).value = typeof f[k] === 'boolean' ? (f[k] ? 'on' : 'off') : '';
     });
     ['max_properties', 'max_staff'].forEach(k => {
@@ -150,7 +150,7 @@ async function openPlatformCompany(id) {
 async function savePlatformCompany() {
     const id = document.getElementById('pc-id').value;
     const features = {};
-    ['luku', 'tickets', 'reports_advanced', 'backup_full'].forEach(k => {
+    ['luku', 'tickets', 'reports_advanced', 'backup_full', 'structure'].forEach(k => {
         const v = document.getElementById('pc-f-' + k).value;
         if (v === 'on') features[k] = true;
         if (v === 'off') features[k] = false;

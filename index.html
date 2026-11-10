@@ -24,6 +24,16 @@
         html[data-theme="dark"] .inp { background-color:#242628; border-color:#383b3f; color:#e8e9ea; }
         html[data-theme="dark"] .inp option { background:#242628; color:#e8e9ea; }
         html[data-theme="dark"] input[type=file]::file-selector-button { background:#242628; color:#e8e9ea; border-color:#383b3f; }
+        .ka-lang-switch { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: #0d1830; border: 1px solid #233863; }
+        .ka-lang-btn { font: 700 11px/1 system-ui, sans-serif; min-width: 38px; padding: 7px 10px; border-radius: 999px; border: 0; background: transparent; color: #9fb0cf; cursor: pointer; white-space: nowrap; }
+        .ka-lang-btn.on { background: #2563eb; color: #fff; }
+        html[data-theme="light"] .ka-lang-switch { background: #E4E9F3; border-color: #C9D2E6; }
+        html[data-theme="light"] .ka-lang-btn { color: #4a5a7a; }
+        html[data-theme="light"] .ka-lang-btn.on { background: #2563eb; color: #fff; }
+        html[data-theme="dark"] .ka-lang-switch { background: #1b1d1f; border-color: #383b3f; }
+        html[data-theme="coffee"] .ka-lang-switch { background: #241B14; border-color: #4a3826; }
+        html[data-theme="coffee"] .ka-lang-btn { color: #cdb98f; }
+        html[data-theme="coffee"] .ka-lang-btn.on { background: #D9AE4E; color: #1a130d; }
     </style>
     <style id="ka-loader-css">
         #ka-loader { position: fixed; inset: 0; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: #E9EEF8; transition: opacity .35s ease, visibility .35s ease; }
@@ -229,7 +239,7 @@
                 <button data-page="reports" onclick="showPage('reports')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-chart-line w-4 text-center"></i> Reports</button>
             </nav>
             <div class="p-3 border-t border-[#182848] space-y-2">
-                <div class="ka-lang-switch justify-center"></div>
+                <div class="flex justify-center"><div class="ka-lang-switch"></div></div>
                 <button data-page="settings" onclick="showPage('settings')" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-[#14223d] transition"><i class="fa-solid fa-gear w-4 text-center"></i> Settings</button>
             </div>
         </aside>
@@ -1993,6 +2003,7 @@
                         <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Maintenance tickets</span><select id="pc-f-tickets" class="p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"><option value="">Plan default</option><option value="on">On</option><option value="off">Off</option></select></div>
                         <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Advanced reports</span><select id="pc-f-reports_advanced" class="p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"><option value="">Plan default</option><option value="on">On</option><option value="off">Off</option></select></div>
                         <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Full backup</span><select id="pc-f-backup_full" class="p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"><option value="">Plan default</option><option value="on">On</option><option value="off">Off</option></select></div>
+                        <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Structure (departments)</span><select id="pc-f-structure" class="p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"><option value="">Plan default (Off)</option><option value="on">On</option><option value="off">Off</option></select></div>
                         <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Max properties</span><input type="number" min="0" id="pc-l-max_properties" placeholder="plan default" class="w-32 p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"></div>
                         <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Max staff</span><input type="number" min="0" id="pc-l-max_staff" placeholder="plan default" class="w-32 p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"></div>
                     </div>

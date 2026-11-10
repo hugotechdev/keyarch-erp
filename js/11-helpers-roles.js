@@ -35,7 +35,7 @@ const NAV_ACCESS = {
     MAINTENANCE_MANAGER: ['maintenance'],
     VIEWER: ['dashboard', 'properties', 'tenants', 'invoices', 'reports']
 };
-function canSeePage(pg) { if (pg === 'platform') return role() === 'SUPER_ADMIN'; if (pg === 'structure') return role() !== 'SUPER_ADMIN' && canTeam(); if (pg === 'svcowners') return role() !== 'SUPER_ADMIN' && ['COMPANY_ADMIN','PROPERTY_MANAGER','ACCOUNTANT','VIEWER'].includes(role()) && !isScoped(); if (isScoped() && (pg === 'finance' || pg === 'luku')) return false; if (pg === 'settings' || pg === 'upgrade') return true; return (NAV_ACCESS[role()] || []).includes(pg); }
+function canSeePage(pg) { if (pg === 'platform') return role() === 'SUPER_ADMIN'; if (pg === 'structure') return role() !== 'SUPER_ADMIN' && canTeam() && hasFeature('structure'); if (pg === 'svcowners') return role() !== 'SUPER_ADMIN' && ['COMPANY_ADMIN','PROPERTY_MANAGER','ACCOUNTANT','VIEWER'].includes(role()) && !isScoped(); if (isScoped() && (pg === 'finance' || pg === 'luku')) return false; if (pg === 'settings' || pg === 'upgrade') return true; return (NAV_ACCESS[role()] || []).includes(pg); }
 function applyRoleUI() {
     const show = (sel, ok) => document.querySelectorAll(sel).forEach(el => el.style.display = ok ? '' : 'none');
     show('.can-manage', canManage()); show('.can-money', canMoney()); show('.can-fin', canFin()); show('.can-admin', isAdminRole());

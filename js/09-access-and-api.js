@@ -1,7 +1,7 @@
 // ============================================================
 // ACCESS CONTROL, PLANS (Standard / Pro) AND PLATFORM ADMIN
 // ============================================================
-const FEATURE_PAGES = { luku: 'luku', maintenance: 'tickets', structure: 'org', svcowners: 'org' };
+const FEATURE_PAGES = { luku: 'luku', maintenance: 'tickets', structure: 'structure', svcowners: 'org' };
 const FEATURE_LABELS = { luku: 'Luku', tickets: 'Maintenance tickets', reports_advanced: 'Advanced reports', backup_full: 'Full backup' };
 
 function isSuperAdmin() { return currentUserInfo().role === 'SUPER_ADMIN'; }
@@ -88,7 +88,8 @@ function applyFeatureUI() {
     document.getElementById('nav-platform').classList.toggle('hidden', !superAdmin);
     document.getElementById('nav-pro-luku').classList.toggle('hidden', hasFeature('luku'));
     document.getElementById('nav-pro-maintenance').classList.toggle('hidden', hasFeature('tickets'));
-    document.getElementById('nav-pro-structure').classList.toggle('hidden', hasFeature('org'));
+    document.getElementById('nav-pro-structure').classList.add('hidden');
+    document.querySelector('.nav-item[data-page="structure"]').classList.toggle('hidden', !hasFeature('structure'));
     document.getElementById('nav-pro-svcowners').classList.toggle('hidden', hasFeature('org'));
     applyOrgOnly();
     setText('page-subtitle', `${c.company_name || user.company_name || ''} · ${superAdmin ? 'Platform Owner' : planLabel + ' Plan'} · ${monthYear}`);

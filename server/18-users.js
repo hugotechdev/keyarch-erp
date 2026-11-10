@@ -24,12 +24,16 @@ module.exports = function (ctx) {
         const a = await getCompanyAccess(companyId);
         return !!effectiveFeatures(a ? (a.plan || 'STANDARD') : 'PRO', a ? a.features : null).org;
     }
+    async function structureEnabled(companyId) {
+        const a = await getCompanyAccess(companyId);
+        return !!effectiveFeatures(a ? (a.plan || 'STANDARD') : 'PRO', a ? a.features : null).structure;
+    }
     // reads and checks the department / projects part of a user form. Returns { error } or the values to save.
     async function readAccessBody(req, b, current) {
         const cId = req.user.company_id;
         const out = { department_id: current ? current.department_id : null, scope_all: current ? current.scope_all !== false : true, property_ids: null, can_add_staff: current ? !!current.can_add_staff : false, job_title: current ? current.job_title : null };
         if (!(await orgEnabled(cId))) return { value: out, skip: true };
-        if (b.department_id !== undefined) {
+        if (b.department_id !== undefined && await structureEnabled(cId)) {
             if (b.department_id === null || b.department_id === '') out.department_id = null;
             else {
                 const d = await pool.query('SELECT 1 FROM departments WHERE department_id = $1 AND company_id = $2 AND is_active = true', [b.department_id, cId]);
@@ -93,7 +97,7 @@ module.exports = function (ctx) {
         { key: 'MAINTENANCE', names: { en: 'Maintenance', sw: 'Matengenezo', zh: '维修' }, role: 'MAINTENANCE_MANAGER' },
         { key: 'LEASING', names: { en: 'Leasing', sw: 'Upangishaji', zh: '租赁' }, role: 'PROPERTY_MANAGER' }
     ];
-    app.get('/api/org/departments', authenticateToken, requireFeature('org'), canManageTeam, wrapAsync(async (req, res) => {
+    app.get('/api/org/departments', authenticateToken, requireFeature('structure'), canManageTeam, wrapAsync(async (req, res) => {
         const r = await pool.query(
             `SELECT d.department_id, d.name, d.default_role, d.is_active,
                     (SELECT COUNT(*) FROM users u WHERE u.department_id = d.department_id AND u.is_active = true)::int AS members
@@ -106,7 +110,7 @@ module.exports = function (ctx) {
         const role = ALL_ROLES.includes(b.default_role) && b.default_role !== 'COMPANY_ADMIN' ? b.default_role : 'VIEWER';
         return { name, role };
     }
-    app.post('/api/org/departments', authenticateToken, requireFeature('org'), allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
+    app.post('/api/org/departments', authenticateToken, requireFeature('structure'), allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
         const d = readDepartment(req.body);
         if (d.error) return res.status(400).json({ error: d.error });
         const dup = await pool.query('SELECT 1 FROM departments WHERE company_id = $1 AND LOWER(name) = LOWER($2) AND is_active = true', [req.user.company_id, d.name]);
@@ -115,7 +119,7 @@ module.exports = function (ctx) {
         await createAuditLog(pool, req.user.company_id, req.user.user_id, 'Added department', 'USERS', req.ip, { name: d.name });
         res.status(201).json({ message: 'Department added.', department_id: r.rows[0].department_id });
     }));
-    app.put('/api/org/departments/:id', authenticateToken, requireFeature('org'), allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
+    app.put('/api/org/departments/:id', authenticateToken, requireFeature('structure'), allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
         const d = readDepartment(req.body);
         if (d.error) return res.status(400).json({ error: d.error });
         const dup = await pool.query('SELECT 1 FROM departments WHERE company_id = $1 AND LOWER(name) = LOWER($2) AND is_active = true AND department_id <> $3', [req.user.company_id, d.name, req.params.id]);
@@ -124,7 +128,7 @@ module.exports = function (ctx) {
         if (!r.rows.length) return res.status(404).json({ error: 'Department not found.' });
         res.json({ message: 'Department saved.' });
     }));
-    app.delete('/api/org/departments/:id', authenticateToken, requireFeature('org'), allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
+    app.delete('/api/org/departments/:id', authenticateToken, requireFeature('structure'), allowRoles(...R_ADMIN), wrapAsync(async (req, res) => {
         const r = await pool.query('DELETE FROM departments WHERE department_id = $1 AND company_id = $2 RETURNING department_id', [req.params.id, req.user.company_id]);
         if (!r.rows.length) return res.status(404).json({ error: 'Department not found.' });
         await pool.query('UPDATE users SET department_id = NULL WHERE department_id = $1 AND company_id = $2', [req.params.id, req.user.company_id]);
@@ -134,7 +138,7 @@ module.exports = function (ctx) {
 
 
     // ---- the structure of the company: departments, projects, who works where, and how each is doing ----
-    app.get('/api/org/structure', authenticateToken, requireFeature('org'), canManageTeam, wrapAsync(async (req, res) => {
+    app.get('/api/org/structure', authenticateToken, requireFeature('structure'), canManageTeam, wrapAsync(async (req, res) => {
         const cId = req.user.company_id;
         const SC = scoped(req) ? (req.user.scope.length ? req.user.scope : [0]) : null;
         const inSc = col => `AND ($2::int[] IS NULL OR ${col} = ANY($2::int[]))`;
