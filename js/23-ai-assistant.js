@@ -13,8 +13,8 @@ function aiRefresh() {
     btn = document.createElement('button');
     btn.id = 'ai-fab'; btn.type = 'button'; btn.title = 'AI Assistant'; btn.setAttribute('aria-label', 'AI Assistant');
     btn.className = 'fixed z-40 bottom-4 right-4 w-14 h-14 rounded-full text-white text-xl flex items-center justify-center shadow-xl hover:scale-105 transition';
-    btn.style.background = 'linear-gradient(135deg,#6366f1,#06b6d4)';
-    btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>';
+    btn.style.background = '#2563eb';
+    btn.innerHTML = '<i class="fa-solid fa-comment-dots"></i>';
     btn.onclick = aiToggle;
     document.body.appendChild(btn);
 }
@@ -34,7 +34,7 @@ function aiBuild() {
     p.className = 'fixed z-40 bottom-0 right-0 sm:bottom-20 sm:right-4 w-full sm:w-[400px] h-[85vh] sm:h-[560px] max-h-[100vh] flex flex-col bg-[#0d172d] border border-[#182848] sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden';
     p.innerHTML =
         '<div class="flex items-center gap-3 px-4 py-3 border-b border-[#182848]">' +
-            '<div class="w-9 h-9 rounded-full flex items-center justify-center text-white" style="background:linear-gradient(135deg,#6366f1,#06b6d4)"><i class="fa-solid fa-wand-magic-sparkles"></i></div>' +
+            '<div class="w-9 h-9 rounded-full flex items-center justify-center text-white" style="background:#2563eb"><i class="fa-solid fa-comment-dots"></i></div>' +
             '<div class="flex-1 min-w-0"><div class="text-sm font-black text-white">AI Assistant</div><div id="ai-usage" class="text-[10px] text-gray-500"></div></div>' +
             '<button type="button" onclick="aiClear()" title="New chat" class="text-gray-400 hover:text-white text-xs px-2 py-1 rounded-lg"><i class="fa-solid fa-rotate-right"></i></button>' +
             '<button type="button" onclick="aiToggle()" class="text-gray-400 hover:text-white px-2 py-1"><i class="fa-solid fa-xmark"></i></button>' +
