@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 I = {
+"The AI assistant is not switched on for your company. Please contact HUGO TECH to get it.": ("Msaidizi wa AI haujawashwa kwa kampuni yako. Tafadhali wasiliana na HUGO TECH kuupata.", "您公司尚未开通 AI 助手，请联系 HUGO TECH 开通。"),
+"Plan default (Off - only you switch it on)": ("Chaguo-msingi la mpango (Imezimwa - ni wewe tu unayewasha)", "套餐默认（关闭 - 仅你可开启）"),
 "Security": ("Usalama", "安全"), "Two-step sign-in": ("Kuingia kwa hatua mbili", "两步验证登录"),
 "After your password, the app asks for a 6-digit code from your phone (Google Authenticator, Microsoft Authenticator or Authy). Strongly recommended for administrators.": ("Baada ya password, mfumo unaomba namba 6 kutoka kwenye simu yako (Google Authenticator, Microsoft Authenticator au Authy). Inapendekezwa sana kwa wasimamizi.", "输入密码后，系统会要求输入手机上的6位验证码（Google Authenticator、Microsoft Authenticator 或 Authy）。强烈建议管理员开启。"),
 "Your password": ("Password yako", "你的密码"), "Turn on": ("Washa", "开启"), "Turn off": ("Zima", "关闭"), "Confirm": ("Thibitisha", "确认"),

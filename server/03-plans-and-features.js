@@ -13,7 +13,7 @@ module.exports = function (ctx) {
 
     const PLAN_DEFAULTS = {
         STANDARD: { luku: false, tickets: false, reports_advanced: false, backup_full: false, org: false, structure: false, ai: false, max_properties: 5, max_staff: 3, max_ai_questions: 100 },
-        PRO:      { luku: true,  tickets: true,  reports_advanced: true,  backup_full: true,  org: true,  structure: false, ai: true,  max_properties: null, max_staff: null, max_ai_questions: 300 }
+        PRO:      { luku: true,  tickets: true,  reports_advanced: true,  backup_full: true,  org: true,  structure: false, ai: false,  max_properties: null, max_staff: null, max_ai_questions: 300 }
     };
     const FEATURE_KEYS = ['luku', 'tickets', 'reports_advanced', 'backup_full', 'org', 'structure', 'ai'];
     const LIMIT_KEYS = ['max_properties', 'max_staff', 'max_ai_questions'];
@@ -105,7 +105,7 @@ module.exports = function (ctx) {
             if (req.user.role === 'SUPER_ADMIN') return next();
             const a = await getCompanyAccess(req.user.company_id);
             if (!effectiveFeatures(a ? (a.plan || 'STANDARD') : 'PRO', a ? a.features : null)[key]) {
-                return res.status(403).json({ error: 'This feature is available on the Pro plan. Please contact ' + SUPPORT.name + ' to upgrade.', code: 'FEATURE_LOCKED' });
+                return res.status(403).json({ error: key === 'ai' ? 'The AI assistant is not switched on for your company. Please contact ' + SUPPORT.name + ' to get it.' : 'This feature is available on the Pro plan. Please contact ' + SUPPORT.name + ' to upgrade.', code: 'FEATURE_LOCKED' });
             }
             next();
         };
