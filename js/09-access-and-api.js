@@ -92,6 +92,7 @@ function applyFeatureUI() {
     document.querySelector('.nav-item[data-page="structure"]').classList.toggle('hidden', !hasFeature('structure'));
     document.getElementById('nav-pro-svcowners').classList.toggle('hidden', hasFeature('org'));
     applyOrgOnly();
+    if (typeof aiRefresh === 'function') aiRefresh();
     setText('page-subtitle', `${c.company_name || user.company_name || ''} · ${superAdmin ? 'Platform Owner' : planLabel + ' Plan'} · ${monthYear}`);
     setText('user-plan-badge', superAdmin ? 'PLATFORM OWNER' : planLabel.toUpperCase() + ' PLAN');
 

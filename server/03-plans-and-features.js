@@ -12,11 +12,11 @@ module.exports = function (ctx) {
     const SUPPORT = { name: 'HUGO TECH', whatsapp: '+255785799530', email: 'info@hugotech.co.tz' };
 
     const PLAN_DEFAULTS = {
-        STANDARD: { luku: false, tickets: false, reports_advanced: false, backup_full: false, org: false, structure: false, max_properties: 5, max_staff: 3 },
-        PRO:      { luku: true,  tickets: true,  reports_advanced: true,  backup_full: true,  org: true,  structure: false, max_properties: null, max_staff: null }
+        STANDARD: { luku: false, tickets: false, reports_advanced: false, backup_full: false, org: false, structure: false, ai: false, max_properties: 5, max_staff: 3, max_ai_questions: 100 },
+        PRO:      { luku: true,  tickets: true,  reports_advanced: true,  backup_full: true,  org: true,  structure: false, ai: true,  max_properties: null, max_staff: null, max_ai_questions: 300 }
     };
-    const FEATURE_KEYS = ['luku', 'tickets', 'reports_advanced', 'backup_full', 'org', 'structure'];
-    const LIMIT_KEYS = ['max_properties', 'max_staff'];
+    const FEATURE_KEYS = ['luku', 'tickets', 'reports_advanced', 'backup_full', 'org', 'structure', 'ai'];
+    const LIMIT_KEYS = ['max_properties', 'max_staff', 'max_ai_questions'];
 
     // plan defaults + the special settings the Super Admin gave to one company (0 = unlimited)
     function effectiveFeatures(plan, overrides) {
