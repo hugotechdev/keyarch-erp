@@ -157,9 +157,11 @@ function soCur(totals, key) {
 function soTile(label, value, cls, sub) {
     return `<div class="p-3 rounded-xl bg-[#0d172d] border border-[#182848]"><div class="text-[10px] uppercase text-gray-500">${sp(label)}</div><div class="text-sm font-black ${cls || 'text-white'} mt-0.5">${value}</div>${sub ? `<div class="text-[10px] text-gray-500 mt-0.5">${sub}</div>` : ''}</div>`;
 }
-function soChips(c) {
-    return `<span class="px-2 py-0.5 rounded-full bg-emerald-900/30 text-emerald-300">${c.let || 0} ${sp('rented')}</span><span class="px-2 py-0.5 rounded-full bg-amber-900/30 text-amber-300">${c.vacant || 0} ${sp('vacant')}</span><span class="px-2 py-0.5 rounded-full bg-blue-900/30 text-blue-300">${c.lives || 0} ${sp('lives')}</span>`;
+function soChips(c, always) {
+    const chip = (n, cls, label) => (n || always) ? `<span class="px-2 py-0.5 rounded-full ${cls} whitespace-nowrap">${n || 0} ${sp(label)}</span>` : '';
+    return chip(c.let, 'bg-emerald-900/30 text-emerald-300', 'rented') + chip(c.vacant, 'bg-amber-900/30 text-amber-300', 'vacant') + chip(c.lives, 'bg-blue-900/30 text-blue-300', 'owner lives');
 }
+function soInitial(name) { const t = String(name || '?').trim(); return esc((t[0] || '?').toUpperCase()); }
 function soTab(t) { SO_TAB = t; SO_FILTER = 'all'; const q = document.getElementById('so-q'); if (q) q.value = ''; soPaint(); }
 function soFilter(f) { SO_FILTER = f; soPaint(); }
 function soGroupName(g) { return g.owner_id ? g.owner_name : companyLabel(); }
@@ -199,10 +201,13 @@ function soPaint() {
         sum.innerHTML = soTile('Owners', owners.length) + soTile('Units sold to owners', unitsOwners) + soTile('Company units', comp.units.length) + soTile('Owed by owners', soCur(owedAll, 'owed'), 'text-rose-400');
         bar.innerHTML = `<input id="so-q" oninput="soPaint()" value="${esc(q)}" class="inp" placeholder="Search owner or phone...">`;
         const list = owners.filter(g => !q || (g.owner_name || '').toLowerCase().includes(q) || (g.owner_phone || '').toLowerCase().includes(q));
-        const left = list.length ? list.map(g => `<button onclick="soDetail('${g.owner_id}')" class="w-full text-left bg-[#0d172d] border border-[#182848] hover:border-indigo-500/50 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-2">
-            <div><div class="text-sm font-black text-white">${esc(g.owner_name)}</div><div class="text-[11px] text-gray-500">${esc(g.owner_phone || '')}</div></div>
-            <div class="flex flex-wrap items-center gap-1.5 text-[10px] font-bold"><span class="px-2 py-0.5 rounded-full bg-indigo-900/40 text-indigo-300">${g.units.length} ${sp('units')}</span>${soChips(g.counts)}</div>
-            <div class="text-right"><div class="text-[10px] uppercase text-gray-500">${sp('Owes')}</div><div class="text-xs font-black ${soCur(g.totals, 'owed') !== money(0, 'TZS') ? 'text-rose-400' : 'text-gray-300'}">${soCur(g.totals, 'owed')}</div></div></button>`).join('') : emptyMsg(owners.length ? 'No owner matches your search.' : 'No owners yet. Tap "Add owner" to start.');
+        const left = list.length ? list.map(g => `<button onclick="soDetail('${g.owner_id}')" class="w-full text-left bg-[#0d172d] border border-[#182848] hover:border-indigo-500/60 rounded-2xl p-3 flex items-center gap-3 transition">
+            <div class="w-10 h-10 shrink-0 rounded-full bg-indigo-900/40 text-indigo-300 font-black flex items-center justify-center">${soInitial(g.owner_name)}</div>
+            <div class="min-w-0 flex-1">
+                <div class="text-sm font-black text-white truncate">${esc(g.owner_name)}${g.owner_phone ? ` <span class="text-[11px] font-normal text-gray-500">· ${esc(g.owner_phone)}</span>` : ''}</div>
+                <div class="flex flex-wrap items-center gap-1.5 mt-1.5 text-[10px] font-bold">${g.units.length ? `<span class="px-2 py-0.5 rounded-full bg-indigo-900/40 text-indigo-300 whitespace-nowrap">${g.units.length} ${sp('units')}</span>` : `<span class="px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 whitespace-nowrap">${sp('no units yet')}</span>`}${soChips(g.counts)}</div>
+            </div>
+            <div class="text-right shrink-0"><div class="text-[10px] uppercase text-gray-500">${sp('Owes')}</div><div class="text-xs font-black ${soCur(g.totals, 'owed') !== money(0, 'TZS') ? 'text-rose-400' : 'text-gray-300'}">${soCur(g.totals, 'owed')}</div></div></button>`).join('') : emptyMsg(owners.length ? 'No owner matches your search.' : 'No owners yet. Tap "Add owner" to start.');
         box.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-3 gap-4"><div class="lg:col-span-2 space-y-2">${left}</div>
             <div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-4 space-y-3 h-fit"><div><div class="text-[10px] uppercase text-gray-500">${sp('Company units')}</div><div class="text-sm font-black text-white">${esc(companyLabel())}</div><div class="text-[11px] text-gray-500">${sp('Developer units not sold.')}</div></div>
             <div class="text-2xl font-black text-white">${comp.units.length} <span class="text-xs font-bold text-gray-500">${sp('units')}</span></div>
@@ -216,9 +221,9 @@ function soPaint() {
         const chip = (f, l) => `<button onclick="soFilter('${f}')" class="px-3 py-1.5 rounded-full text-[11px] font-bold border ${SO_FILTER === f ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-[#14223d] text-gray-300 border-[#233863]'}">${sp(l)}</button>`;
         bar.innerHTML = `<div class="flex flex-wrap items-center gap-2"><input id="so-q" oninput="soPaint()" value="${esc(q)}" class="inp" style="max-width:260px" placeholder="Search unit or owner...">${chip('all', 'All')}${chip('owing', 'Owing')}${chip('paid', 'Paid')}</div>`;
         const rows = all.filter(x => (SO_FILTER === 'all' || x.st[1] === SO_FILTER) && (!q || (x.u.property_name + ' ' + x.u.unit_number + ' ' + soGroupName(x.g) + ' ' + (x.u.tenant_name || '')).toLowerCase().includes(q)));
-        box.innerHTML = rows.length ? `<div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-4 overflow-x-auto"><table class="w-full text-[11px] text-gray-300"><thead><tr class="text-gray-500 text-left"><th class="pb-1">${sp('Unit')}</th><th class="pb-1">${sp('Owner')}</th><th class="pb-1">${sp('Service charge')}</th><th class="pb-1">${sp('Collected')}</th><th class="pb-1 text-right">${sp('Status')}</th></tr></thead><tbody>` +
+        box.innerHTML = rows.length ? `<div class="bg-[#0d172d] border border-[#182848] rounded-2xl p-4 overflow-x-auto"><table class="w-full text-xs text-gray-300"><thead><tr class="text-gray-500 text-left"><th class="pb-2 font-semibold uppercase text-[10px] tracking-wide">${sp('Unit')}</th><th class="pb-2 font-semibold uppercase text-[10px] tracking-wide">${sp('Owner')}</th><th class="pb-2 font-semibold uppercase text-[10px] tracking-wide">${sp('Service charge')}</th><th class="pb-2 font-semibold uppercase text-[10px] tracking-wide">${sp('Collected')}</th><th class="pb-2 font-semibold uppercase text-[10px] tracking-wide text-right">${sp('Status')}</th></tr></thead><tbody>` +
             rows.map(({ g, u, st }) => { SO_UNITS[u.unit_id] = u; const cc = u.state === 'OWNER_LIVES' ? u.invoice_currency : (u.invoice_currency || u.currency);
-                return `<tr onclick="soUnit(${u.unit_id})" class="border-t border-[#182848] cursor-pointer hover:bg-white/5"><td class="py-1.5 pr-2 text-white">${esc(u.property_name)} · ${esc(u.unit_number)}</td><td class="py-1.5 pr-2">${esc(soGroupName(g))}</td><td class="py-1.5 pr-2 whitespace-nowrap">${money(u.service_charge, u.currency)}</td><td class="py-1.5 pr-2 whitespace-nowrap">${money(u.paid, cc)}</td><td class="py-1.5 text-right whitespace-nowrap">${st[0]}</td></tr>`; }).join('') + '</tbody></table></div>' : emptyMsg('No units to show.');
+                return `<tr onclick="soUnit(${u.unit_id})" class="border-t border-[#182848] cursor-pointer hover:bg-white/5 transition"><td class="py-2.5 pr-2 text-white">${esc(u.property_name)} · ${esc(u.unit_number)}</td><td class="py-2.5 pr-2">${esc(soGroupName(g))}</td><td class="py-2.5 pr-2 whitespace-nowrap">${money(u.service_charge, u.currency)}</td><td class="py-2.5 pr-2 whitespace-nowrap">${money(u.paid, cc)}</td><td class="py-2.5 text-right whitespace-nowrap"><span class="inline-block px-2.5 py-0.5 rounded-full ${st[1] === 'paid' ? 'bg-emerald-900/30' : st[1] === 'owing' ? 'bg-rose-900/30' : 'bg-gray-800/60'}">${st[0]}</span></td></tr>`; }).join('') + '</tbody></table></div>' : emptyMsg('No units to show.');
     }
     applyRoleUI();
 }
