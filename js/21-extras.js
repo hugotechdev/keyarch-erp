@@ -36,8 +36,8 @@ function drawChart(data) {
     data.forEach((x, i) => {
         const cx = L + gw * i + gw / 2, h1 = innerH * x.collected / top, h2 = innerH * x.expenses / top, label = MON[parseInt(x.month.slice(5, 7)) - 1];
         s += `<g><title>${label} ${x.month.slice(0, 4)}: collected ${money(x.collected)} · expenses ${money(x.expenses)}</title>
-            <rect x="${cx - bw - 1}" y="${T + innerH - h1}" width="${bw}" height="${Math.max(h1, 0)}" rx="3" fill="#3987e5"/>
-            <rect x="${cx + 1}" y="${T + innerH - h2}" width="${bw}" height="${Math.max(h2, 0)}" rx="3" fill="#d95926"/>
+            <rect class="ka-bar" style="animation-delay:${i * 70}ms" x="${cx - bw - 1}" y="${T + innerH - h1}" width="${bw}" height="${Math.max(h1, 0)}" rx="3" fill="#3987e5"/>
+            <rect class="ka-bar" style="animation-delay:${i * 70 + 35}ms" x="${cx + 1}" y="${T + innerH - h2}" width="${bw}" height="${Math.max(h2, 0)}" rx="3" fill="#d95926"/>
             <text x="${cx}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#c3c2b7">${label}</text></g>`;
     });
     s += '</svg>';

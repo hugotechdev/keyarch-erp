@@ -393,6 +393,50 @@ html[data-theme="light"] .text-indigo-200, html[data-theme="light"] .text-indigo
 html[data-theme="light"] .bg-amber-600\/30, html[data-theme="light"] .bg-amber-600\/20 { background-color: #FDE68A; border-color: #F59E0B; }
 html[data-theme="light"] .bg-amber-600\/30, html[data-theme="light"] .bg-amber-600\/20 { color: #78350F; }
 
+/* ================= MOTION (js/24-motion.js) ================= */
+@keyframes kaPage { from { opacity: 0; transform: translateY(8px); } }
+@keyframes kaRow { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes kaGrow { from { transform: scaleY(0); } }
+@keyframes kaPop { from { opacity: 0; transform: scale(.95) translateY(6px); } }
+@keyframes kaShimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@keyframes kaToastIn { from { opacity: 0; transform: translateY(-14px) scale(.96); } }
+@keyframes kaToastOut { to { opacity: 0; transform: translateY(-10px) scale(.96); } }
+@keyframes kaOk { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,.7); } 60% { transform: scale(1.05); } 100% { box-shadow: 0 0 0 14px rgba(16,185,129,0); } }
+@keyframes kaRing { 0%,100% { transform: rotate(0); } 15% { transform: rotate(14deg); } 30% { transform: rotate(-12deg); } 45% { transform: rotate(9deg); } 60% { transform: rotate(-6deg); } 75% { transform: rotate(3deg); } }
+@keyframes kaPulse { 0% { box-shadow: 0 0 0 0 rgba(99,102,241,.55), 0 10px 25px rgba(0,0,0,.35); } 70%,100% { box-shadow: 0 0 0 16px rgba(99,102,241,0), 0 10px 25px rgba(0,0,0,.35); } }
+.ka-enter { animation: kaPage .35s ease backwards; }
+.ka-enter tbody tr, .ka-enter .space-y-1\.5 > *, .ka-enter .space-y-2 > * { animation: kaRow .35s ease backwards; }
+.ka-enter tbody tr:nth-child(1), .ka-enter .space-y-1\.5 > *:nth-child(1), .ka-enter .space-y-2 > *:nth-child(1) { animation-delay: 40ms; }
+.ka-enter tbody tr:nth-child(2), .ka-enter .space-y-1\.5 > *:nth-child(2), .ka-enter .space-y-2 > *:nth-child(2) { animation-delay: 80ms; }
+.ka-enter tbody tr:nth-child(3), .ka-enter .space-y-1\.5 > *:nth-child(3), .ka-enter .space-y-2 > *:nth-child(3) { animation-delay: 120ms; }
+.ka-enter tbody tr:nth-child(4), .ka-enter .space-y-1\.5 > *:nth-child(4), .ka-enter .space-y-2 > *:nth-child(4) { animation-delay: 160ms; }
+.ka-enter tbody tr:nth-child(5), .ka-enter .space-y-1\.5 > *:nth-child(5), .ka-enter .space-y-2 > *:nth-child(5) { animation-delay: 200ms; }
+.ka-enter tbody tr:nth-child(6), .ka-enter .space-y-1\.5 > *:nth-child(6), .ka-enter .space-y-2 > *:nth-child(6) { animation-delay: 240ms; }
+.ka-enter tbody tr:nth-child(7), .ka-enter .space-y-1\.5 > *:nth-child(7), .ka-enter .space-y-2 > *:nth-child(7) { animation-delay: 280ms; }
+.ka-enter tbody tr:nth-child(8), .ka-enter .space-y-1\.5 > *:nth-child(8), .ka-enter .space-y-2 > *:nth-child(8) { animation-delay: 320ms; }
+.ka-enter tbody tr:nth-child(9), .ka-enter .space-y-1\.5 > *:nth-child(9), .ka-enter .space-y-2 > *:nth-child(9) { animation-delay: 360ms; }
+.ka-enter tbody tr:nth-child(10), .ka-enter .space-y-1\.5 > *:nth-child(10), .ka-enter .space-y-2 > *:nth-child(10) { animation-delay: 400ms; }
+.ka-enter tbody tr:nth-child(11), .ka-enter .space-y-1\.5 > *:nth-child(11), .ka-enter .space-y-2 > *:nth-child(11) { animation-delay: 440ms; }
+.ka-enter tbody tr:nth-child(12), .ka-enter .space-y-1\.5 > *:nth-child(12), .ka-enter .space-y-2 > *:nth-child(12) { animation-delay: 480ms; }
+.ka-bar { transform-box: fill-box; transform-origin: 50% 100%; animation: kaGrow .7s cubic-bezier(.2,.8,.2,1) backwards; }
+[id^="modal-"]:not(.hidden) > div { animation: kaPop .22s ease backwards; }
+.ka-loading [class*="rounded-2xl"]:not(.fixed):not(.absolute):not(.sticky) { position: relative; overflow: hidden; }
+.ka-loading [class*="rounded-2xl"]:not(.fixed):not(.absolute):not(.sticky)::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent, rgba(148,163,184,.16), transparent); animation: kaShimmer 1.1s linear infinite; }
+#ka-nav-marker { position: absolute; left: 0; top: 0; width: 3px; border-radius: 3px; background: linear-gradient(#22d3ee, #6366f1); transition: transform .32s cubic-bezier(.2,.8,.2,1), height .32s; pointer-events: none; opacity: 0; }
+@media (hover: hover) {
+  #page-dashboard .grid > div.p-4, #page-svcowners button.rounded-2xl { transition: transform .18s ease, box-shadow .18s ease; }
+  #page-dashboard .grid > div.p-4:hover, #page-svcowners button.rounded-2xl:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,.22); }
+}
+#ka-toasts { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 8px; width: min(92vw, 420px); pointer-events: none; }
+.ka-toast { pointer-events: auto; cursor: pointer; display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-radius: 14px; font-size: 13px; font-weight: 600; line-height: 1.35; color: #fff; box-shadow: 0 12px 30px rgba(0,0,0,.35); animation: kaToastIn .3s cubic-bezier(.2,.8,.2,1); }
+.ka-toast-ok { background: #047857; } .ka-toast-bad { background: #be123c; }
+.ka-toast-out { animation: kaToastOut .25s ease forwards; }
+.ka-toast-ic { flex: none; width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.22); display: flex; align-items: center; justify-content: center; font-weight: 900; }
+.ka-ok { animation: kaOk .9s ease; }
+.ka-ring { display: inline-block; transform-origin: 50% 0; animation: kaRing .9s ease; }
+#ai-fab { animation: kaPulse 2.8s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between text-gray-100 font-sans">
@@ -789,27 +833,27 @@ html[data-theme="light"] .bg-amber-600\/30, html[data-theme="light"] .bg-amber-6
                     <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                         <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
                             <div class="text-[10px] text-gray-400 uppercase font-semibold">Properties</div>
-                            <div id="kpi-properties" class="text-2xl font-black text-blue-400 mt-1">0</div>
+                            <div id="kpi-properties" class="ka-num text-2xl font-black text-blue-400 mt-1">0</div>
                         </div>
                         <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
                             <div class="text-[10px] text-gray-400 uppercase font-semibold">Units Occupied</div>
-                            <div id="kpi-units" class="text-2xl font-black text-cyan-400 mt-1">0 / 0</div>
+                            <div id="kpi-units" class="ka-num text-2xl font-black text-cyan-400 mt-1">0 / 0</div>
                         </div>
                         <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
                             <div class="text-[10px] text-gray-400 uppercase font-semibold">Active Tenants</div>
-                            <div id="kpi-tenants" class="text-2xl font-black text-emerald-400 mt-1">0</div>
+                            <div id="kpi-tenants" class="ka-num text-2xl font-black text-emerald-400 mt-1">0</div>
                         </div>
                         <div class="p-4 bg-[#0d172d] border border-[#182848] rounded-2xl">
                             <div class="text-[10px] text-gray-400 uppercase font-semibold">Occupancy</div>
-                            <div id="kpi-occupancy" class="text-2xl font-black text-emerald-400 mt-1">0%</div>
+                            <div id="kpi-occupancy" class="ka-num text-2xl font-black text-emerald-400 mt-1">0%</div><div class="h-1 rounded-full bg-gray-700/40 mt-2 overflow-hidden"><div id="kpi-occ-bar" class="h-full rounded-full bg-emerald-400" style="width:0;transition:width .9s cubic-bezier(.2,.8,.2,1)"></div></div>
                         </div>
                         <div class="p-4 bg-[#0d172d] border border-emerald-500/30 rounded-2xl">
                             <div class="text-[10px] text-gray-400 uppercase font-semibold">Rent Collected (This Month)</div>
-                            <div id="kpi-collected" class="text-lg font-black text-emerald-400 mt-1">TZS 0</div>
+                            <div id="kpi-collected" class="ka-num text-lg font-black text-emerald-400 mt-1">TZS 0</div>
                         </div>
                         <div class="p-4 bg-[#0d172d] border border-rose-500/30 rounded-2xl">
                             <div class="text-[10px] text-gray-400 uppercase font-semibold">Total Owed To You</div>
-                            <div id="kpi-outstanding" class="text-lg font-black text-rose-400 mt-1">TZS 0</div>
+                            <div id="kpi-outstanding" class="ka-num text-lg font-black text-rose-400 mt-1">TZS 0</div>
                         </div>
                     </div>
 
@@ -818,22 +862,22 @@ html[data-theme="light"] .bg-amber-600\/30, html[data-theme="light"] .bg-amber-6
                         <button onclick="openDueList('overdue')" class="text-left p-4 bg-[#0d172d] border-l-4 border-red-500 rounded-2xl shadow-lg hover:bg-[#101d38] transition">
                             <div class="text-xs text-gray-400 font-semibold uppercase">Overdue</div>
                             <div class="flex items-end justify-between mt-1">
-                                <div id="due-overdue-count" class="text-3xl font-black text-red-400">0</div>
-                                <div id="due-overdue-amount" class="text-sm font-bold text-red-300">TZS 0</div>
+                                <div id="due-overdue-count" class="ka-num text-3xl font-black text-red-400">0</div>
+                                <div id="due-overdue-amount" class="ka-num text-sm font-bold text-red-300">TZS 0</div>
                             </div>
                         </button>
                         <button onclick="openDueList('week')" class="text-left p-4 bg-[#0d172d] border-l-4 border-amber-500 rounded-2xl shadow-lg hover:bg-[#101d38] transition">
                             <div class="text-xs text-gray-400 font-semibold uppercase">Due In 1 Week</div>
                             <div class="flex items-end justify-between mt-1">
-                                <div id="due-week-count" class="text-3xl font-black text-amber-400">0</div>
-                                <div id="due-week-amount" class="text-sm font-bold text-amber-300">TZS 0</div>
+                                <div id="due-week-count" class="ka-num text-3xl font-black text-amber-400">0</div>
+                                <div id="due-week-amount" class="ka-num text-sm font-bold text-amber-300">TZS 0</div>
                             </div>
                         </button>
                         <button onclick="openDueList('month')" class="text-left p-4 bg-[#0d172d] border-l-4 border-blue-500 rounded-2xl shadow-lg hover:bg-[#101d38] transition">
                             <div class="text-xs text-gray-400 font-semibold uppercase">Due In 1 Month</div>
                             <div class="flex items-end justify-between mt-1">
-                                <div id="due-month-count" class="text-3xl font-black text-blue-400">0</div>
-                                <div id="due-month-amount" class="text-sm font-bold text-blue-300">TZS 0</div>
+                                <div id="due-month-count" class="ka-num text-3xl font-black text-blue-400">0</div>
+                                <div id="due-month-amount" class="ka-num text-sm font-bold text-blue-300">TZS 0</div>
                             </div>
                         </button>
                     </div>
@@ -2387,8 +2431,10 @@ html[data-theme="light"] .bg-amber-600\/30, html[data-theme="light"] .bg-amber-6
                         <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Advanced reports</span><select id="pc-f-reports_advanced" class="p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"><option value="">Plan default</option><option value="on">On</option><option value="off">Off</option></select></div>
                         <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Full backup</span><select id="pc-f-backup_full" class="p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"><option value="">Plan default</option><option value="on">On</option><option value="off">Off</option></select></div>
                         <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Structure (departments)</span><select id="pc-f-structure" class="p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"><option value="">Plan default (Off)</option><option value="on">On</option><option value="off">Off</option></select></div>
+                        <div class="flex items-center justify-between gap-2"><span class="text-gray-300">AI assistant</span><select id="pc-f-ai" class="p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"><option value="">Plan default (Pro: On)</option><option value="on">On</option><option value="off">Off</option></select></div>
                         <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Max properties</span><input type="number" min="0" id="pc-l-max_properties" placeholder="plan default" class="w-32 p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"></div>
                         <div class="flex items-center justify-between gap-2"><span class="text-gray-300">Max staff</span><input type="number" min="0" id="pc-l-max_staff" placeholder="plan default" class="w-32 p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"></div>
+                        <div class="flex items-center justify-between gap-2"><span class="text-gray-300">AI questions / month</span><input type="number" min="0" id="pc-l-max_ai_questions" placeholder="plan default" class="w-32 p-2 rounded-lg bg-[#14223d] border border-[#1e2f52] text-white text-xs"></div>
                     </div>
                     <p class="text-[10px] text-gray-500 mt-2">For the limits: leave empty = plan default, 0 = unlimited.</p>
                 </div>
@@ -2469,6 +2515,8 @@ html[data-theme="light"] .bg-amber-600\/30, html[data-theme="light"] .bg-amber-6
 <script src="/js/20-structure.js"></script>
 <script src="/js/21-extras.js"></script>
 <script src="/js/22-import.js"></script>
+    <script src="/js/23-ai-assistant.js"></script>
+    <script src="/js/24-motion.js"></script>
 <script src="/js/99-i18n.js"></script>
 
 

@@ -155,7 +155,7 @@ function soCur(totals, key) {
     return out.length ? out.join(' + ') : money(0, 'TZS');
 }
 function soTile(label, value, cls, sub) {
-    return `<div class="p-3 rounded-xl bg-[#0d172d] border border-[#182848]"><div class="text-[10px] uppercase text-gray-500">${sp(label)}</div><div class="text-sm font-black ${cls || 'text-white'} mt-0.5">${value}</div>${sub ? `<div class="text-[10px] text-gray-500 mt-0.5">${sub}</div>` : ''}</div>`;
+    return `<div class="p-3 rounded-xl bg-[#0d172d] border border-[#182848]"><div class="text-[10px] uppercase text-gray-500">${sp(label)}</div><div class="ka-num text-sm font-black ${cls || 'text-white'} mt-0.5">${value}</div>${sub ? `<div class="text-[10px] text-gray-500 mt-0.5">${sub}</div>` : ''}</div>`;
 }
 function soChips(c, always) {
     const chip = (n, cls, label) => (n || always) ? `<span class="px-2 py-0.5 rounded-full ${cls} whitespace-nowrap">${n || 0} ${sp(label)}</span>` : '';

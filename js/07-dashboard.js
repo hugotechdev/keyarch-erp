@@ -58,6 +58,7 @@ function renderOverview(d) {
     setText('kpi-units', `${t.occupied} / ${t.units}`);
     setText('kpi-tenants', t.tenants);
     setText('kpi-occupancy', `${t.occupancyRate}%`);
+    const occBar = document.getElementById('kpi-occ-bar'); if (occBar) occBar.style.width = Math.max(0, Math.min(100, Number(t.occupancyRate) || 0)) + '%';
     setText('kpi-collected', money(m.collectedThisMonth));
     setText('kpi-outstanding', money(m.outstanding));
 
